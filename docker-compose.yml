@@ -1,0 +1,49 @@
+services:
+  mysql:
+    image: mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: password
+      MYSQL_DATABASE: scms
+    ports:
+      - "3307:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-ppassword"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  # Single Laravel app: public site at /, admin SPA at /admin, API at /api
+  app:
+    build: ./docker/backend
+    working_dir: /var/www/html
+    volumes:
+      - ./backend:/var/www/html
+    environment:
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_DATABASE: scms
+      DB_USERNAME: root
+      DB_PASSWORD: password
+    command: sh -c "composer install --no-interaction && cd public && php -S 0.0.0.0:8000 ../vendor/laravel/framework/src/Illuminate/Foundation/resources/server.php"
+    ports:
+      - "8000:8000"
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+  # Vite dev server (HMR) for the admin SPA and public CSS. Not needed in production: run `npm run build`.
+  vite:
+    image: node:20
+    working_dir: /var/www/html
+    volumes:
+      - ./backend:/var/www/html
+      - node-modules:/var/www/html/node_modules
+    command: sh -c "npm install && npm run dev"
+    ports:
+      - "5173:5173"
+
+volumes:
+  mysql-data:
+  node-modules:

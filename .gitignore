@@ -1,0 +1,23 @@
+# OS / editors
+.DS_Store
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# Dependencies & build output
+node_modules/
+backend/vendor/
+backend/public/build/
+backend/public/hot
+frontend/dist/
+
+# Environment & secrets
+.env
+.env.*
+!.env.example
+
+# Logs
+*.log
+
+# Private notes
+prompts.md
