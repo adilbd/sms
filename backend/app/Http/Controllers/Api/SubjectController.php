@@ -3,72 +3,56 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Subject\StoreSubjectRequest;
+use App\Http\Requests\Subject\UpdateSubjectRequest;
+use App\Http\Resources\SubjectResource;
 use App\Models\Subject;
+use App\Services\SubjectService;
 use Illuminate\Http\Request;
 
+/**
+ * Reference implementation of the Controller → Service → Repository pattern.
+ * See docs/architecture-guidelines.md.
+ */
 class SubjectController extends Controller
 {
+    public function __construct(private SubjectService $subjects) {}
+
     public function index(Request $request)
     {
-        $query = Subject::query();
+        $perPage = min(max((int) $request->query('per_page', 15), 1), 100);
 
-        if ($request->has('search')) {
-            $query->where('name', 'like', "%{$request->search}%")
-                  ->orWhere('code', 'like', "%{$request->search}%");
-        }
-
-        return $query->paginate($request->per_page ?? 15);
+        return SubjectResource::collection(
+            $this->subjects->list($request->only(['search', 'is_active']), $perPage)
+        );
     }
 
-    public function store(Request $request)
+    public function store(StoreSubjectRequest $request)
     {
-        $validated = $request->validate([
-            'name' => 'required|string|max:255',
-            'code' => 'required|string|unique:subjects,code',
-            'type' => 'nullable|string',
-            'total_marks' => 'nullable|integer',
-            'pass_marks' => 'nullable|integer',
-            'description' => 'nullable|string',
-            'is_active' => 'nullable|boolean',
-        ]);
+        $subject = $this->subjects->create($request->validated());
 
-        $subject = Subject::create($validated);
-
-        return response()->json([
-            'message' => 'Subject created successfully',
-            'data' => $subject,
-        ], 201);
+        return (new SubjectResource($subject))
+            ->additional(['message' => 'Subject created successfully'])
+            ->response()
+            ->setStatusCode(201);
     }
 
     public function show(Subject $subject)
     {
-        return response()->json($subject);
+        return new SubjectResource($subject);
     }
 
-    public function update(Request $request, Subject $subject)
+    public function update(UpdateSubjectRequest $request, Subject $subject)
     {
-        $validated = $request->validate([
-            'name' => 'sometimes|string|max:255',
-            'code' => 'sometimes|string|unique:subjects,code,' . $subject->id,
-            'type' => 'nullable|string',
-            'total_marks' => 'nullable|integer',
-            'pass_marks' => 'nullable|integer',
-            'description' => 'nullable|string',
-            'is_active' => 'nullable|boolean',
-        ]);
+        $subject = $this->subjects->update($subject, $request->validated());
 
-        $subject->update($validated);
-
-        return response()->json([
-            'message' => 'Subject updated successfully',
-            'data' => $subject,
-        ]);
+        return (new SubjectResource($subject))->additional(['message' => 'Subject updated successfully']);
     }
 
     public function destroy(Subject $subject)
     {
-        $subject->delete();
-        return response()->json(['message' => 'Subject deleted successfully']);
+        $this->subjects->delete($subject);
+
+        return response()->noContent();
     }
 }
-

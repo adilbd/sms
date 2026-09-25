@@ -18,7 +18,7 @@ The format follows Laravel's API Resource conventions, which `/api/public/*` alr
 - Return a `JsonResource`, never a bare model or array: `return new ClassResource($class);`
 - `message` is optional. Include it for mutations the admin UI shows a toast for, using `->additional(['message' => '...'])`.
 - `store` returns **201**: `(new ClassResource($class))->response()->setStatusCode(201)`
-- Load relations before returning (`$class->load('sections')`) and expose them in the resource with `whenLoaded()`.
+- Load relations in the repository (its `query()` for lists, or a dedicated method) and expose them in the resource with `whenLoaded()`.
 
 ### Paginated list: `index`
 
@@ -84,7 +84,7 @@ Let Laravel's exception handler render errors. **Don't catch exceptions just to 
 
 Rules:
 - **Never put `$e->getMessage()`, stack traces, SQL or class names in a response.** For a 500, let the handler render it. With `APP_DEBUG=false` it returns only `{"message": "Server Error"}`, and the details go to the log.
-- For multi-step writes, use `DB::transaction(function () { ... })`. It rolls back and rethrows on failure. Don't use `beginTransaction()` / `try` / `catch` / `return 500`.
+- For multi-step writes, use `DB::transaction(function () { ... })` in the service. It rolls back and rethrows on failure. Don't use `beginTransaction()` / `try` / `catch` / `return 500`.
 - Error `message` strings are shown to end users. Write them as plain sentences.
 - Laravel renders errors as JSON only when the request sends `Accept: application/json`. The admin client (`resources/js/admin/services/api.js`) sends it, and tests must use `getJson` / `postJson` / etc.
 
@@ -113,9 +113,11 @@ Don't return 200 with an error body, and don't return 500 for errors the user ca
 
 ## Resources
 
+The Subjects module (`SubjectResource`, `SubjectController`) is the reference example. It follows this guideline and [architecture-guidelines.md](architecture-guidelines.md).
+
 - Create one resource per model in `backend/app/Http/Resources`, named `{Model}Resource`. Map the fields explicitly in `toArray()`.
 - Nest related models through their own resources: `'class' => new ClassResource($this->whenLoaded('class'))`.
-- Eager-load in the controller. Never lazy-load inside a resource, because it causes N+1 queries on lists.
+- Eager-load in the repository (see [architecture-guidelines.md](architecture-guidelines.md)). Never lazy-load inside a resource, because it causes N+1 queries on lists.
 - If a list and a detail view need different fields, use one resource with an opt-in flag, as `PostResource::withBody()` does. Don't create a second resource.
 
 ## Tests
@@ -145,10 +147,10 @@ These endpoints were written before this guideline and don't follow it yet:
 
 | Endpoint | What's different |
 |----------|------------------|
-| `index` on students, classes, sections, subjects, academic-years, attendances, posts | Return Laravel's flat paginator (`current_page`, `total`, ... at the top level, not under `meta`) |
-| `show` on students, classes, sections, subjects, academic-years; all post endpoints | Return a bare model instead of `{ "data": ... }` |
-| `store` / `update` on students, classes, sections, subjects, academic-years, attendances | `{message, data}` with a raw model instead of a resource |
-| `destroy` on all resources | 200 with `{message}` instead of 204 |
+| `index` on students, classes, sections, academic-years, attendances, posts | Return Laravel's flat paginator (`current_page`, `total`, ... at the top level, not under `meta`) |
+| `show` on students, classes, sections, academic-years; all post endpoints | Return a bare model instead of `{ "data": ... }` |
+| `store` / `update` on students, classes, sections, academic-years, attendances | `{message, data}` with a raw model instead of a resource |
+| `destroy` on all resources except subjects | 200 with `{message}` instead of 204 |
 | `students` store/update/destroy, `classes` destroy | Catch exceptions and return `error: $e->getMessage()` with a 500 |
 | `attendances/report/{student}` | `{stats, attendances}` without the `data` wrapper |
 | `login` / `me` | `{user, token}` and a bare user |

@@ -198,11 +198,13 @@ Routes exist for the following, but their controller methods aren't written yet,
 
 ### Adding New Features
 
-1. **Backend**: create a controller, model and migration, then register the routes in `routes/api.php`:
-   ```bash
-   php artisan make:controller Api/YourController
-   php artisan make:model YourModel -m
-   ```
+1. **Backend**: follow the Controller → Service → Repository pattern in [docs/architecture-guidelines.md](docs/architecture-guidelines.md). The Subjects module is the reference. Create:
+   - a model and migration (`php artisan make:model YourModel -mf`)
+   - a repository interface and its Eloquent implementation, bound in `RepositoryServiceProvider`
+   - a service
+   - FormRequests (`php artisan make:request YourModel/StoreYourModelRequest`)
+   - an API Resource
+   - a thin controller, with its routes in `routes/api.php`
 2. **Admin UI**: add a view under `backend/resources/js/admin/views/` and a route in `backend/resources/js/admin/router/index.js`.
 3. **Public page**: add a Blade view under `backend/resources/views/public/`. It extends `layouts.public`, fills the `seo` section with `<x-seo>`, and has exactly one `<h1>`.
 
