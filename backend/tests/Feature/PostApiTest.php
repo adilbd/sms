@@ -110,6 +110,19 @@ class PostApiTest extends TestCase
             ->assertJsonValidationErrors('type');
     }
 
+    public function test_store_rejects_a_slug_with_non_ascii_letters(): void
+    {
+        $this->actingAs($this->admin, 'sanctum')
+            ->postJson('/api/posts', [
+                'type' => 'news',
+                'title' => 'Arger',
+                'slug' => 'ärger',
+                'body' => '<p>Fun facts about science.</p>',
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('slug');
+    }
+
     public function test_event_requires_starts_at(): void
     {
         $this->actingAs($this->admin, 'sanctum')

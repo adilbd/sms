@@ -22,7 +22,7 @@ class UpdatePostRequest extends FormRequest
         return [
             'type' => ['sometimes', Rule::in(Post::TYPES)],
             'title' => 'sometimes|string|max:255',
-            'slug' => ['nullable', 'alpha_dash', 'max:255', Rule::unique('posts', 'slug')->ignore($this->route('post'))],
+            'slug' => ['nullable', 'alpha_dash:ascii', 'max:255', Rule::unique('posts', 'slug')->ignore($this->route('post'))],
             'excerpt' => 'nullable|string|max:500',
             'body' => 'sometimes|string|max:200000',
             'cover_image' => 'nullable|string|max:255',

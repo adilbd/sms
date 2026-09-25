@@ -22,7 +22,7 @@ class StorePostRequest extends FormRequest
         return [
             'type' => ['required', Rule::in(Post::TYPES)],
             'title' => 'required|string|max:255',
-            'slug' => ['nullable', 'alpha_dash', 'max:255', Rule::unique('posts', 'slug')],
+            'slug' => ['nullable', 'alpha_dash:ascii', 'max:255', Rule::unique('posts', 'slug')],
             'excerpt' => 'nullable|string|max:500',
             'body' => 'required|string|max:200000',
             'cover_image' => 'nullable|string|max:255',

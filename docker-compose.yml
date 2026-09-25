@@ -27,7 +27,7 @@ services:
       DB_DATABASE: scms
       DB_USERNAME: root
       DB_PASSWORD: password
-    command: sh -c "composer install --no-interaction && php artisan storage:link || true && cd public && php -S 0.0.0.0:8000 ../vendor/laravel/framework/src/Illuminate/Foundation/resources/server.php"
+    command: sh -c "composer install --no-interaction && (php artisan storage:link || true) && cd public && php -S 0.0.0.0:8000 ../vendor/laravel/framework/src/Illuminate/Foundation/resources/server.php"
     ports:
       - "8000:8000"
     depends_on:
