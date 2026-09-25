@@ -6,11 +6,17 @@ use App\Http\Controllers\Controller;
 use App\Models\Student;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Routing\Controllers\HasMiddleware;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 
-class StudentController extends Controller
+class StudentController extends Controller implements HasMiddleware
 {
+    public static function middleware(): array
+    {
+        return static::resourcePermissions('students');
+    }
+
     public function index(Request $request)
     {
         $query = Student::with(['user', 'class', 'section', 'academicYear', 'parents']);

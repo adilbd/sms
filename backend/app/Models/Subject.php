@@ -11,6 +11,16 @@ class Subject extends Model
 {
     use HasFactory, SoftDeletes;
 
+    public const TYPES = ['theory', 'practical', 'both'];
+
+    /** Mirrors the column defaults in the subjects migration. */
+    protected $attributes = [
+        'type' => 'theory',
+        'total_marks' => 100,
+        'pass_marks' => 40,
+        'is_active' => true,
+    ];
+
     protected $fillable = [
         'name',
         'code',

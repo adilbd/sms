@@ -2,8 +2,13 @@
 namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
-class TeacherController extends Controller
+use Illuminate\Routing\Controllers\HasMiddleware;
+class TeacherController extends Controller implements HasMiddleware
 {
+    public static function middleware(): array
+    {
+        return static::resourcePermissions('teachers');
+    }
     public function index(Request $request) { return response()->json(['data' => []]); }
     public function store(Request $request) { return response()->json(['message' => 'Coming soon'], 501); }
     public function show($id) { return response()->json(['message' => 'Coming soon'], 501); }

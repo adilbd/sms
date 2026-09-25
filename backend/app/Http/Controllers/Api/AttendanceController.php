@@ -5,9 +5,19 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Attendance;
 use Illuminate\Http\Request;
+use Illuminate\Routing\Controllers\HasMiddleware;
 
-class AttendanceController extends Controller
+class AttendanceController extends Controller implements HasMiddleware
 {
+    public static function middleware(): array
+    {
+        return static::resourcePermissions('attendance', [
+            'store' => 'mark-attendance',
+            'bulkStore' => 'mark-attendance',
+            'studentReport' => 'view-attendance',
+        ]);
+    }
+
     public function index(Request $request)
     {
         $query = Attendance::with(['student.user', 'class', 'section', 'markedBy']);

@@ -33,7 +33,8 @@ abstract class EloquentRepository implements RepositoryInterface
 
     public function create(array $attributes): Model
     {
-        return $this->model::create($attributes);
+        // Reload so column defaults set by the database appear in the response.
+        return $this->model::create($attributes)->refresh();
     }
 
     public function update(Model $model, array $attributes): Model

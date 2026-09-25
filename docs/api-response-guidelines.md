@@ -30,9 +30,9 @@ The format follows Laravel's API Resource conventions, which `/api/public/*` alr
 }
 ```
 
-- Pass the paginator to the resource: `return ClassResource::collection($query->paginate($perPage));`
+- Pass the service's paginator to the resource: `return SubjectResource::collection($this->subjects->list($filters, $perPage));`. Controllers never build queries (see [architecture-guidelines.md](architecture-guidelines.md)).
 - Clamp `per_page`: `min(max((int) $request->query('per_page', 15), 1), 100)`. Never pass the raw request value to `paginate()`.
-- Filters are query parameters with `snake_case` names matching the columns (`class_id`, `academic_year_id`, `search`, `is_active`). Use `$request->filled()`, not `has()`, so empty strings are ignored.
+- Filters are query parameters with `snake_case` names matching the columns (`class_id`, `academic_year_id`, `search`, `is_active`). Validate them in an index FormRequest (see `IndexSubjectRequest`) and pass `$request->safe()->only([...])` to the service. The repository's `applyFilters()` checks each key with `filled()`, not `isset()` or `has()`, so empty values are ignored rather than treated as `false`.
 
 ### Non-paginated list: small lookups such as dropdown options
 
@@ -75,8 +75,8 @@ Let Laravel's exception handler render errors. **Don't catch exceptions just to 
 | Invalid input | `$request->validate([...])` or a FormRequest | 422 |
 | A problem the user can fix that isn't a simple rule (for example, wrong current password or bad credentials) | `throw ValidationException::withMessages(['field' => ['...']])` | 422 |
 | Not logged in or bad token | `auth:sanctum` middleware | 401 |
-| Wrong role or permission | `role:` / `permission:` middleware, or `abort(403)` | 403 |
-| Record not found | Route model binding, or `findOrFail()` | 404 |
+| Wrong role or permission | Per-action `permission:` middleware on the controller (see [architecture-guidelines.md](architecture-guidelines.md)), or `abort(403)` | 403 |
+| Record not found | Route model binding, or `findOrFail()`. `bootstrap/app.php` renders these as `{"message": "Record not found."}`, so model class names never reach the client | 404 |
 | Conflicts with the current state (for example, deleting a class that still has students) | `abort(409, 'Class still has students.')` | 409 |
 | Too many requests | `throttle:` middleware | 429 |
 | Endpoint not implemented yet | `abort(501, 'Not implemented yet.')` | 501 |
@@ -86,7 +86,7 @@ Rules:
 - **Never put `$e->getMessage()`, stack traces, SQL or class names in a response.** For a 500, let the handler render it. With `APP_DEBUG=false` it returns only `{"message": "Server Error"}`, and the details go to the log.
 - For multi-step writes, use `DB::transaction(function () { ... })` in the service. It rolls back and rethrows on failure. Don't use `beginTransaction()` / `try` / `catch` / `return 500`.
 - Error `message` strings are shown to end users. Write them as plain sentences.
-- Laravel renders errors as JSON only when the request sends `Accept: application/json`. The admin client (`resources/js/admin/services/api.js`) sends it, and tests must use `getJson` / `postJson` / etc.
+- `bootstrap/app.php` renders every `/api/*` error as JSON, whether or not the client sends `Accept: application/json`, and guests get a 401 instead of a redirect. Tests should still use `getJson` / `postJson` / etc., and `SubjectApiTest::test_errors_are_json_even_without_accept_header` covers requests without the header.
 
 ## Status codes
 

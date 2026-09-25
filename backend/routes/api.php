@@ -32,7 +32,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::apiResource('sections', \App\Http\Controllers\Api\SectionController::class);
 
     // Subjects
-    Route::apiResource('subjects', \App\Http\Controllers\Api\SubjectController::class);
+    Route::apiResource('subjects', \App\Http\Controllers\Api\SubjectController::class)
+        ->where(['subject' => '[0-9]+']);
 
     // Teachers
     Route::apiResource('teachers', \App\Http\Controllers\Api\TeacherController::class);

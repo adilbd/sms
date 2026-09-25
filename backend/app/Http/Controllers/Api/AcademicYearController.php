@@ -5,9 +5,23 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\AcademicYear;
 use Illuminate\Http\Request;
+use Illuminate\Routing\Controllers\HasMiddleware;
 
-class AcademicYearController extends Controller
+class AcademicYearController extends Controller implements HasMiddleware
 {
+    public static function middleware(): array
+    {
+        // Any signed-in user can read academic years; changing them is a settings task.
+        return static::resourcePermissions('settings', [
+            'index' => null,
+            'show' => null,
+            'store' => 'edit-settings',
+            'update' => 'edit-settings',
+            'destroy' => 'edit-settings',
+            'activate' => 'edit-settings',
+        ]);
+    }
+
     public function index(Request $request)
     {
         return AcademicYear::orderBy('start_date', 'desc')

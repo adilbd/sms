@@ -3,27 +3,33 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Subject\IndexSubjectRequest;
 use App\Http\Requests\Subject\StoreSubjectRequest;
 use App\Http\Requests\Subject\UpdateSubjectRequest;
 use App\Http\Resources\SubjectResource;
 use App\Models\Subject;
 use App\Services\SubjectService;
-use Illuminate\Http\Request;
+use Illuminate\Routing\Controllers\HasMiddleware;
 
 /**
  * Reference implementation of the Controller → Service → Repository pattern.
  * See docs/architecture-guidelines.md.
  */
-class SubjectController extends Controller
+class SubjectController extends Controller implements HasMiddleware
 {
     public function __construct(private SubjectService $subjects) {}
 
-    public function index(Request $request)
+    public static function middleware(): array
+    {
+        return static::resourcePermissions('subjects');
+    }
+
+    public function index(IndexSubjectRequest $request)
     {
         $perPage = min(max((int) $request->query('per_page', 15), 1), 100);
 
         return SubjectResource::collection(
-            $this->subjects->list($request->only(['search', 'is_active']), $perPage)
+            $this->subjects->list($request->safe()->only(['search', 'is_active']), $perPage)
         );
     }
 

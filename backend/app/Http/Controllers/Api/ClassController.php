@@ -5,9 +5,15 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Classes;
 use Illuminate\Http\Request;
+use Illuminate\Routing\Controllers\HasMiddleware;
 
-class ClassController extends Controller
+class ClassController extends Controller implements HasMiddleware
 {
+    public static function middleware(): array
+    {
+        return static::resourcePermissions('classes');
+    }
+
     public function index(Request $request)
     {
         $query = Classes::with('sections');

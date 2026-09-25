@@ -15,9 +15,14 @@ class SubjectRepository extends EloquentRepository implements SubjectRepositoryI
         return $subject->examSchedules()->exists();
     }
 
+    public function hasTeacherAssignments(Subject $subject): bool
+    {
+        return $subject->subjectAssignments()->exists();
+    }
+
     protected function query(): Builder
     {
-        return Subject::query()->orderBy('name');
+        return parent::query()->orderBy('name')->orderBy('id');
     }
 
     protected function applyFilters(Builder $query, array $filters): Builder
@@ -31,7 +36,7 @@ class SubjectRepository extends EloquentRepository implements SubjectRepositoryI
                 ->orWhere('code', 'like', "%{$search}%"));
         }
 
-        if (isset($filters['is_active'])) {
+        if (filled($filters['is_active'] ?? null)) {
             $query->where('is_active', filter_var($filters['is_active'], FILTER_VALIDATE_BOOLEAN));
         }
 
