@@ -9,7 +9,6 @@ node_modules/
 backend/vendor/
 backend/public/build/
 backend/public/hot
-frontend/dist/
 
 # Environment & secrets
 .env

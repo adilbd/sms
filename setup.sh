@@ -40,17 +40,8 @@ fi
 echo "Running migrations..."
 php artisan migrate:fresh --seed --force
 
-echo "✅ Backend setup complete!"
-echo ""
-
-# Frontend Setup
-cd ../frontend
-
-echo "📦 Setting up Frontend..."
 echo "Installing npm dependencies..."
 npm install
-
-echo "✅ Frontend setup complete!"
 echo ""
 
 # Summary
@@ -59,13 +50,9 @@ echo "✅ Setup Complete!"
 echo ""
 echo "To start the application:"
 echo ""
-echo "Terminal 1 (Backend):"
-echo "  cd backend && php artisan serve"
+echo "  cd backend && composer dev"
 echo ""
-echo "Terminal 2 (Frontend):"
-echo "  cd frontend && npm run dev"
-echo ""
-echo "Then visit: http://localhost:3000"
+echo "Then visit: http://localhost:8000 (admin at /admin)"
 echo ""
 echo "Default Login:"
 echo "  Email: admin@sms.com"
