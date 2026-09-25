@@ -46,6 +46,56 @@ Seeded admin login: `admin@sms.com` / `password`.
 - **Model naming quirks**: the class model is `App\Models\Classes` (table `classes`), because `Class` is a reserved word. The parent model is `ParentModel`. The class–section pivot is `ClassSection`.
 - **Stub controllers**: these API controllers are empty 12-line stubs even though `api.php` registers routes for them: Teacher, Parent, Exam, ExamSchedule, ExamResult, FeeType, FeeStructure, FeePayment and Dashboard. For now, `index` returns `{"data": []}` and the other actions return 501. The extra routes (`dashboard/stats`, `dashboard/recent-activities`, `exams/{exam}/publish`, `exam-results/student/...`, `fee-payments/student/...`, `fee-payments/receipt/...`) point at methods that don't exist yet, so they return 500. The admin views that use them are mostly placeholders too.
 
+## Development workflow
+
+This repo ships a per-task agent harness under `.claude/`: slash commands, two subagents,
+a smoke script and a `PreToolUse` gate hook. A task flows **spec → task file → branch →
+code → test → smoke → commit → review → PR**.
+
+**Who does what.** The main session (usually Opus) plans, asks the user questions,
+delegates and reports. It does **not** write product code itself. Code comes from Sonnet:
+the **`implementer`** subagent writes features, fixes and review follow-ups, and
+**`test-runner`** fixes failing tests. Review comes from **`code-reviewer`** on Opus, so
+the code is always reviewed by a different model from the one that wrote it.
+
+- **`/new-task <spec>`** grooms the spec (problem, scope, acceptance criteria and
+  **explicit test cases**), saves it to `docs/tasks/<slug>.md` (template in
+  `docs/tasks/README.md`), and cuts `feat/<slug>` or `fix/<slug>` from `main`.
+- **`/implement <task file | description>`** hands the task to `implementer` (Sonnet),
+  checks the diff stays in scope, and reports. Follow-up fixes go back to `implementer`.
+- **`/new-module <Model>`** plans a backend module and has `implementer` build it to the
+  architecture guideline, using Subjects as the reference: repository interface and implementation, binding,
+  service, FormRequests, resource, controller with permissions, routes and tests.
+- **`/wrap-up [base]`** runs the end-of-task gate in this order:
+  1. The **`test-runner`** subagent runs `php artisan test`, Pint on files added on this
+     branch, and the hook classifier tests. It fixes failures until green.
+  2. **Smoke:** `bash .claude/scripts/smoke.sh` seeds a throwaway SQLite database, boots
+     the app on :8123, checks the public pages, `/admin`, the public API, an
+     unauthenticated 401 and an admin login, then tears everything down. It never
+     touches your real database.
+  3. It updates the task file, then **asks** before committing.
+  4. The **`code-reviewer`** subagent (read-only, runs on Opus, a different model from
+     the Sonnet writer) reviews `base...HEAD` against `CLAUDE.md` and both guidelines, then
+     records its verdict.
+  5. If everything is green, it **asks** whether to push and open the PR.
+- **`/pr-review [base]`** runs only the review step, for example after a fixup commit.
+  It refuses on a dirty tree.
+- Both review commands stop after **2 consecutive `changes-requested`** verdicts and hand
+  the decision back to the user.
+
+**Automated gates** (`.claude/hooks/gate.sh`, with commands classified by `classify.py`):
+- `git commit` is denied on `main` or `master`. Use a task branch.
+- `gh pr create` is denied unless `code-reviewer` recorded `pass` or `pass-with-nits` for
+  the **exact current HEAD** on a clean tree. Receipts live in `.claude/.review-gate/`
+  (gitignored, per machine).
+- **`.claude/.review-gate/OVERRIDE`** disables both gates. Only the user creates it, by
+  hand, outside Claude Code. Any tool call that tries to create or edit it is denied, and
+  an agent must never suggest working around the gate by creating it.
+- The hook is a cooperative guard, not a security boundary. Before changing
+  `classify.py` or `gate.sh`, read their headers, then run
+  `python3 .claude/hooks/test_classify.py`. Every case in it is a real bypass that was
+  found and fixed.
+
 ## Architecture layers
 
 Backend features follow Controller → Service → Repository interface → Eloquent repository. Controllers only handle HTTP, services hold the business rules and transactions, and repositories are the only place that builds queries. Every interface is bound in `RepositoryServiceProvider`. Subjects is the reference module. Legacy modules are converted only when they're otherwise being changed.

@@ -20,3 +20,8 @@ backend/public/hot
 
 # Private notes
 prompts.md
+
+# Claude Code: per-machine PR-review-gate receipts and local settings
+.claude/.review-gate/
+.claude/hooks/__pycache__/
+.claude/settings.local.json

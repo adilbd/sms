@@ -1,0 +1,26 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash|Write|Edit|NotebookEdit|mcp__phpstorm__execute_terminal_command",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR/.claude/hooks/gate.sh\"",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  },
+  "permissions": {
+    "allow": [
+      "Bash(php artisan test:*)",
+      "Bash(./vendor/bin/pint --test:*)",
+      "Bash(bash .claude/scripts/smoke.sh:*)",
+      "Bash(python3 .claude/hooks/test_classify.py)",
+      "Bash(bash .claude/hooks/record-review.sh:*)",
+      "Bash(.claude/hooks/record-review.sh:*)"
+    ]
+  }
+}
