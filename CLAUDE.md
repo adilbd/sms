@@ -45,3 +45,9 @@ Seeded admin login: `admin@sms.com` / `password`.
 - **Vite entries**: there are two, `resources/css/public.css` (the public site, Tailwind) and `resources/js/admin/main.js` (the admin). The `@` alias points to `resources/js/admin`.
 - **Model naming quirks**: the class model is `App\Models\Classes` (table `classes`), because `Class` is a reserved word. The parent model is `ParentModel`. The class–section pivot is `ClassSection`.
 - **Stub controllers**: these API controllers are empty 12-line stubs even though `api.php` registers routes for them: Teacher, Parent, Exam, ExamSchedule, ExamResult, FeeType, FeeStructure, FeePayment and Dashboard. For now, `index` returns `{"data": []}` and the other actions return 501. The extra routes (`dashboard/stats`, `dashboard/recent-activities`, `exams/{exam}/publish`, `exam-results/student/...`, `fee-payments/student/...`, `fee-payments/receipt/...`) point at methods that don't exist yet, so they return 500. The admin views that use them are mostly placeholders too.
+
+## API responses
+
+Every `/api` endpoint must follow the response format in the guideline below: resources wrapped in `data`, pagination under `meta`, standard error shapes and status codes, and field conventions. It also lists the legacy endpoints that don't follow it yet and how to migrate one together with the admin SPA views that use it.
+
+@docs/api-response-guidelines.md

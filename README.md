@@ -206,6 +206,9 @@ Routes exist for the following, but their controller methods aren't written yet,
 2. **Admin UI**: add a view under `backend/resources/js/admin/views/` and a route in `backend/resources/js/admin/router/index.js`.
 3. **Public page**: add a Blade view under `backend/resources/views/public/`. It extends `layouts.public`, fills the `seo` section with `<x-seo>`, and has exactly one `<h1>`.
 
+### API Responses
+All `/api` endpoints follow [docs/api-response-guidelines.md](docs/api-response-guidelines.md): the response shapes, error format, status codes and field conventions.
+
 ### Configuring the Public Site
 Set the site name, default description and image, and school contact details in `.env` using the `SEO_*` and `SCHOOL_*` variables. See `backend/config/seo.php` for the full list.
 
