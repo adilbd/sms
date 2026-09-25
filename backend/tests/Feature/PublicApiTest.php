@@ -92,7 +92,7 @@ class PublicApiTest extends TestCase
         $this->actingAs($admin, 'sanctum')
             ->postJson('/api/posts', ['type' => 'news', 'title' => 'Science Week', 'body' => 'Fun', 'is_published' => true])
             ->assertCreated()
-            ->assertJsonPath('slug', 'science-week');
+            ->assertJsonPath('data.slug', 'science-week');
 
         $this->getJson('/api/public/news/science-week')->assertOk();
     }

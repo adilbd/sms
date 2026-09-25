@@ -187,8 +187,8 @@ These modules predate the pattern and query Eloquent directly:
 
 | Code | Current state |
 |------|---------------|
-| `StudentController`, `ClassController`, `SectionController`, `AcademicYearController`, `AttendanceController`, `Api\PostController`, `AuthController` | Validate inline and query models in the controller. Permission checks are in place |
-| `PostService`, `ContactService` | Services exist but query Eloquent directly, with no repository |
+| `StudentController`, `ClassController`, `SectionController`, `AcademicYearController`, `AttendanceController`, `AuthController` | Validate inline and query models in the controller. Permission checks are in place |
+| `ContactService` | Service exists but queries Eloquent directly, with no repository |
 | `Web\ContactController` | Validates inline with `$request->validate(ContactService::RULES)` instead of a FormRequest |
 | Stub controllers (teachers, parents, exams, fees, dashboard) | Not implemented. **Build them with this pattern from the start.** |
 

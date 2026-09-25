@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Post;
+use App\Support\PostBody;
 use Database\Seeders\PublicContentSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -84,6 +85,53 @@ class PublicSeoTest extends TestCase
         $this->assertNotNull($event);
         $this->assertSame($post->event_starts_at->toIso8601String(), $event['startDate']);
         $this->assertArrayHasKey('location', $event);
+    }
+
+    public function test_news_detail_renders_the_sanitized_html_body_unescaped(): void
+    {
+        $post = Post::create([
+            'type' => Post::TYPE_NEWS,
+            'title' => 'A Story With A Photo',
+            'body' => PostBody::sanitize('<p>Great turnout.</p><img src="/storage/posts/photo.jpg" alt="Students">'),
+            'is_published' => true,
+        ]);
+
+        $html = $this->get("/news/{$post->slug}")->assertOk()->getContent();
+
+        $this->assertStringContainsString('<img src="/storage/posts/photo.jpg" alt="Students">', $html);
+    }
+
+    public function test_html_body_with_an_h1_still_yields_exactly_one_h1(): void
+    {
+        // Sanitizing strips <h1> from the body (see PostBodyTest), so the page keeps a
+        // single <h1>: the post title in the page header.
+        $post = Post::create([
+            'type' => Post::TYPE_NEWS,
+            'title' => 'Heading Collision',
+            'body' => PostBody::sanitize('<h1>Sneaky heading</h1><p>Body text</p>'),
+            'is_published' => true,
+        ]);
+
+        $html = $this->get("/news/{$post->slug}")->assertOk()->getContent();
+
+        $this->assertSame(1, substr_count($html, '<h1'));
+    }
+
+    public function test_meta_description_from_an_html_body_has_no_tags(): void
+    {
+        $post = Post::create([
+            'type' => Post::TYPE_NEWS,
+            'title' => 'No Excerpt Provided',
+            'body' => PostBody::sanitize('<p>Plain <strong>rich</strong> text summary for search engines and social cards.</p>'),
+            'is_published' => true,
+        ]);
+
+        $html = $this->get("/news/{$post->slug}")->assertOk()->getContent();
+
+        preg_match('/<meta name="description" content="([^"]*)">/', $html, $matches);
+        $this->assertNotEmpty($matches);
+        $this->assertStringNotContainsString('<', $matches[1]);
+        $this->assertStringContainsString('Plain rich text summary', $matches[1]);
     }
 
     public function test_home_has_organization_schema(): void

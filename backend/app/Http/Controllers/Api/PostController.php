@@ -3,72 +3,60 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Post\IndexPostRequest;
+use App\Http\Requests\Post\StorePostRequest;
+use App\Http\Requests\Post\UpdatePostRequest;
+use App\Http\Resources\PostResource;
 use App\Models\Post;
-use Illuminate\Http\Request;
-use Illuminate\Validation\Rule;
+use App\Services\PostService;
+use Illuminate\Routing\Controllers\HasMiddleware;
+use Illuminate\Routing\Controllers\Middleware;
 
-class PostController extends Controller
+class PostController extends Controller implements HasMiddleware
 {
-    public function index(Request $request)
+    public function __construct(private PostService $posts) {}
+
+    public static function middleware(): array
     {
-        $query = Post::query()->latest();
-
-        if ($request->filled('type')) {
-            $query->ofType($request->type);
-        }
-
-        if ($request->filled('search')) {
-            $query->where('title', 'like', "%{$request->search}%");
-        }
-
-        return $query->paginate($request->per_page ?? 15);
+        return [new Middleware('role:admin')];
     }
 
-    public function store(Request $request)
+    public function index(IndexPostRequest $request)
     {
-        $post = Post::create([
-            ...$this->validated($request),
-            'author_id' => $request->user()->id,
-        ]);
+        $perPage = min(max((int) $request->query('per_page', 15), 1), 100);
 
-        return response()->json($post, 201);
+        return PostResource::collection(
+            $this->posts->list($request->safe()->only(['type', 'search', 'is_published']), $perPage)
+        );
+    }
+
+    public function store(StorePostRequest $request)
+    {
+        $post = $this->posts->create($request->validated(), $request->user());
+
+        return (new PostResource($post))
+            ->withBody()
+            ->additional(['message' => 'Post created successfully'])
+            ->response()
+            ->setStatusCode(201);
     }
 
     public function show(Post $post)
     {
-        return response()->json($post);
+        return (new PostResource($post))->withBody();
     }
 
-    public function update(Request $request, Post $post)
+    public function update(UpdatePostRequest $request, Post $post)
     {
-        $post->update($this->validated($request, $post));
+        $post = $this->posts->update($post, $request->validated());
 
-        return response()->json($post);
+        return (new PostResource($post))->withBody()->additional(['message' => 'Post updated successfully']);
     }
 
     public function destroy(Post $post)
     {
-        $post->delete();
+        $this->posts->delete($post);
 
-        return response()->json(['message' => 'Post deleted successfully']);
-    }
-
-    private function validated(Request $request, ?Post $post = null): array
-    {
-        return $request->validate([
-            'type' => ['required', Rule::in(Post::TYPES)],
-            'title' => 'required|string|max:255',
-            'slug' => ['nullable', 'alpha_dash', 'max:255', Rule::unique('posts', 'slug')->ignore($post?->id)],
-            'excerpt' => 'nullable|string|max:500',
-            'body' => 'required|string',
-            'cover_image' => 'nullable|string|max:255',
-            'event_starts_at' => 'nullable|required_if:type,event|date',
-            'event_ends_at' => 'nullable|date|after_or_equal:event_starts_at',
-            'location' => 'nullable|string|max:255',
-            'meta_title' => 'nullable|string|max:255',
-            'meta_description' => 'nullable|string|max:300',
-            'is_published' => 'boolean',
-            'published_at' => 'nullable|date',
-        ]);
+        return response()->noContent();
     }
 }

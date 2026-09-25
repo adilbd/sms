@@ -143,11 +143,11 @@ const fetchPosts = async (page = 1) => {
     })
     posts.value = response.data.data
     Object.assign(pagination, {
-      current_page: response.data.current_page,
-      last_page: response.data.last_page,
-      total: response.data.total,
-      from: response.data.from,
-      to: response.data.to,
+      current_page: response.data.meta.current_page,
+      last_page: response.data.meta.last_page,
+      total: response.data.meta.total,
+      from: response.data.meta.from,
+      to: response.data.meta.to,
     })
   } catch (error) {
     console.error('Failed to fetch posts:', error)

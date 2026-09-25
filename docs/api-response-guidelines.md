@@ -147,10 +147,10 @@ These endpoints were written before this guideline and don't follow it yet:
 
 | Endpoint | What's different |
 |----------|------------------|
-| `index` on students, classes, sections, academic-years, attendances, posts | Return Laravel's flat paginator (`current_page`, `total`, ... at the top level, not under `meta`) |
-| `show` on students, classes, sections, academic-years; all post endpoints | Return a bare model instead of `{ "data": ... }` |
+| `index` on students, classes, sections, academic-years, attendances | Return Laravel's flat paginator (`current_page`, `total`, ... at the top level, not under `meta`) |
+| `show` on students, classes, sections, academic-years | Return a bare model instead of `{ "data": ... }` |
 | `store` / `update` on students, classes, sections, academic-years, attendances | `{message, data}` with a raw model instead of a resource |
-| `destroy` on all resources except subjects | 200 with `{message}` instead of 204 |
+| `destroy` on all resources except subjects and posts | 200 with `{message}` instead of 204 |
 | `students` store/update/destroy, `classes` destroy | Catch exceptions and return `error: $e->getMessage()` with a 500 |
 | `attendances/report/{student}` | `{stats, attendances}` without the `data` wrapper |
 | `login` / `me` | `{user, token}` and a bare user |

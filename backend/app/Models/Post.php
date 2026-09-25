@@ -2,7 +2,9 @@
 
 namespace App\Models;
 
+use App\Support\PostBody;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Facades\Cache;
@@ -10,6 +12,9 @@ use Illuminate\Support\Str;
 
 class Post extends Model
 {
+    /** @use HasFactory<\Database\Factories\PostFactory> */
+    use HasFactory;
+
     public const TYPE_NEWS = 'news';
     public const TYPE_EVENT = 'event';
     public const TYPES = [self::TYPE_NEWS, self::TYPE_EVENT];
@@ -93,7 +98,7 @@ class Post extends Model
     public function seoDescription(): string
     {
         return $this->meta_description
-            ?: ($this->excerpt ?: Str::limit(trim(strip_tags($this->body)), 160));
+            ?: ($this->excerpt ?: PostBody::plainText($this->body));
     }
 
     public function url(): string

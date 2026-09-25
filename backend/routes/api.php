@@ -73,7 +73,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('fee-payments/receipt/{feePayment}', [\App\Http\Controllers\Api\FeePaymentController::class, 'generateReceipt']);
 
     // Public website content (news & events)
-    Route::apiResource('posts', \App\Http\Controllers\Api\PostController::class)->middleware('role:admin');
+    Route::post('posts/media', [\App\Http\Controllers\Api\PostMediaController::class, 'store']);
+    Route::apiResource('posts', \App\Http\Controllers\Api\PostController::class)->where(['post' => '[0-9]+']);
 
     // Dashboard
     Route::get('dashboard/stats', [\App\Http\Controllers\Api\DashboardController::class, 'stats']);

@@ -26,8 +26,8 @@
           <textarea v-model="form.excerpt" rows="2" class="input" maxlength="500"></textarea>
         </div>
         <div class="md:col-span-2">
-          <label class="block text-sm font-medium text-gray-700 mb-1">Body (Markdown)</label>
-          <textarea v-model="form.body" rows="10" class="input font-mono text-sm" required></textarea>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Body</label>
+          <rich-text-editor v-model="form.body" />
           <p v-if="errors.body" class="text-sm text-red-600 mt-1">{{ errors.body[0] }}</p>
         </div>
         <div class="md:col-span-2">
@@ -85,6 +85,7 @@
 import { ref, reactive, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import api from '@/services/api'
+import RichTextEditor from '@/components/RichTextEditor.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -119,19 +120,33 @@ const toLocalInput = (value) => {
 const fetchPost = async () => {
   try {
     const { data } = await api.get(`/posts/${route.params.id}`)
+    const post = data.data
     Object.keys(form).forEach((key) => {
-      form[key] = data[key] ?? form[key]
+      form[key] = post[key] ?? form[key]
     })
-    form.event_starts_at = toLocalInput(data.event_starts_at)
-    form.event_ends_at = toLocalInput(data.event_ends_at)
+    form.event_starts_at = toLocalInput(post.event_starts_at)
+    form.event_ends_at = toLocalInput(post.event_ends_at)
   } catch (error) {
     console.error('Failed to fetch post:', error)
   }
 }
 
+// Mirrors App\Support\PostBody::isEmpty(): no text and no img/iframe means the body
+// is effectively empty, even though the editor always emits at least an empty <p>.
+const isBodyEmpty = (html) => {
+  const text = (html || '').replace(/<[^>]*>/g, '').trim()
+  if (text) return false
+  return !/<(img|iframe)\b/i.test(html || '')
+}
+
 const save = async () => {
-  saving.value = true
   errors.value = {}
+  if (isBodyEmpty(form.body)) {
+    errors.value = { body: ['The body field is required.'] }
+    return
+  }
+
+  saving.value = true
   const payload = Object.fromEntries(
     Object.entries(form).map(([key, value]) => [key, value === '' ? null : value])
   )

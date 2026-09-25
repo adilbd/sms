@@ -49,7 +49,7 @@
             @endif
 
             <div class="prose-public mt-8 text-gray-800">
-                {!! \Illuminate\Support\Str::markdown($post->body, ['html_input' => 'strip', 'allow_unsafe_links' => false]) !!}
+                {!! $post->body !!}
             </div>
         </article>
 

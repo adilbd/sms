@@ -25,8 +25,36 @@
 
   .prose-public h2 { @apply mt-8 mb-3 text-2xl font-semibold text-gray-900; }
   .prose-public h3 { @apply mt-6 mb-2 text-xl font-semibold text-gray-900; }
+  .prose-public h4 { @apply mt-4 mb-2 text-lg font-semibold text-gray-900; }
   .prose-public p  { @apply my-4 leading-relaxed; }
   .prose-public ul { @apply my-4 list-disc pl-6 space-y-1; }
   .prose-public ol { @apply my-4 list-decimal pl-6 space-y-1; }
   .prose-public a  { @apply text-primary-700 underline; }
+  .prose-public blockquote { @apply my-4 border-l-4 border-gray-200 pl-4 italic text-gray-600; }
+  .prose-public code { @apply rounded bg-gray-100 px-1 py-0.5 text-sm; }
+  .prose-public pre  { @apply my-4 overflow-x-auto rounded-lg bg-gray-900 p-4 text-sm text-gray-100; }
+  .prose-public hr   { @apply my-8 border-gray-200; }
+
+  .prose-public img {
+    @apply my-6 w-full rounded-xl object-cover;
+  }
+
+  .prose-public figure {
+    @apply my-6;
+  }
+
+  .prose-public figure img {
+    @apply my-0;
+  }
+
+  .prose-public figcaption {
+    @apply mt-2 text-center text-sm text-gray-500;
+  }
+
+  /* Responsive 16:9 embeds (YouTube / Vimeo). */
+  .prose-public iframe {
+    @apply my-6 w-full rounded-xl;
+    aspect-ratio: 16 / 9;
+    height: auto;
+  }
 }

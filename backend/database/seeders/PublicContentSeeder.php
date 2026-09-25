@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use App\Models\Post;
+use App\Support\PostBody;
 use Illuminate\Database\Seeder;
 
 class PublicContentSeeder extends Seeder
@@ -21,7 +22,12 @@ class PublicContentSeeder extends Seeder
                 'type' => Post::TYPE_NEWS,
                 'title' => $title,
                 'excerpt' => $excerpt,
-                'body' => "{$excerpt}\n\n## Highlights\n\n- Outstanding effort from students and staff\n- Parents and families joined the celebration\n- More updates to follow in the coming weeks\n\nThank you to everyone in our school community who made this possible.",
+                'body' => PostBody::sanitize(
+                    "<p>{$excerpt}</p><h2>Highlights</h2><ul><li>Outstanding effort from students and staff</li>".
+                    '<li>Parents and families joined the celebration</li>'.
+                    '<li>More updates to follow in the coming weeks</li></ul>'.
+                    '<p>Thank you to everyone in our school community who made this possible.</p>'
+                ),
                 'is_published' => true,
                 'published_at' => now()->subDays($daysAgo),
             ]);
@@ -41,7 +47,10 @@ class PublicContentSeeder extends Seeder
                 'type' => Post::TYPE_EVENT,
                 'title' => $title,
                 'excerpt' => $excerpt,
-                'body' => "{$excerpt}\n\nAll families are welcome. Please arrive 15 minutes early.\n\n**Contact the school office** if you have any questions.",
+                'body' => PostBody::sanitize(
+                    "<p>{$excerpt}</p><p>All families are welcome. Please arrive 15 minutes early.</p>".
+                    '<p><strong>Contact the school office</strong> if you have any questions.</p>'
+                ),
                 'event_starts_at' => $start,
                 'event_ends_at' => $start->copy()->addHours(3),
                 'location' => $location,

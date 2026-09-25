@@ -3,56 +3,90 @@
 namespace App\Services;
 
 use App\Models\Post;
+use App\Models\User;
+use App\Repositories\Contracts\PostRepositoryInterface;
+use App\Support\PostBody;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Validation\ValidationException;
 
 /**
- * Read-side queries for public content, shared by the Blade site and the public JSON API
- * so the website and the mobile app always show the same data.
+ * Public read queries (shared by the Blade site and the unauthenticated mobile-app API,
+ * so both always show the same data) plus the admin CRUD used by Api\PostController.
  */
 class PostService
 {
+    public function __construct(private PostRepositoryInterface $posts) {}
+
     public function paginatePublished(string $type, int $perPage = 9): LengthAwarePaginator
     {
-        $query = Post::published()->ofType($type);
-
-        if ($type === Post::TYPE_EVENT) {
-            // Upcoming events first (soonest first), then past events (most recent first).
-            $query->orderByRaw('CASE WHEN event_starts_at >= ? THEN 0 ELSE 1 END', [now()->startOfDay()])
-                ->orderByRaw('CASE WHEN event_starts_at >= ? THEN event_starts_at END ASC', [now()->startOfDay()])
-                ->orderByDesc('event_starts_at');
-        } else {
-            $query->latest('published_at');
-        }
-
-        return $query->paginate($perPage);
+        return $this->posts->paginatePublished($type, $perPage);
     }
 
     public function findPublishedBySlug(string $type, string $slug): Post
     {
-        return Post::published()->ofType($type)->where('slug', $slug)->firstOrFail();
+        return $this->posts->findPublishedBySlug($type, $slug);
     }
 
     public function latestNews(int $limit = 3): Collection
     {
-        return Post::published()->ofType(Post::TYPE_NEWS)->latest('published_at')->limit($limit)->get();
+        return $this->posts->latestNews($limit);
     }
 
     public function upcomingEvents(int $limit = 3): Collection
     {
-        return Post::published()->ofType(Post::TYPE_EVENT)
-            ->where('event_starts_at', '>=', now()->startOfDay())
-            ->orderBy('event_starts_at')
-            ->limit($limit)
-            ->get();
+        return $this->posts->upcomingEvents($limit);
     }
 
     public function related(Post $post, int $limit = 3): Collection
     {
-        return Post::published()->ofType($post->type)
-            ->whereKeyNot($post->id)
-            ->latest('published_at')
-            ->limit($limit)
-            ->get();
+        return $this->posts->related($post, $limit);
+    }
+
+    /**
+     * @param  array{type?: string, search?: string, is_published?: mixed}  $filters
+     */
+    public function list(array $filters, int $perPage): LengthAwarePaginator
+    {
+        return $this->posts->paginate($filters, $perPage);
+    }
+
+    public function create(array $data, User $author): Post
+    {
+        $data['body'] = $this->sanitizedBody($data['body']);
+        $data['author_id'] = $author->id;
+
+        return $this->posts->create($data);
+    }
+
+    public function update(Post $post, array $data): Post
+    {
+        if (array_key_exists('body', $data)) {
+            $data['body'] = $this->sanitizedBody($data['body']);
+        }
+
+        return $this->posts->update($post, $data);
+    }
+
+    public function delete(Post $post): void
+    {
+        $this->posts->delete($post);
+    }
+
+    /**
+     * Sanitize the body with the post_body HTMLPurifier profile, and reject a body that
+     * would render as nothing (no text, no img, no iframe).
+     */
+    private function sanitizedBody(string $body): string
+    {
+        $sanitized = PostBody::sanitize($body);
+
+        if (PostBody::isEmpty($sanitized)) {
+            throw ValidationException::withMessages([
+                'body' => ['The body must not be empty.'],
+            ]);
+        }
+
+        return $sanitized;
     }
 }
