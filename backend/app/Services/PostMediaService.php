@@ -3,7 +3,6 @@
 namespace App\Services;
 
 use Illuminate\Http\UploadedFile;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
 /**
@@ -14,16 +13,9 @@ class PostMediaService
 {
     public function storeImage(UploadedFile $file): string
     {
-        $path = sprintf(
-            'posts/%s/%s/%s.%s',
-            now()->format('Y'),
-            now()->format('m'),
-            (string) Str::uuid(),
-            $file->extension() ?: $file->getClientOriginalExtension()
-        );
+        $directory = sprintf('posts/%s/%s', now()->format('Y'), now()->format('m'));
+        $name = sprintf('%s.%s', (string) Str::uuid(), $file->extension());
 
-        Storage::disk('public')->put($path, file_get_contents($file->getRealPath()));
-
-        return $path;
+        return $file->storeAs($directory, $name, 'public');
     }
 }

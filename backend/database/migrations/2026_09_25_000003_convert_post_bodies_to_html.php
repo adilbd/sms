@@ -1,8 +1,8 @@
 <?php
 
-use App\Models\Post;
 use App\Support\PostBody;
 use Illuminate\Database\Migrations\Migration;
+use Illuminate\Support\Facades\DB;
 
 return new class extends Migration
 {
@@ -11,13 +11,18 @@ return new class extends Migration
      * they are sanitized HTML, rendered once and stored as-is. Convert every existing
      * row so the single render path in resources/views/public/posts/show.blade.php
      * (`{!! $post->body !!}`) keeps working for rows written before this change.
+     *
+     * Goes through the query builder, not the Post model: loading only `id` and `body`
+     * through Eloquent would still fire the model's `saving` hook on `update()`, which
+     * regenerates the slug from the (unselected, therefore null) title.
      */
     public function up(): void
     {
-        Post::query()->select(['id', 'body'])->chunkById(100, function ($posts) {
+        DB::table('posts')->select(['id', 'body'])->orderBy('id')->chunkById(100, function ($posts) {
             foreach ($posts as $post) {
-                $post->timestamps = false;
-                $post->update(['body' => PostBody::fromMarkdown($post->body)]);
+                DB::table('posts')->where('id', $post->id)->update([
+                    'body' => PostBody::fromMarkdown($post->body),
+                ]);
             }
         });
     }

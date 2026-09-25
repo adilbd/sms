@@ -30,11 +30,17 @@ class PostResource extends JsonResource
             'title' => $this->title,
             'slug' => $this->slug,
             'excerpt' => $this->excerpt ?: PostBody::plainText($this->body),
+            // Raw excerpt column, so an editor can tell "no custom excerpt" (null) apart
+            // from the computed fallback above, which the public API keeps returning.
+            'custom_excerpt' => $this->excerpt,
             // The body is stored as sanitized HTML (see App\Support\PostBody), so both
             // keys hold the same value. body_html is kept for existing API clients.
             'body' => $this->when($this->withBody, $this->body),
             'body_html' => $this->when($this->withBody, $this->body),
+            'cover_image' => $this->cover_image,
             'cover_image_url' => $this->coverImageUrl(),
+            'meta_title' => $this->meta_title,
+            'meta_description' => $this->meta_description,
             'event_starts_at' => $this->event_starts_at?->toIso8601String(),
             'event_ends_at' => $this->event_ends_at?->toIso8601String(),
             'location' => $this->location,

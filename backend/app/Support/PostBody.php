@@ -28,6 +28,11 @@ class PostBody
     {
         $html = trim((string) Str::markdown($markdown, ['html_input' => 'strip', 'allow_unsafe_links' => false]));
 
+        // A leading `# Title` in legacy Markdown becomes an <h1>, but the sanitizer
+        // strips h1 outright (PublicSeoTest requires exactly one <h1> per page, owned
+        // by the page template). Demote it to <h2> instead of losing the heading.
+        $html = preg_replace('#<(/?)h1\b#i', '<$1h2', $html);
+
         return static::sanitize($html);
     }
 

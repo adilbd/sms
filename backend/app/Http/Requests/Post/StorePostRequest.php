@@ -2,12 +2,15 @@
 
 namespace App\Http\Requests\Post;
 
+use App\Http\Requests\Post\Concerns\NormalizesPostSlug;
 use App\Models\Post;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
 class StorePostRequest extends FormRequest
 {
+    use NormalizesPostSlug;
+
     // Access is enforced by the role:admin middleware in PostController.
     public function authorize(): bool
     {

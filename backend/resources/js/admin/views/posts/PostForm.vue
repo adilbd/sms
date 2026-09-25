@@ -122,8 +122,12 @@ const fetchPost = async () => {
     const { data } = await api.get(`/posts/${route.params.id}`)
     const post = data.data
     Object.keys(form).forEach((key) => {
+      // `excerpt` is the computed public fallback (title/body derived when there is no
+      // custom excerpt); the form edits the raw column, sent back as `custom_excerpt`.
+      if (key === 'excerpt') return
       form[key] = post[key] ?? form[key]
     })
+    form.excerpt = post.custom_excerpt ?? ''
     form.event_starts_at = toLocalInput(post.event_starts_at)
     form.event_ends_at = toLocalInput(post.event_ends_at)
   } catch (error) {

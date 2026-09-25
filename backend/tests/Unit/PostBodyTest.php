@@ -12,6 +12,11 @@ class PostBodyTest extends TestCase
         $this->assertSame('<h2>x</h2>', PostBody::fromMarkdown('## x'));
     }
 
+    public function test_from_markdown_demotes_h1_to_h2(): void
+    {
+        $this->assertSame('<h2>Title</h2>', PostBody::fromMarkdown('# Title'));
+    }
+
     public function test_plain_text_strips_tags_and_decodes_entities(): void
     {
         $text = PostBody::plainText('<p>Fish &amp; chips <strong>rock</strong></p>');
@@ -95,5 +100,36 @@ class PostBodyTest extends TestCase
         $this->assertStringContainsString('target="_blank"', $clean);
         $this->assertMatchesRegularExpression('/rel="[^"]*noopener[^"]*"/', $clean);
         $this->assertMatchesRegularExpression('/rel="[^"]*noreferrer[^"]*"/', $clean);
+    }
+
+    public function test_sanitize_strips_target_self_and_top(): void
+    {
+        $clean = PostBody::sanitize(
+            '<a href="https://example.com" target="_self">self</a>'.
+            '<a href="https://example.com" target="_top">top</a>'
+        );
+
+        $this->assertStringNotContainsString('_self', $clean);
+        $this->assertStringNotContainsString('_top', $clean);
+    }
+
+    public function test_sanitize_keeps_figure_and_figcaption(): void
+    {
+        $clean = PostBody::sanitize(
+            '<figure><img src="/storage/posts/a.jpg" alt="A"><figcaption>A caption</figcaption></figure>'
+        );
+
+        $this->assertStringContainsString('<figure>', $clean);
+        $this->assertStringContainsString('<figcaption>', $clean);
+        $this->assertStringContainsString('A caption', $clean);
+    }
+
+    public function test_sanitize_keeps_iframe_allowfullscreen(): void
+    {
+        $clean = PostBody::sanitize(
+            '<iframe src="https://www.youtube-nocookie.com/embed/abc" allowfullscreen></iframe>'
+        );
+
+        $this->assertStringContainsString('allowfullscreen', $clean);
     }
 }

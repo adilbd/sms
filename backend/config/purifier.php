@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Ok, glad you are here
  * first we get a config instance, and set the settings
@@ -16,104 +17,47 @@
  * @link http://htmlpurifier.org/live/configdoc/plain.html
  */
 
+// The only profile this app uses (see App\Support\PostBody). No h1 (PublicSeoTest
+// requires exactly one <h1> per page, owned by the page template). Kept as `default` too
+// so any call to Purifier::clean() without an explicit profile behaves the same way.
+$postBody = [
+    'HTML.Doctype' => 'HTML 4.01 Transitional',
+    'HTML.Allowed' => 'p,br,strong,em,u,s,h2,h3,h4,ul,ol,li,blockquote,a[href|title|target|rel],img[src|alt|width|height],figure,figcaption,iframe[src|width|height|allowfullscreen|frameborder],div,hr,code,pre',
+    'HTML.TargetNoreferrer' => true,
+    // The Tiptap link toolbar sets target="_blank" (see resources/js/admin/components/RichTextEditor.vue).
+    // HTMLPurifier strips the target attribute to anything not explicitly allowed here.
+    'Attr.AllowedFrameTargets' => ['_blank'],
+    'HTML.SafeIframe' => true,
+    'URI.SafeIframeRegexp' => '%^https://(www\.youtube-nocookie\.com/embed/|player\.vimeo\.com/video/)%',
+    'AutoFormat.AutoParagraph' => false,
+    'AutoFormat.RemoveEmpty' => true,
+];
+
 return [
-    'encoding'           => 'UTF-8',
-    'finalize'           => true,
-    'ignoreNonStrings'   => false,
-    'cachePath'          => storage_path('app/purifier'),
-    'cacheFileMode'      => 0755,
-    'settings'      => [
-        'default' => [
-            'HTML.Doctype'             => 'HTML 4.01 Transitional',
-            'HTML.Allowed'             => 'div,b,strong,i,em,u,a[href|title],ul,ol,li,p[style],br,span[style],img[width|height|alt|src]',
-            'CSS.AllowedProperties'    => 'font,font-size,font-weight,font-style,font-family,text-decoration,padding-left,color,background-color,text-align',
-            'AutoFormat.AutoParagraph' => true,
-            'AutoFormat.RemoveEmpty'   => true,
-        ],
-        'test'    => [
-            'Attr.EnableID' => 'true',
-        ],
-        "youtube" => [
-            "HTML.SafeIframe"      => 'true',
-            "URI.SafeIframeRegexp" => "%^(http://|https://|//)(www.youtube.com/embed/|player.vimeo.com/video/)%",
-        ],
-        // Used to sanitize App\Support\PostBody. See docs/architecture-guidelines.md.
-        // No h1 (PublicSeoTest requires exactly one <h1> per page, owned by the page template).
-        'post_body' => [
-            'HTML.Doctype' => 'HTML 4.01 Transitional',
-            'HTML.Allowed' => 'p,br,strong,em,u,s,h2,h3,h4,ul,ol,li,blockquote,a[href|title|target|rel],img[src|alt|width|height],figure,figcaption,iframe[src|width|height|allowfullscreen|frameborder],div,hr,code,pre',
-            'HTML.TargetNoreferrer' => true,
-            // The Tiptap link toolbar sets target="_blank" (see resources/js/admin/components/RichTextEditor.vue).
-            // HTMLPurifier strips the target attribute unless the value is explicitly allowed here.
-            'Attr.AllowedFrameTargets' => ['_blank'],
-            'HTML.SafeIframe' => true,
-            'URI.SafeIframeRegexp' => '%^https://(www\.youtube-nocookie\.com/embed/|player\.vimeo\.com/video/)%',
-            'AutoFormat.AutoParagraph' => false,
-            'AutoFormat.RemoveEmpty' => true,
-        ],
+    'encoding' => 'UTF-8',
+    'finalize' => true,
+    'ignoreNonStrings' => false,
+    'cachePath' => storage_path('app/purifier'),
+    'cacheFileMode' => 0755,
+    'settings' => [
+        'default' => $postBody,
+        'post_body' => $postBody,
+        // figure/figcaption and iframe[allowfullscreen] aren't part of HTMLPurifier's
+        // HTML 4.01 Transitional definition, so post_body needs them added explicitly.
         'custom_definition' => [
-            'id'  => 'html5-definitions',
-            'rev' => 1,
+            'id' => 'html5-definitions',
+            // Bumped when this file's definition-affecting settings change (HTML.Allowed,
+            // custom elements/attributes), so HTMLPurifier's on-disk cache doesn't keep
+            // serving a stale definition built under the old settings.
+            'rev' => 2,
             'debug' => false,
             'elements' => [
-                // http://developers.whatwg.org/sections.html
-                ['section', 'Block', 'Flow', 'Common'],
-                ['nav',     'Block', 'Flow', 'Common'],
-                ['article', 'Block', 'Flow', 'Common'],
-                ['aside',   'Block', 'Flow', 'Common'],
-                ['header',  'Block', 'Flow', 'Common'],
-                ['footer',  'Block', 'Flow', 'Common'],
-				
-				// Content model actually excludes several tags, not modelled here
-                ['address', 'Block', 'Flow', 'Common'],
-                ['hgroup', 'Block', 'Required: h1 | h2 | h3 | h4 | h5 | h6', 'Common'],
-				
-				// http://developers.whatwg.org/grouping-content.html
                 ['figure', 'Block', 'Optional: (figcaption, Flow) | (Flow, figcaption) | Flow', 'Common'],
                 ['figcaption', 'Inline', 'Flow', 'Common'],
-				
-				// http://developers.whatwg.org/the-video-element.html#the-video-element
-                ['video', 'Block', 'Optional: (source, Flow) | (Flow, source) | Flow', 'Common', [
-                    'src' => 'URI',
-					'type' => 'Text',
-					'width' => 'Length',
-					'height' => 'Length',
-					'poster' => 'URI',
-					'preload' => 'Enum#auto,metadata,none',
-					'controls' => 'Bool',
-                ]],
-                ['source', 'Block', 'Flow', 'Common', [
-					'src' => 'URI',
-					'type' => 'Text',
-                ]],
-
-				// http://developers.whatwg.org/text-level-semantics.html
-                ['s',    'Inline', 'Inline', 'Common'],
-                ['var',  'Inline', 'Inline', 'Common'],
-                ['sub',  'Inline', 'Inline', 'Common'],
-                ['sup',  'Inline', 'Inline', 'Common'],
-                ['mark', 'Inline', 'Inline', 'Common'],
-                ['wbr',  'Inline', 'Empty', 'Core'],
-				
-				// http://developers.whatwg.org/edits.html
-                ['ins', 'Block', 'Flow', 'Common', ['cite' => 'URI', 'datetime' => 'CDATA']],
-                ['del', 'Block', 'Flow', 'Common', ['cite' => 'URI', 'datetime' => 'CDATA']],
             ],
             'attributes' => [
                 ['iframe', 'allowfullscreen', 'Bool'],
-                ['table', 'height', 'Text'],
-                ['td', 'border', 'Text'],
-                ['th', 'border', 'Text'],
-                ['tr', 'width', 'Text'],
-                ['tr', 'height', 'Text'],
-                ['tr', 'border', 'Text'],
             ],
-        ],
-        'custom_attributes' => [
-            ['a', 'target', 'Enum#_blank,_self,_target,_top'],
-        ],
-        'custom_elements' => [
-            ['u', 'Inline', 'Inline', 'Common'],
         ],
     ],
 

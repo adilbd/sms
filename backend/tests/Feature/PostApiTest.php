@@ -175,6 +175,39 @@ class PostApiTest extends TestCase
             ->assertJsonPath('message', 'Post updated successfully');
     }
 
+    public function test_update_rejects_turning_a_news_post_into_an_event_without_a_start_date(): void
+    {
+        $post = Post::factory()->create(['type' => Post::TYPE_NEWS]);
+
+        $this->actingAs($this->admin, 'sanctum')
+            ->putJson("/api/posts/{$post->id}", ['type' => 'event'])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('event_starts_at');
+    }
+
+    public function test_update_rejects_an_end_date_before_the_saved_start_date(): void
+    {
+        $post = Post::factory()->event()->create();
+
+        $this->actingAs($this->admin, 'sanctum')
+            ->putJson("/api/posts/{$post->id}", [
+                'event_ends_at' => $post->event_starts_at->subDay()->toIso8601String(),
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('event_ends_at');
+    }
+
+    public function test_update_accepts_a_valid_ends_only_update(): void
+    {
+        $post = Post::factory()->event()->create();
+
+        $this->actingAs($this->admin, 'sanctum')
+            ->putJson("/api/posts/{$post->id}", [
+                'event_ends_at' => $post->event_starts_at->addHours(4)->toIso8601String(),
+            ])
+            ->assertOk();
+    }
+
     public function test_update_rejects_an_empty_body(): void
     {
         $post = Post::factory()->create();
@@ -211,5 +244,92 @@ class PostApiTest extends TestCase
         $this->actingAs($this->admin, 'sanctum')
             ->getJson("/api/posts/{$post->id}abc")
             ->assertNotFound();
+    }
+
+    public function test_update_on_unknown_post_returns_404(): void
+    {
+        $this->actingAs($this->admin, 'sanctum')
+            ->putJson('/api/posts/999', ['title' => 'X'])
+            ->assertNotFound()
+            ->assertExactJson(['message' => 'Record not found.']);
+    }
+
+    public function test_destroy_on_unknown_post_returns_404(): void
+    {
+        $this->actingAs($this->admin, 'sanctum')
+            ->deleteJson('/api/posts/999')
+            ->assertNotFound()
+            ->assertExactJson(['message' => 'Record not found.']);
+    }
+
+    public function test_store_lowercases_the_slug(): void
+    {
+        $this->actingAs($this->admin, 'sanctum')
+            ->postJson('/api/posts', [
+                'type' => 'news',
+                'title' => 'Slug Case',
+                'body' => '<p>x</p>',
+                'slug' => 'MyCustomSlug',
+            ])
+            ->assertCreated()
+            ->assertJsonPath('data.slug', 'mycustomslug');
+    }
+
+    public function test_update_lowercases_the_slug(): void
+    {
+        $post = Post::factory()->create();
+
+        $this->actingAs($this->admin, 'sanctum')
+            ->putJson("/api/posts/{$post->id}", ['slug' => 'UpperCaseSlug'])
+            ->assertOk()
+            ->assertJsonPath('data.slug', 'uppercaseslug');
+    }
+
+    /**
+     * PostResource exposes the raw meta_title, meta_description, cover_image and
+     * custom_excerpt columns (not just their computed fallbacks), so PostForm.vue can
+     * read them back without wiping them on the next save.
+     */
+    public function test_meta_cover_and_excerpt_round_trip_through_show_and_update(): void
+    {
+        $post = Post::factory()->create([
+            'excerpt' => 'A custom excerpt',
+            'cover_image' => 'posts/2026/09/cover.jpg',
+            'meta_title' => 'A meta title',
+            'meta_description' => 'A meta description',
+        ]);
+
+        $show = $this->actingAs($this->admin, 'sanctum')
+            ->getJson("/api/posts/{$post->id}")
+            ->assertOk()
+            ->assertJsonPath('data.custom_excerpt', 'A custom excerpt')
+            ->assertJsonPath('data.cover_image', 'posts/2026/09/cover.jpg')
+            ->assertJsonPath('data.meta_title', 'A meta title')
+            ->assertJsonPath('data.meta_description', 'A meta description');
+
+        // Mirrors what PostForm.vue sends back: `excerpt` mapped from `custom_excerpt`,
+        // the other three read and resent as-is.
+        $this->actingAs($this->admin, 'sanctum')
+            ->putJson("/api/posts/{$post->id}", [
+                'excerpt' => $show->json('data.custom_excerpt'),
+                'cover_image' => $show->json('data.cover_image'),
+                'meta_title' => $show->json('data.meta_title'),
+                'meta_description' => $show->json('data.meta_description'),
+            ])
+            ->assertOk()
+            ->assertJsonPath('data.custom_excerpt', 'A custom excerpt')
+            ->assertJsonPath('data.cover_image', 'posts/2026/09/cover.jpg')
+            ->assertJsonPath('data.meta_title', 'A meta title')
+            ->assertJsonPath('data.meta_description', 'A meta description');
+    }
+
+    public function test_a_null_custom_excerpt_stays_null_after_update(): void
+    {
+        $post = Post::factory()->create(['excerpt' => null]);
+
+        $this->actingAs($this->admin, 'sanctum')
+            ->putJson("/api/posts/{$post->id}", ['excerpt' => null])
+            ->assertOk()
+            ->assertJsonPath('data.custom_excerpt', null);
     }
 }

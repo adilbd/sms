@@ -2,12 +2,15 @@
 
 namespace App\Http\Requests\Post;
 
+use App\Http\Requests\Post\Concerns\NormalizesPostSlug;
 use App\Models\Post;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
 class UpdatePostRequest extends FormRequest
 {
+    use NormalizesPostSlug;
+
     // Access is enforced by the role:admin middleware in PostController.
     public function authorize(): bool
     {
@@ -23,8 +26,11 @@ class UpdatePostRequest extends FormRequest
             'excerpt' => 'nullable|string|max:500',
             'body' => 'sometimes|string|max:200000',
             'cover_image' => 'nullable|string|max:255',
+            // Whether an event requires event_starts_at, and event_ends_at must not be
+            // before it, depends on saved state (a partial update might send only one of
+            // the two, or neither): PostService::update checks that against the model.
             'event_starts_at' => 'nullable|date',
-            'event_ends_at' => 'nullable|date|after_or_equal:event_starts_at',
+            'event_ends_at' => 'nullable|date',
             'location' => 'nullable|string|max:255',
             'meta_title' => 'nullable|string|max:255',
             'meta_description' => 'nullable|string|max:300',

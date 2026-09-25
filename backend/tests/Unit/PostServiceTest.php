@@ -99,4 +99,56 @@ class PostServiceTest extends TestCase
             $this->assertArrayHasKey('body', $e->errors());
         }
     }
+
+    public function test_update_rejects_turning_a_post_into_an_event_without_a_start_date(): void
+    {
+        $post = new Post(['type' => Post::TYPE_NEWS]);
+
+        $this->mock(PostRepositoryInterface::class, function (MockInterface $mock) {
+            $mock->shouldNotReceive('update');
+        });
+
+        try {
+            app(PostService::class)->update($post, ['type' => 'event']);
+            $this->fail('Expected a ValidationException.');
+        } catch (ValidationException $e) {
+            $this->assertArrayHasKey('event_starts_at', $e->errors());
+        }
+    }
+
+    public function test_update_rejects_an_end_date_before_the_saved_start_date(): void
+    {
+        $post = new Post([
+            'type' => Post::TYPE_EVENT,
+            'event_starts_at' => '2026-10-10 10:00:00',
+        ]);
+
+        $this->mock(PostRepositoryInterface::class, function (MockInterface $mock) {
+            $mock->shouldNotReceive('update');
+        });
+
+        try {
+            app(PostService::class)->update($post, ['event_ends_at' => '2026-10-09 10:00:00']);
+            $this->fail('Expected a ValidationException.');
+        } catch (ValidationException $e) {
+            $this->assertArrayHasKey('event_ends_at', $e->errors());
+        }
+    }
+
+    public function test_update_accepts_a_valid_ends_only_update(): void
+    {
+        $post = new Post([
+            'type' => Post::TYPE_EVENT,
+            'event_starts_at' => '2026-10-10 10:00:00',
+        ]);
+
+        $this->mock(PostRepositoryInterface::class, function (MockInterface $mock) use ($post) {
+            $mock->shouldReceive('update')
+                ->once()
+                ->withArgs(fn ($model, array $data) => $model === $post && $data['event_ends_at'] === '2026-10-10 12:00:00')
+                ->andReturn($post);
+        });
+
+        app(PostService::class)->update($post, ['event_ends_at' => '2026-10-10 12:00:00']);
+    }
 }

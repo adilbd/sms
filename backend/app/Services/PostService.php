@@ -65,6 +65,8 @@ class PostService
             $data['body'] = $this->sanitizedBody($data['body']);
         }
 
+        $this->ensureEventDatesAreValid((clone $post)->fill($data));
+
         return $this->posts->update($post, $data);
     }
 
@@ -88,5 +90,29 @@ class PostService
         }
 
         return $sanitized;
+    }
+
+    /**
+     * An event requires event_starts_at, and event_ends_at (when set) must not be
+     * before it. Checked here, against the model with the update applied, because a
+     * partial update can send only one of the two dates (see UpdatePostRequest).
+     */
+    private function ensureEventDatesAreValid(Post $post): void
+    {
+        if ($post->type !== Post::TYPE_EVENT) {
+            return;
+        }
+
+        if (! $post->event_starts_at) {
+            throw ValidationException::withMessages([
+                'event_starts_at' => ['The event starts at field is required.'],
+            ]);
+        }
+
+        if ($post->event_ends_at && $post->event_ends_at->lt($post->event_starts_at)) {
+            throw ValidationException::withMessages([
+                'event_ends_at' => ['The event ends at field must be a date after or equal to event starts at.'],
+            ]);
+        }
     }
 }
