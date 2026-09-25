@@ -1,246 +1,240 @@
 # School Management System (SMS)
 
-A comprehensive School Management System built with Laravel 11 (Backend API) and Vue 3 (Frontend).
+A School Management System built as a single Laravel 11 application. It serves three things from one codebase:
+
+| Path | What | Built with |
+|------|------|------------|
+| `/` | Public school website (home, about, admissions, contact, news, events) | Server-rendered Blade, SEO-ready |
+| `/admin` | Admin panel | Vue 3 SPA, bundled by Vite |
+| `/api` | JSON API for the admin panel and the mobile app | Laravel + Sanctum |
 
 ## Features
 
-### Core Modules
-- **Student Management**: Complete student lifecycle management with admission, enrollment, and tracking
-- **Teacher Management**: Teacher profiles, qualifications, and subject assignments
-- **Parent Management**: Parent information and student relationships
-- **Class & Section Management**: Hierarchical class structure with sections
-- **Subject Management**: Subject definitions and assignments
-- **Attendance Management**: Daily attendance tracking with bulk marking
-- **Exam Management**: Exam scheduling, result entry, and report generation
-- **Fee Management**: Fee structure, collection, and receipt generation
-- **Academic Year Management**: Multiple academic year support
+### Public Website
+- Server-rendered pages with a full SEO head: title, description, canonical URL, Open Graph/Twitter tags, JSON-LD
+- News and events with slugs and pagination
+- `sitemap.xml` (cached for one hour and cleared whenever a post changes) and `robots.txt`
+- Contact form (rate-limited, saved to the database)
+
+### Admin Modules
+- **Student Management**: admission, enrollment and tracking
+- **Class & Section Management**: classes with nested sections
+- **Subject Management**
+- **Academic Year Management**: several academic years, with one marked active
+- **Attendance Management**: daily attendance, bulk marking, per-student reports
+- **News & Events**: create and publish posts for the public website (admin only)
+- **Teacher, Parent, Exam and Fee Management**: routes and data model exist, but the API is still a stub (see [STATUS.md](STATUS.md))
+
+### Public API (for the mobile app)
+Unauthenticated, rate-limited endpoints under `/api/public`. They return the same school info, news and events as the website and accept contact submissions.
 
 ### User Roles & Permissions
-- **Admin**: Full system access
-- **Teacher**: Student management, attendance, exam results
-- **Student**: View attendance, exams, results
-- **Parent**: View children's attendance, exams, fees
+- **Admin**: full system access
+- **Teacher**: student management, attendance, exam results
+- **Student**: view attendance, exams, results
+- **Parent**: view children's attendance, exams, fees
 
 ## Tech Stack
 
-### Backend
-- Laravel 11
-- MySQL Database
-- Laravel Sanctum (API Authentication)
-- Spatie Laravel Permission (Role & Permission Management)
-
-### Frontend
-- Vue 3 (Composition API)
-- Vue Router 4
-- Pinia (State Management)
-- Tailwind CSS
-- Axios (HTTP Client)
-- Vite (Build Tool)
+- PHP 8.2+, Laravel 11
+- MySQL 8 (SQLite also works for local development and is used by the tests)
+- Laravel Sanctum (API token authentication)
+- Spatie Laravel Permission (roles and permissions)
+- Vue 3 (Composition API), Vue Router 4, Pinia, Axios
+- Tailwind CSS 3, Vite 6 (`laravel-vite-plugin`)
 
 ## Project Structure
 
 ```
 sms/
-├── backend/              # Laravel API Backend
+├── backend/                          # The Laravel app (everything lives here)
 │   ├── app/
-│   │   ├── Http/Controllers/Api/
-│   │   └── Models/
-│   ├── database/
-│   │   ├── migrations/
-│   │   └── seeders/
-│   └── routes/
-│       └── api.php
-└── frontend/            # Vue 3 Frontend
-    ├── src/
-    │   ├── assets/
-    │   ├── components/
-    │   ├── router/
-    │   ├── services/
-    │   ├── stores/
-    │   ├── views/
-    │   ├── App.vue
-    │   └── main.js
-    └── package.json
+│   │   ├── Http/Controllers/Api/     # JSON API (admin + /api/public)
+│   │   ├── Http/Controllers/Web/     # Public website controllers
+│   │   ├── Http/Resources/           # API resources
+│   │   ├── Models/
+│   │   ├── Services/                 # Shared by the website and the API (posts, contact)
+│   │   └── Support/                  # SEO and Schema.org helpers
+│   ├── config/seo.php                # Site name, default meta, school organization details
+│   ├── database/{migrations,seeders}
+│   ├── resources/
+│   │   ├── css/public.css            # Public website styles (Tailwind)
+│   │   ├── js/admin/                 # Admin Vue SPA (router, stores, services, views)
+│   │   └── views/                    # Blade: public pages, layouts, SEO component, admin shell
+│   ├── routes/web.php                # Public pages + /admin catch-all
+│   ├── routes/api.php                # API routes
+│   └── tests/Feature/                # Public site SEO and public API tests
+├── docker/                           # PHP image for docker compose
+├── docker-compose.yml                # MySQL + app + Vite dev server
+└── setup.sh                          # Interactive local setup script
 ```
 
 ## Installation
 
 ### Prerequisites
-- PHP 8.2+
-- Composer
-- Node.js 18+ & npm
-- MySQL 8.0+
+- PHP 8.2+ and Composer
+- Node.js 18+ and npm
+- MySQL 8.0+ (optional: `.env.example` defaults to SQLite)
 
-### Backend Setup
+### Local Setup
 
-1. Navigate to backend directory:
+Run everything from `backend/`:
+
 ```bash
 cd backend
-```
-
-2. Install PHP dependencies:
-```bash
 composer install
-```
-
-3. Configure environment:
-```bash
+npm install
 cp .env.example .env
+php artisan key:generate
 ```
 
-4. Update `.env` file with your database credentials:
-```env
-DB_CONNECTION=mysql
-DB_HOST=127.0.0.1
-DB_PORT=3306
-DB_DATABASE=sms_db
-DB_USERNAME=root
-DB_PASSWORD=your_password
-```
+Choose a database in `.env`:
 
-5. Create database:
-```bash
-mysql -u root -p
-CREATE DATABASE sms_db;
-exit;
-```
+- **SQLite** (the default): run `touch database/database.sqlite`
+- **MySQL**: set the connection details, for example:
 
-6. Run migrations and seeders:
+  ```env
+  DB_CONNECTION=mysql
+  DB_HOST=127.0.0.1
+  DB_PORT=3306
+  DB_DATABASE=sms_db
+  DB_USERNAME=root
+  DB_PASSWORD=your_password
+  ```
+
+Next, run the migrations and seed the database, then start everything:
+
 ```bash
 php artisan migrate:fresh --seed
+composer dev      # php artisan serve + queue worker + log tail + Vite, in one terminal
 ```
 
-7. Start the development server:
+Once it's running:
+- Public website: http://localhost:8000
+- Admin panel: http://localhost:8000/admin
+- API: http://localhost:8000/api
+
+`composer dev` starts the Vite dev server on port 5173. Pages load their CSS and JS from it, so keep it running. Alternatively, run `npm run build` once and use `php artisan serve` on its own.
+
+`./setup.sh` from the repo root does the same setup interactively for MySQL.
+
+### Docker
+
+`docker-compose.yml` sets the MySQL connection itself, so `backend/.env` only needs to exist:
+
 ```bash
-php artisan serve
+cp backend/.env.example backend/.env
+docker compose up
 ```
 
-Backend API will be available at `http://localhost:8000`
+This starts:
+- MySQL 8, reachable from the host on port **3307** (database `scms`, root password `password`)
+- The app on http://localhost:8000
+- The Vite dev server on port 5173
 
-### Frontend Setup
+On the first run, create the tables and seed them:
 
-1. Navigate to frontend directory:
 ```bash
-cd frontend
+docker compose exec app php artisan key:generate
+docker compose exec app php artisan migrate:fresh --seed
 ```
-
-2. Install npm dependencies:
-```bash
-npm install
-```
-
-3. Start the development server:
-```bash
-npm run dev
-```
-
-Frontend will be available at `http://localhost:3000`
 
 ## Default Credentials
 
-After seeding the database, use these credentials to login:
+After seeding, log in at `/admin/login` with:
 
 - **Email**: admin@sms.com
 - **Password**: password
 
 ## API Endpoints
 
+The admin endpoints require a Sanctum bearer token, which you get from `POST /api/login`.
+
 ### Authentication
-- `POST /api/login` - Login
-- `POST /api/logout` - Logout
-- `GET /api/me` - Get authenticated user
-- `POST /api/change-password` - Change password
+- `POST /api/login`: log in and receive a token
+- `POST /api/logout`: log out
+- `GET /api/me`: get the authenticated user
+- `POST /api/change-password`: change password
 
-### Students
-- `GET /api/students` - List students
-- `POST /api/students` - Create student
-- `GET /api/students/{id}` - Get student
-- `PUT /api/students/{id}` - Update student
-- `DELETE /api/students/{id}` - Delete student
+### Resources (standard REST: index/store/show/update/destroy)
+`students`, `classes`, `sections`, `subjects`, `teachers`, `parents`, `academic-years`, `attendances`, `exams`, `exam-schedules`, `exam-results`, `fee-types`, `fee-structures`, `fee-payments`, `posts` (admin role only)
 
-### Attendance
-- `GET /api/attendances` - List attendance
-- `POST /api/attendances` - Mark attendance
-- `POST /api/attendances/bulk` - Bulk mark attendance
-- `GET /api/attendances/report/{student}` - Student attendance report
+The teacher, parent, exam and fee resources are stubs: `index` returns an empty list and the other actions return `501`.
 
-### Exams
-- `GET /api/exams` - List exams
-- `POST /api/exams` - Create exam
-- `POST /api/exams/{id}/publish` - Publish exam results
+### Extra Actions
+- `POST /api/academic-years/{id}/activate`
+- `POST /api/attendances/bulk`: bulk mark attendance
+- `GET /api/attendances/report/{student}`
 
-### Fees
-- `GET /api/fee-payments` - List fee payments
-- `POST /api/fee-payments` - Record payment
-- `GET /api/fee-payments/student/{student}` - Student payment history
+Routes exist for the following, but their controller methods aren't written yet, so calling them causes a server error:
+- `POST /api/exams/{exam}/publish`
+- `GET /api/exam-results/student/{student}/exam/{exam}`
+- `GET /api/fee-payments/student/{student}`
+- `GET /api/fee-payments/receipt/{feePayment}`
+- `GET /api/dashboard/stats`
+- `GET /api/dashboard/recent-activities`
+
+### Public (no auth, rate-limited)
+- `GET /api/public/school`
+- `GET /api/public/news`
+- `GET /api/public/news/{slug}`
+- `GET /api/public/events`
+- `GET /api/public/events/{slug}`
+- `POST /api/public/contact`
 
 ## Database Schema
 
 ### Main Tables
-- `users` - User accounts
-- `students` - Student profiles
-- `teachers` - Teacher profiles
-- `parents` - Parent information
-- `classes` - Class definitions
-- `sections` - Section definitions
-- `subjects` - Subject definitions
-- `academic_years` - Academic year management
-- `attendances` - Daily attendance records
-- `exams` - Exam definitions
-- `exam_schedules` - Exam timetable
-- `exam_results` - Student exam results
-- `fee_types` - Fee categories
-- `fee_structures` - Class-wise fee structure
-- `fee_payments` - Fee payment records
+- `users`: user accounts (plus the Spatie role/permission tables)
+- `students`, `teachers`, `parents`, `parent_student`
+- `academic_years`, `classes`, `sections`, `class_sections`, `subjects`, `subject_assignments`
+- `attendances`
+- `exams`, `exam_schedules`, `exam_results`
+- `fee_types`, `fee_structures`, `fee_payments`
+- `posts`: news and events for the public website
+- `contact_messages`: contact form submissions
 
 ## Development
 
 ### Adding New Features
 
-1. **Backend**: Create controller, model, and migration
-```bash
-php artisan make:controller Api/YourController
-php artisan make:model YourModel -m
-```
+1. **Backend**: create a controller, model and migration, then register the routes in `routes/api.php`:
+   ```bash
+   php artisan make:controller Api/YourController
+   php artisan make:model YourModel -m
+   ```
+2. **Admin UI**: add a view under `backend/resources/js/admin/views/` and a route in `backend/resources/js/admin/router/index.js`.
+3. **Public page**: add a Blade view under `backend/resources/views/public/`. It extends `layouts.public`, fills the `seo` section with `<x-seo>`, and has exactly one `<h1>`.
 
-2. **Frontend**: Create view component and add route
-```bash
-# Create component in src/views/
-# Add route in src/router/index.js
-```
+### Configuring the Public Site
+Set the site name, default description and image, and school contact details in `.env` using the `SEO_*` and `SCHOOL_*` variables. See `backend/config/seo.php` for the full list.
 
-### Running Tests
+### Running Tests and Code Style
 ```bash
-# Backend
 cd backend
-php artisan test
-
-# Frontend
-cd frontend
-npm run test
+php artisan test                          # all tests (in-memory SQLite)
+php artisan test --filter=PublicSeoTest   # a single test class
+./vendor/bin/pint                         # format PHP code
 ```
 
 ## Production Deployment
 
-### Backend
-1. Set `APP_ENV=production` in `.env`
-2. Run `php artisan config:cache`
-3. Run `php artisan route:cache`
-4. Run `php artisan view:cache`
-5. Configure web server (Apache/Nginx)
-
-### Frontend
-1. Build for production: `npm run build`
-2. Deploy `dist/` folder to web server
-3. Configure web server for SPA routing
+1. Set `APP_ENV=production`, `APP_DEBUG=false` and `APP_URL` in `.env`
+2. `composer install --no-dev --optimize-autoloader`
+3. `npm ci && npm run build`: builds the public CSS and the admin SPA into `public/build`
+4. `php artisan migrate --force`
+5. `php artisan config:cache && php artisan route:cache && php artisan view:cache`
+6. Point the web server's document root at `backend/public`. Laravel handles every route, including `/admin/*`, so no separate SPA hosting is needed.
 
 ## Security
 
 - API authentication via Laravel Sanctum tokens
 - Role-based access control with Spatie Permission
-- CSRF protection enabled
-- Input validation on all endpoints
+- CSRF protection on web forms
+- Rate limiting on the public API and the contact form
+- Input validation on endpoints
 - SQL injection protection via Eloquent ORM
+- The admin shell is marked `noindex, nofollow`
 
 ## Contributing
 
@@ -263,7 +257,7 @@ For support, email support@sms.com or create an issue in the repository.
 - [ ] Student report cards
 - [ ] SMS/Email notifications
 - [ ] Parent portal
-- [ ] Mobile app (React Native)
+- [ ] Mobile app (React Native), which will use the `/api/public` endpoints
 - [ ] Library management
 - [ ] Transport management
 - [ ] Hostel management
@@ -274,4 +268,3 @@ For support, email support@sms.com or create an issue in the repository.
 ## Credits
 
 Developed with ❤️ using Laravel and Vue.js
-

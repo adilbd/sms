@@ -1,215 +1,92 @@
-# 🎉 School Management System - Ready to Use!
+# 🏫 School Management System - Start Here
 
-## ✅ What's Been Done
+## What This Is
 
-Your complete School Management System has been successfully generated with:
+A single Laravel 11 app in `backend/` that serves:
 
-### Backend (Laravel 11) ✅
-- Database with 23 tables created and seeded
-- 17 API controllers with RESTful endpoints
-- 15 Eloquent models with relationships
-- Authentication & authorization configured
-- Admin user created: admin@sms.com / password
+- **Public website** at `/`: server-rendered Blade pages, SEO-ready, with news, events and a contact form
+- **Admin panel** at `/admin`: a Vue 3 SPA (Pinia, Vue Router, Tailwind), bundled by Vite
+- **JSON API** at `/api`: Sanctum tokens for the admin, plus unauthenticated `/api/public/*` endpoints for the mobile app
 
-### Frontend (Vue 3) ✅
-- Vue app with 14 views/components
-- Login, Dashboard, Student List fully functional
-- Tailwind CSS styling configured
-- API integration with Axios
-- State management with Pinia
-
-### Documentation ✅
-- README.md - Full documentation
-- QUICKSTART.md - Quick start guide  
-- STATUS.md - Feature checklist
-- SUMMARY.md - Project overview
+There is no separate frontend project to run.
 
 ---
 
-## 🚀 TO START THE APPLICATION
+## 🚀 Start the Application
 
-Your **backend server is already running** on http://127.0.0.1:8000 ✅
-
-### Now start the frontend:
-
-**Open a new terminal and run:**
-
-```bash
-cd /Volumes/Document/Projects/Own/sms/frontend
-npm run dev
-```
-
-The frontend will start on **http://localhost:3000**
-
----
-
-## 🔐 ACCESS THE APPLICATION
-
-Once both servers are running:
-
-1. Open your browser
-2. Navigate to: **http://localhost:3000**
-3. Login with:
-   - **Email:** admin@sms.com
-   - **Password:** password
-
----
-
-## 📱 WHAT YOU CAN DO NOW
-
-### ✅ Fully Working Features:
-1. **Login** - Authenticate as admin
-2. **Dashboard** - View system overview with stats
-3. **Students** - View list with filters and pagination
-4. **Navigation** - Use sidebar to explore modules
-
-### ⚠️ Features with Placeholder Views:
-- Add New Student (form not complete)
-- Teachers, Classes, Subjects (list views pending)
-- Attendance, Exams, Fees (functionality pending)
-
----
-
-## 📂 YOUR PROJECT FILES
-
-```
-/Volumes/Document/Projects/Own/sms/
-├── backend/          ← Laravel API (running on port 8000)
-├── frontend/         ← Vue 3 app (start with npm run dev)
-├── README.md         ← Full documentation
-├── QUICKSTART.md     ← Quick reference
-├── STATUS.md         ← What's done/pending
-├── SUMMARY.md        ← Project overview
-└── setup.sh          ← Automated setup script
-```
-
----
-
-## 🛠️ NEXT STEPS
-
-### 1. Start the Frontend
-```bash
-cd frontend
-npm run dev
-```
-
-### 2. Access and Test
-- Open http://localhost:3000
-- Login with admin credentials
-- Explore the dashboard and student list
-
-### 3. Continue Development
-- Check `STATUS.md` for feature checklist
-- Implement remaining views (forms, details pages)
-- Complete placeholder controllers
-- Add file upload functionality
-- Build reports and exports
-
----
-
-## 📚 USEFUL COMMANDS
-
-### Backend
-```bash
-# Backend is already running, but if you need to restart:
-cd backend
-php artisan serve
-
-# Run migrations
-php artisan migrate
-
-# Clear cache
-php artisan cache:clear
-php artisan config:clear
-```
-
-### Frontend
-```bash
-# Start development server
-npm run dev
-
-# Build for production
-npm run build
-
-# Install new package
-npm install package-name
-```
-
----
-
-## 🐛 TROUBLESHOOTING
-
-### Backend not responding?
 ```bash
 cd backend
-php artisan serve
+composer install && npm install
+cp .env.example .env && php artisan key:generate
+touch database/database.sqlite          # or configure MySQL in .env
+php artisan migrate:fresh --seed
+composer dev
 ```
 
-### Frontend won't start?
-```bash
-cd frontend
-rm -rf node_modules package-lock.json
-npm install
-npm run dev
+`composer dev` runs the PHP server, a queue worker, a log tail and the Vite dev server together.
+
+Prefer Docker? See the Docker section in [README.md](README.md#docker).
+
+---
+
+## 🔐 Access the Application
+
+- Public website: **http://localhost:8000**
+- Admin panel: **http://localhost:8000/admin**
+  - **Email:** admin@sms.com
+  - **Password:** password
+
+---
+
+## 📱 What Works Today
+
+### ✅ Working
+1. **Public website**: home, about, admissions, contact, news, events, sitemap
+2. **Admin login** and the **Dashboard** layout (the stats are placeholders)
+3. **Students**: list with filters and pagination
+4. **News & Events**: create, edit and publish posts
+5. **APIs**: students, classes, sections, subjects, academic years, attendance, public content
+
+### ⚠️ Placeholders
+- Admin views: add/view student, teachers, classes, subjects, attendance, exams, fees, profile
+- APIs: teachers, parents, exams and fees return empty data or 501. The dashboard endpoints aren't implemented yet.
+
+---
+
+## 📂 Project Files
+
+```
+sms/
+├── backend/            ← The whole app (Laravel + Blade + Vue admin)
+├── docker/             ← PHP image for docker compose
+├── docker-compose.yml  ← MySQL + app + Vite
+├── README.md           ← Full documentation
+├── QUICKSTART.md       ← Quick reference
+├── STATUS.md           ← What's done and what's pending
+├── SUMMARY.md          ← Project overview
+└── setup.sh            ← Interactive setup script (MySQL)
 ```
 
-### Can't login?
-- Ensure backend is running on port 8000
-- Check database connection in backend/.env
-- Verify credentials: admin@sms.com / password
+---
+
+## 🛠️ Next Steps
+
+1. Log in to `/admin` and explore
+2. Publish a news post and view it on the public site
+3. Read `STATUS.md` and pick a feature to build
+4. Add admin views in `backend/resources/js/admin/views/` and register them in `backend/resources/js/admin/router/index.js`
 
 ---
 
-## 📊 PROJECT STATS
+## 🐛 Troubleshooting
 
-- **Database Tables:** 23
-- **API Endpoints:** 50+
-- **Models:** 15
-- **Controllers:** 17
-- **Frontend Views:** 14
-- **Roles:** 4 (Admin, Teacher, Student, Parent)
-- **Permissions:** 40+
-- **Overall Completion:** ~35%
+### Page loads without styles or scripts?
+Vite isn't running. Start it with `npm run dev` in `backend/`, or build the assets once with `npm run build`.
 
----
+### Can't log in?
+- Check that migrations and seeders have run: `php artisan migrate:fresh --seed`
+- Check the database settings in `backend/.env`
+- Verify the credentials: admin@sms.com / password
 
-## 🎯 IMMEDIATE TASKS
-
-1. ✅ Backend running ← **DONE**
-2. ⏳ Start frontend ← **DO THIS NOW**
-3. ⏳ Login and explore
-4. ⏳ Review STATUS.md
-5. ⏳ Pick a feature to complete
-6. ⏳ Customize as needed
-
----
-
-## 💡 TIPS
-
-- **Backend API:** Test endpoints at http://127.0.0.1:8000/api/
-- **Database:** Already created and seeded
-- **Admin User:** Already created (admin@sms.com)
-- **Permissions:** All roles and permissions configured
-- **Documentation:** Everything documented in README.md
-
----
-
-## 🎉 YOU'RE ALL SET!
-
-Your School Management System is ready to use. The backend is running, database is set up, and all you need to do is:
-
-### START THE FRONTEND NOW:
-```bash
-cd frontend && npm run dev
-```
-
-Then open **http://localhost:3000** and login! 🚀
-
----
-
-**Need help?** Check the documentation files or review the code structure.
-
-**Ready to develop?** Start with STATUS.md to see what needs implementation.
-
-**Happy Coding!** 🏫✨
-
+### Something else?
+Check `backend/storage/logs/laravel.log`, or run `php artisan pail`.

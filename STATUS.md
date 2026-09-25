@@ -39,11 +39,22 @@
 - [x] FeeTypeController (placeholder)
 - [x] FeeStructureController (placeholder)
 - [x] FeePaymentController (placeholder)
-- [x] DashboardController (placeholder)
+- [x] DashboardController (placeholder; `stats` / `recentActivities` routes have no methods yet)
+- [x] PostController (news & events CRUD, admin only)
+- [x] PublicContentController (`/api/public/*` for the mobile app)
 
-### Frontend - Core
+### Public Website
 
-- [x] Vue 3 project setup with Vite
+- [x] Single Laravel app: public site at `/`, admin SPA at `/admin`, API at `/api`
+- [x] Server-rendered Blade pages (home, about, admissions, contact, news, events)
+- [x] SEO component (meta, canonical, Open Graph/Twitter, JSON-LD)
+- [x] Cached `sitemap.xml` and `robots.txt`
+- [x] Contact form with rate limiting
+- [x] Shared `PostService` / `ContactService` for the website and the public API
+
+### Admin SPA - Core
+
+- [x] Vue 3 admin SPA bundled by Laravel Vite (`backend/resources/js/admin`, served at `/admin`)
 - [x] Tailwind CSS configuration
 - [x] Vue Router with authentication guards
 - [x] Pinia store for state management
@@ -70,6 +81,7 @@
 - [x] Exam list (placeholder)
 - [x] Fee list (placeholder)
 - [x] Profile page (placeholder)
+- [x] Posts list and form (news & events)
 
 ### Documentation
 
@@ -146,7 +158,8 @@
 ### Testing
 
 - [ ] Unit tests for models
-- [ ] Feature tests for API endpoints
+- [x] Feature tests for the public site (SEO) and the public API
+- [ ] Feature tests for the authenticated API endpoints
 - [ ] Integration tests
 - [ ] Frontend component tests
 - [ ] E2E tests
@@ -156,14 +169,14 @@
 - [ ] Database indexing optimization
 - [ ] Query optimization
 - [ ] API response caching
-- [ ] Frontend lazy loading
+- [x] Frontend lazy loading (route-level code splitting)
 - [ ] Image optimization
 - [ ] CDN integration
 
 ### Security Enhancements
 
 - [ ] Input sanitization
-- [ ] Rate limiting
+- [x] Rate limiting on the public API and contact form
 - [ ] Two-factor authentication
 - [ ] Password strength requirements
 - [ ] Audit logging
@@ -173,7 +186,7 @@
 
 - [ ] Production environment setup
 - [ ] CI/CD pipeline
-- [ ] Docker configuration
+- [x] Docker configuration (docker compose: MySQL + app + Vite)
 - [ ] Server deployment guide
 - [ ] Backup strategy
 - [ ] Monitoring and logging setup
@@ -186,7 +199,7 @@
 - Frontend Core: 40% ⚠️
 - Features: 25% 🚧
 - Documentation: 80% ✅
-- Testing: 0% ❌
+- Testing: 10% ⚠️
 
 ## 🎯 Priority Development Plan
 
@@ -242,7 +255,7 @@
 
 ---
 
-**Last Updated:** November 25, 2025
+**Last Updated:** September 25, 2026
 **Status:** Development in Progress
 **Version:** 1.0.0-alpha
 
