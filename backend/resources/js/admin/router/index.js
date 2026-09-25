@@ -69,19 +69,64 @@ const routes = [
         component: () => import('@/views/fees/FeeList.vue'),
       },
       {
-        path: 'posts',
-        name: 'News & Events',
+        path: 'news',
+        name: 'News',
         component: () => import('@/views/posts/PostList.vue'),
+        meta: { type: 'news' },
       },
       {
-        path: 'posts/create',
-        name: 'Add Post',
+        path: 'news/create',
+        name: 'Add News',
         component: () => import('@/views/posts/PostForm.vue'),
+        meta: { type: 'news' },
+      },
+      {
+        path: 'news/:id/edit',
+        name: 'Edit News',
+        component: () => import('@/views/posts/PostForm.vue'),
+        meta: { type: 'news' },
+      },
+      {
+        path: 'events',
+        name: 'Events',
+        component: () => import('@/views/posts/PostList.vue'),
+        meta: { type: 'event' },
+      },
+      {
+        path: 'events/create',
+        name: 'Add Event',
+        component: () => import('@/views/posts/PostForm.vue'),
+        meta: { type: 'event' },
+      },
+      {
+        path: 'events/:id/edit',
+        name: 'Edit Event',
+        component: () => import('@/views/posts/PostForm.vue'),
+        meta: { type: 'event' },
+      },
+      // Old links to the single News & Events section now go to News.
+      {
+        path: 'posts',
+        redirect: '/news',
       },
       {
         path: 'posts/:id/edit',
-        name: 'Edit Post',
-        component: () => import('@/views/posts/PostForm.vue'),
+        redirect: (to) => `/news/${to.params.id}/edit`,
+      },
+      {
+        path: 'pages',
+        name: 'Pages',
+        component: () => import('@/views/pages/PageList.vue'),
+      },
+      {
+        path: 'pages/create',
+        name: 'Add Page',
+        component: () => import('@/views/pages/PageForm.vue'),
+      },
+      {
+        path: 'pages/:id/edit',
+        name: 'Edit Page',
+        component: () => import('@/views/pages/PageForm.vue'),
       },
       {
         path: 'profile',

@@ -4,10 +4,13 @@ namespace App\Http\Controllers\Web;
 
 use App\Http\Controllers\Controller;
 use App\Models\Post;
+use App\Services\PageService;
 use Illuminate\Support\Facades\Cache;
 
 class SeoController extends Controller
 {
+    public function __construct(private PageService $pages) {}
+
     public function sitemap()
     {
         $xml = Cache::remember('sitemap.xml', now()->addHour(), function () {
@@ -36,6 +39,15 @@ class SeoController extends Controller
                         ]);
                     }
                 });
+
+            foreach ($this->pages->publishedForSitemap() as $page) {
+                $urls->push([
+                    'loc' => $page->url(),
+                    'lastmod' => $page->updated_at,
+                    'changefreq' => 'monthly',
+                    'priority' => '0.5',
+                ]);
+            }
 
             return view('seo.sitemap', ['urls' => $urls])->render();
         });

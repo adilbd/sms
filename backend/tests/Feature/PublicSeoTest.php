@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\Page;
 use App\Models\Post;
 use App\Support\PostBody;
 use Database\Seeders\PublicContentSeeder;
@@ -132,6 +133,84 @@ class PublicSeoTest extends TestCase
         $this->assertNotEmpty($matches);
         $this->assertStringNotContainsString('<', $matches[1]);
         $this->assertStringContainsString('Plain rich text summary', $matches[1]);
+    }
+
+    public function test_page_detail_has_full_seo_and_content(): void
+    {
+        $page = Page::factory()->create([
+            'title' => 'Admissions Policy',
+            'body' => PostBody::sanitize('<p>Read our full admissions policy for details on how to apply.</p><img src="/storage/posts/policy.jpg" alt="Policy">'),
+        ]);
+
+        $html = $this->get("/pages/{$page->slug}")->assertOk()->getContent();
+
+        $this->assertSeoHead($html, url("/pages/{$page->slug}"));
+        $this->assertSame(1, substr_count($html, '<h1'));
+        $this->assertStringContainsString(e($page->title), $html);
+        $this->assertStringContainsString('<img src="/storage/posts/policy.jpg" alt="Policy">', $html);
+        $this->assertContains('WebPage', $this->jsonLdTypes($html));
+    }
+
+    public function test_page_body_with_an_h1_still_yields_exactly_one_h1(): void
+    {
+        $page = Page::factory()->create([
+            'title' => 'Heading Collision',
+            'body' => PostBody::sanitize('<h1>Sneaky heading</h1><p>Body text</p>'),
+        ]);
+
+        $html = $this->get("/pages/{$page->slug}")->assertOk()->getContent();
+
+        $this->assertSame(1, substr_count($html, '<h1'));
+    }
+
+    public function test_page_meta_description_falls_back_to_plain_text(): void
+    {
+        $page = Page::factory()->create([
+            'title' => 'No Meta Description',
+            'meta_description' => null,
+            'body' => PostBody::sanitize('<p>Plain <strong>rich</strong> text summary for search engines.</p>'),
+        ]);
+
+        $html = $this->get("/pages/{$page->slug}")->assertOk()->getContent();
+
+        preg_match('/<meta name="description" content="([^"]*)">/', $html, $matches);
+        $this->assertNotEmpty($matches);
+        $this->assertStringNotContainsString('<', $matches[1]);
+        $this->assertStringContainsString('Plain rich text summary', $matches[1]);
+    }
+
+    public function test_unknown_draft_and_future_pages_return_404_with_noindex(): void
+    {
+        Page::factory()->draft()->create(['slug' => 'draft-handbook']);
+        Page::factory()->create(['slug' => 'future-page', 'is_published' => true, 'published_at' => now()->addWeek()]);
+
+        $this->get('/pages/does-not-exist')->assertNotFound()->assertSee('noindex, nofollow', false);
+        $this->get('/pages/draft-handbook')->assertNotFound()->assertSee('noindex, nofollow', false);
+        $this->get('/pages/future-page')->assertNotFound()->assertSee('noindex, nofollow', false);
+    }
+
+    public function test_sitemap_lists_published_pages_and_not_drafts(): void
+    {
+        $published = Page::factory()->create(['slug' => 'facilities']);
+        $draft = Page::factory()->draft()->create(['slug' => 'draft-handbook']);
+
+        $xml = simplexml_load_string($this->get('/sitemap.xml')->assertOk()->getContent());
+        $locs = collect();
+        foreach ($xml->url as $url) {
+            $locs->push((string) $url->loc);
+        }
+
+        $this->assertContains($published->url(), $locs);
+        $this->assertNotContains($draft->url(), $locs);
+    }
+
+    public function test_sitemap_refreshes_when_a_page_is_published(): void
+    {
+        $this->get('/sitemap.xml');
+
+        $page = Page::create(['title' => 'Brand New Page', 'body' => '<p>Hello</p>', 'is_published' => true]);
+
+        $this->get('/sitemap.xml')->assertSee($page->url(), false);
     }
 
     public function test_home_has_organization_schema(): void

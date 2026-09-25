@@ -2,6 +2,7 @@
 
 namespace App\Support;
 
+use App\Models\Page;
 use App\Models\Post;
 
 /**
@@ -115,6 +116,20 @@ class SchemaOrg
                 'url' => url('/'),
             ],
             'publisher' => ['@id' => url('/').'#organization'],
+        ]);
+    }
+
+    public static function page(Page $page): array
+    {
+        return array_filter([
+            '@context' => 'https://schema.org',
+            '@type' => 'WebPage',
+            'name' => $page->title,
+            'description' => $page->seoDescription(),
+            'url' => $page->url(),
+            'datePublished' => $page->published_at?->toIso8601String(),
+            'dateModified' => $page->updated_at?->toIso8601String(),
+            'isPartOf' => ['@id' => url('/').'#organization'],
         ]);
     }
 }

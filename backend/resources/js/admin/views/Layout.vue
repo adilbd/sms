@@ -20,6 +20,35 @@
             <span class="text-lg mr-3">{{ item.icon }}</span>
             <span class="font-medium">{{ item.name }}</span>
           </router-link>
+
+          <!-- CMS group: News, Events and Pages -->
+          <div>
+            <button
+              type="button"
+              class="flex w-full items-center justify-between px-6 py-3 text-gray-700 hover:bg-primary-50 hover:text-primary-600 transition-colors"
+              :class="{ 'text-primary-600': isCmsActive }"
+              @click="cmsOpen = !cmsOpen"
+              :aria-expanded="cmsOpen"
+            >
+              <span class="flex items-center">
+                <span class="text-lg mr-3">🗂️</span>
+                <span class="font-medium">CMS</span>
+              </span>
+              <span class="text-xs transition-transform duration-150" :class="{ 'rotate-90': cmsOpen }">▶</span>
+            </button>
+            <div v-show="cmsOpen">
+              <router-link
+                v-for="child in cmsItems"
+                :key="child.name"
+                :to="child.path"
+                class="flex items-center pl-14 pr-6 py-2 text-sm text-gray-600 hover:bg-primary-50 hover:text-primary-600 transition-colors"
+                :class="{ 'bg-primary-50 text-primary-600 border-r-4 border-primary-600': isChildActive(child) }"
+              >
+                <span class="mr-2">{{ child.icon }}</span>
+                <span>{{ child.name }}</span>
+              </router-link>
+            </div>
+          </div>
         </nav>
 
         <!-- User Profile -->
@@ -70,7 +99,7 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 
@@ -88,11 +117,28 @@ const menuItems = computed(() => {
     { name: 'Attendance', path: '/attendance', icon: '📋' },
     { name: 'Exams', path: '/exams', icon: '📝' },
     { name: 'Fees', path: '/fees', icon: '💰' },
-    { name: 'News & Events', path: '/posts', icon: '📰' },
   ]
 
   // Filter menu based on user role
   return items
+})
+
+const cmsItems = [
+  { name: 'News', path: '/news', icon: '📰' },
+  { name: 'Events', path: '/events', icon: '📅' },
+  { name: 'Pages', path: '/pages', icon: '📄' },
+]
+
+const isChildActive = (child) => route.path === child.path || route.path.startsWith(`${child.path}/`)
+
+const isCmsActive = computed(() => cmsItems.some(isChildActive))
+
+const cmsOpen = ref(isCmsActive.value)
+
+// Auto-expand the CMS group whenever the current route is one of its children,
+// without collapsing it back when the user navigates away (they can toggle it).
+watch(isCmsActive, (active) => {
+  if (active) cmsOpen.value = true
 })
 
 const currentPageTitle = computed(() => {

@@ -76,6 +76,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('posts/media', [\App\Http\Controllers\Api\PostMediaController::class, 'store']);
     Route::apiResource('posts', \App\Http\Controllers\Api\PostController::class)->where(['post' => '[0-9]+']);
 
+    // Standalone public content pages
+    Route::apiResource('pages', \App\Http\Controllers\Api\PageController::class)->where(['page' => '[0-9]+']);
+
     // Dashboard
     Route::get('dashboard/stats', [\App\Http\Controllers\Api\DashboardController::class, 'stats']);
     Route::get('dashboard/recent-activities', [\App\Http\Controllers\Api\DashboardController::class, 'recentActivities']);

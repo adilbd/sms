@@ -1,16 +1,9 @@
 <template>
   <div class="space-y-6">
-    <h1 class="text-2xl font-bold text-gray-900">{{ isEdit ? 'Edit Post' : 'Add Post' }}</h1>
+    <h1 class="text-2xl font-bold text-gray-900">{{ isEdit ? `Edit ${singularLabel}` : `Add ${singularLabel}` }}</h1>
 
     <form class="card space-y-6" @submit.prevent="save">
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Type</label>
-          <select v-model="form.type" class="input">
-            <option value="news">News</option>
-            <option value="event">Event</option>
-          </select>
-        </div>
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1">Slug (optional)</label>
           <input v-model="form.slug" type="text" class="input" placeholder="auto-generated from title" />
@@ -71,7 +64,7 @@
           <span class="text-sm text-gray-700">Published</span>
         </label>
         <div class="flex space-x-2">
-          <router-link to="/posts" class="btn btn-secondary">Cancel</router-link>
+          <router-link :to="basePath" class="btn btn-secondary">Cancel</router-link>
           <button type="submit" class="btn btn-primary" :disabled="saving">
             {{ saving ? 'Saving...' : 'Save' }}
           </button>
@@ -90,12 +83,17 @@ import RichTextEditor from '@/components/RichTextEditor.vue'
 const route = useRoute()
 const router = useRouter()
 
+// The section (News or Events) is fixed by the route, not chosen in the form.
+const postType = computed(() => route.meta.type)
+const basePath = computed(() => (postType.value === 'event' ? '/events' : '/news'))
+const singularLabel = computed(() => (postType.value === 'event' ? 'Event' : 'News'))
+
 const isEdit = computed(() => !!route.params.id)
 const saving = ref(false)
 const errors = ref({})
 
 const form = reactive({
-  type: 'news',
+  type: postType.value,
   title: '',
   slug: '',
   excerpt: '',
@@ -169,7 +167,7 @@ const save = async () => {
     } else {
       await api.post('/posts', payload)
     }
-    router.push('/posts')
+    router.push(basePath.value)
   } catch (error) {
     if (error.response?.status === 422) {
       errors.value = error.response.data.errors

@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Web\ContactController;
+use App\Http\Controllers\Web\PageController;
 use App\Http\Controllers\Web\PostController;
 use App\Http\Controllers\Web\PublicController;
 use App\Http\Controllers\Web\SeoController;
@@ -18,6 +19,10 @@ Route::get('/news', [PostController::class, 'newsIndex'])->name('news.index');
 Route::get('/news/{slug}', [PostController::class, 'newsShow'])->name('news.show');
 Route::get('/events', [PostController::class, 'eventsIndex'])->name('events.index');
 Route::get('/events/{slug}', [PostController::class, 'eventsShow'])->name('events.show');
+
+// Named "page.show" (singular), not "pages.show", so it doesn't collide with the
+// apiResource('pages', ...) route of the same name registered in routes/api.php.
+Route::get('/pages/{slug}', [PageController::class, 'show'])->name('page.show');
 
 Route::get('/sitemap.xml', [SeoController::class, 'sitemap'])->name('sitemap');
 Route::get('/robots.txt', [SeoController::class, 'robots'])->name('robots');

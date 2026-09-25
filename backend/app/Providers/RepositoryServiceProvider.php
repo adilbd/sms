@@ -2,8 +2,10 @@
 
 namespace App\Providers;
 
+use App\Repositories\Contracts\PageRepositoryInterface;
 use App\Repositories\Contracts\PostRepositoryInterface;
 use App\Repositories\Contracts\SubjectRepositoryInterface;
+use App\Repositories\Eloquent\PageRepository;
 use App\Repositories\Eloquent\PostRepository;
 use App\Repositories\Eloquent\SubjectRepository;
 use Illuminate\Support\ServiceProvider;
@@ -18,5 +20,6 @@ class RepositoryServiceProvider extends ServiceProvider
     public array $bindings = [
         SubjectRepositoryInterface::class => SubjectRepository::class,
         PostRepositoryInterface::class => PostRepository::class,
+        PageRepositoryInterface::class => PageRepository::class,
     ];
 }
