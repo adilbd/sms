@@ -238,6 +238,16 @@ class MenuItemApiTest extends TestCase
             ->assertJsonValidationErrors('url');
     }
 
+    public function test_store_rejects_a_backslash_prefixed_url(): void
+    {
+        // Some browsers treat a leading backslash the same as a slash, so
+        // "/\evil.com" would otherwise behave like the protocol-relative "//evil.com".
+        $this->actingAs($this->admin, 'sanctum')
+            ->postJson('/api/menu-items', ['label' => 'X', 'type' => 'url', 'url' => '/\\evil.com'])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('url');
+    }
+
     public function test_store_defaults_sort_order_to_the_highest_sibling_plus_one(): void
     {
         MenuItem::factory()->heading()->create(['parent_id' => null, 'sort_order' => 0]);
@@ -307,6 +317,37 @@ class MenuItemApiTest extends TestCase
             ->putJson("/api/menu-items/{$movedItem->id}", ['parent_id' => $level2->id])
             ->assertUnprocessable()
             ->assertJsonValidationErrors('parent_id');
+    }
+
+    public function test_update_defaults_sort_order_to_the_new_siblings_max_plus_one_when_parent_changes(): void
+    {
+        $oldParent = MenuItem::factory()->heading()->create();
+        $newParent = MenuItem::factory()->heading()->create();
+        MenuItem::factory()->create(['parent_id' => $newParent->id, 'sort_order' => 2]);
+        $item = MenuItem::factory()->create(['parent_id' => $oldParent->id, 'sort_order' => 0]);
+
+        $this->actingAs($this->admin, 'sanctum')
+            ->putJson("/api/menu-items/{$item->id}", ['parent_id' => $newParent->id])
+            ->assertOk()
+            ->assertJsonPath('data.sort_order', 3);
+
+        $this->assertDatabaseHas('menu_items', ['id' => $item->id, 'parent_id' => $newParent->id, 'sort_order' => 3]);
+    }
+
+    public function test_reorder_rejects_a_row_missing_parent_id(): void
+    {
+        $item = MenuItem::factory()->heading()->create();
+
+        $this->actingAs($this->admin, 'sanctum')
+            ->putJson('/api/menu-items/reorder', [
+                'items' => [
+                    ['id' => $item->id, 'sort_order' => 0],
+                ],
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('items.0.parent_id');
+
+        $this->assertDatabaseHas('menu_items', ['id' => $item->id, 'parent_id' => null]);
     }
 
     public function test_reorder_persists_new_sort_order_and_parent_id(): void

@@ -23,7 +23,7 @@ class UpdateMenuItemRequest extends FormRequest
             'type' => ['sometimes', Rule::in(MenuItem::TYPES)],
             'page_id' => ['nullable', 'integer', Rule::exists('pages', 'id')],
             'route_name' => ['nullable', Rule::in(MenuItem::ROUTES)],
-            'url' => ['nullable', 'string', 'max:2048', 'regex:#^(/(?!/)|https?://)#'],
+            'url' => ['nullable', 'string', 'max:2048', 'regex:#^(/(?![/\\\\])|https?://)#'],
             'sort_order' => 'sometimes|integer|min:0',
             'is_active' => 'sometimes|boolean',
             'open_in_new_tab' => 'sometimes|boolean',

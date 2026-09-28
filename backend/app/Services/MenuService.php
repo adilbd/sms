@@ -61,6 +61,15 @@ class MenuService
 
         $this->applyBusinessRules($data, $menuItem);
 
+        if (array_key_exists('parent_id', $data)
+            && $data['parent_id'] !== $menuItem->parent_id
+            && ! array_key_exists('sort_order', $data)
+        ) {
+            $location = $data['location'] ?? $menuItem->location;
+            $max = $this->menuItems->maxSortOrder($location, $data['parent_id']);
+            $data['sort_order'] = $max === null ? 0 : $max + 1;
+        }
+
         return $this->menuItems->update($menuItem, $data);
     }
 
@@ -290,6 +299,12 @@ class MenuService
             // A brand-new item that doesn't set 'location' still gets the DB default
             // ('header') once saved, so fall back to it for the same-location check.
             $this->assertValidParent($existing, $data['parent_id'], $prototype->location ?: MenuItem::LOCATION_HEADER);
+        } elseif ($existing && array_key_exists('location', $data) && $existing->parent_id !== null) {
+            // The location changed but parent_id wasn't sent, so the item keeps its
+            // existing parent. Re-check that parent against the new location: the
+            // parent might sit in the old location, which the plain "parent_id
+            // present" branch above would never catch.
+            $this->assertValidParent($existing, $existing->parent_id, $prototype->location ?: MenuItem::LOCATION_HEADER);
         }
 
         match ($prototype->type) {

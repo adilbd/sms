@@ -42,6 +42,24 @@ class PublicHeaderMenuTest extends TestCase
         $this->assertStringNotContainsString('অপ্রকাশিত পাতা', $html);
     }
 
+    public function test_top_level_item_with_a_link_and_children_repeats_its_own_link_as_the_first_dropdown_entry(): void
+    {
+        // On a touch device there's no hover, so tapping a top-level item that has
+        // both an href and children would only ever follow the link, leaving the
+        // dropdown unreachable, unless the link is also repeated inside the dropdown.
+        $parent = MenuItem::factory()->create(['label' => 'প্রধান পাতা', 'type' => 'route', 'route_name' => 'about']);
+        MenuItem::factory()->create(['label' => 'উপ-আইটেম', 'type' => 'route', 'route_name' => 'contact', 'parent_id' => $parent->id]);
+
+        $html = $this->get('/')->assertOk()->getContent();
+
+        $needle = 'href="'.route('about').'"';
+
+        // route('about') is only ever rendered by header-menu.blade.php, so every
+        // occurrence comes from: the desktop toggle link, the desktop dropdown's
+        // repeated first entry, and the mobile nav's repeated first entry.
+        $this->assertSame(3, substr_count($html, $needle));
+    }
+
     public function test_fallback_links_render_when_the_menu_is_empty(): void
     {
         $html = $this->get('/')->assertOk()->getContent();

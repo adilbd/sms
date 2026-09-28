@@ -18,7 +18,7 @@ class ReorderMenuItemsRequest extends FormRequest
         return [
             'items' => 'required|array|min:1',
             'items.*.id' => ['required', 'integer', Rule::exists('menu_items', 'id')],
-            'items.*.parent_id' => ['nullable', 'integer', Rule::exists('menu_items', 'id')],
+            'items.*.parent_id' => ['present', 'nullable', 'integer', Rule::exists('menu_items', 'id')],
             'items.*.sort_order' => 'required|integer|min:0',
         ];
     }

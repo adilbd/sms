@@ -63,6 +63,19 @@
 
                 @if ($hasChildren1)
                     <ul class="invisible opacity-0 pointer-events-none group-hover/lvl1:visible group-hover/lvl1:opacity-100 group-hover/lvl1:pointer-events-auto group-focus-within/lvl1:visible group-focus-within/lvl1:opacity-100 group-focus-within/lvl1:pointer-events-auto transition absolute left-0 top-full pt-2 min-w-[240px] z-40 bg-white border border-gray-100 shadow-lg rounded-lg py-2">
+                        {{-- On a touch device, tapping the level-1 label above follows its own href, so
+                             the dropdown below would otherwise be unreachable. Repeat the link as the
+                             dropdown's first entry, as the mobile nav already does. --}}
+                        @if (! empty($level1['href']))
+                            <li>
+                                <a href="{{ $level1['href'] }}"
+                                   @if (! empty($level1['open_in_new_tab'])) target="_blank" rel="noopener" @endif
+                                   @if ($active1) aria-current="page" @endif
+                                   class="block px-4 py-2 text-sm font-medium {{ $active1 ? 'text-primary-700' : 'text-gray-700 hover:bg-gray-50 hover:text-primary-700' }}">
+                                    {{ $level1['label'] }}
+                                </a>
+                            </li>
+                        @endif
                         @foreach ($level1['children'] as $level2)
                             @php
                                 $active2 = $isCurrent($level2) || $hasActiveDescendant($level2);
@@ -87,6 +100,17 @@
 
                                 @if ($hasChildren2)
                                     <ul class="invisible opacity-0 pointer-events-none group-hover/lvl2:visible group-hover/lvl2:opacity-100 group-hover/lvl2:pointer-events-auto group-focus-within/lvl2:visible group-focus-within/lvl2:opacity-100 group-focus-within/lvl2:pointer-events-auto transition absolute left-full top-0 pl-2 min-w-[220px] z-50 bg-white border border-gray-100 shadow-lg rounded-lg py-2">
+                                        {{-- Same touch-target fix as the level-1 dropdown above. --}}
+                                        @if (! empty($level2['href']))
+                                            <li>
+                                                <a href="{{ $level2['href'] }}"
+                                                   @if (! empty($level2['open_in_new_tab'])) target="_blank" rel="noopener" @endif
+                                                   @if ($active2) aria-current="page" @endif
+                                                   class="block px-4 py-2 text-sm font-medium {{ $active2 ? 'text-primary-700' : 'text-gray-700 hover:bg-gray-50 hover:text-primary-700' }}">
+                                                    {{ $level2['label'] }}
+                                                </a>
+                                            </li>
+                                        @endif
                                         @foreach ($level2['children'] as $level3)
                                             @php $active3 = $isCurrent($level3); @endphp
                                             <li>
