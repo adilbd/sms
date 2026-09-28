@@ -64,7 +64,8 @@ The authoritative rules are in `CLAUDE.md`, `docs/architecture-guidelines.md` an
 8. **Domain** (`CLAUDE.md`). New features fit a Bangladeshi Class 1–12 school: no
    classes outside 1–12, "Class" rather than "Grade" wording, the GPA 5.00 scale for
    grades, SSC/HSC and Science/Business Studies/Humanities groups where relevant, BDT for
-   money, and no ASCII-only assumptions about names or text.
+   money, and no ASCII-only assumptions about names or text (post and page slugs
+   excepted).
 9. **Migrations.** Each migration has a working `down()`, indexes where queries filter,
    and no destructive change to existing data without a note.
 10. **Tests.** Behavior changes have feature tests: happy path, 422, 404, 403 for a role

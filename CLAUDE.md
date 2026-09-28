@@ -9,10 +9,11 @@ This is a school management system for a **Bangladeshi school** that covers **Cl
 - **Classes**: Class 1 to Class 12 only. Call them "Class" (Class 1 … Class 12), not "Grade", in the UI, seed data and copy.
 - **Levels**: Primary (Class 1–5), Junior Secondary (Class 6–8), Secondary (Class 9–10, ending with the SSC exam) and Higher Secondary (Class 11–12, ending with the HSC exam).
 - **Groups**: from Class 9, each student is in a group (Science, Business Studies or Humanities), and subjects can differ by group.
-- **Grading**: the Bangladesh GPA scale, from A+ (5.00) through A, A-, B, C and D down to F (0.00).
+- **Grading**: the Bangladesh GPA scale: A+ 80–100 = 5.00, A 70–79 = 4.00, A- 60–69 = 3.50, B 50–59 = 3.00, C 40–49 = 2.00, D 33–39 = 1.00, F 0–32 = 0.00.
 - **Academic year**: January to December.
-- **Money**: Bangladeshi Taka (BDT, ৳), stored and sent as `decimal:2` per the API guideline. **Timezone**: Asia/Dhaka.
-- **Language**: names and content may be in Bangla or English, so don't assume ASCII (post slugs are the deliberate exception).
+- **Money**: Bangladeshi Taka (BDT, ৳), stored and sent as `decimal:2` per the API guideline.
+- **Time**: store and send timestamps in UTC (the app's `APP_TIMEZONE`, which stays `UTC`). Asia/Dhaka is the school's local time, used for display and for date-only defaults such as today's attendance date.
+- **Language**: names and content may be in Bangla or English, so don't assume ASCII (post and page slugs are the deliberate exception).
 
 ## Repository layout
 
