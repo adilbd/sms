@@ -26,12 +26,7 @@ class MenuItemResource extends JsonResource
             'open_in_new_tab' => (bool) $this->open_in_new_tab,
             'created_at' => $this->created_at?->toIso8601String(),
             'updated_at' => $this->updated_at?->toIso8601String(),
-            'page' => $this->whenLoaded('page', fn () => $this->page ? [
-                'id' => $this->page->id,
-                'title' => $this->page->title,
-                'slug' => $this->page->slug,
-                'is_published' => (bool) $this->page->is_published,
-            ] : null),
+            'page' => new PageResource($this->whenLoaded('page')),
             'children' => MenuItemResource::collection($this->whenLoaded('children')),
         ];
     }

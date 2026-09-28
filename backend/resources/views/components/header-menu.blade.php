@@ -62,48 +62,46 @@
                 @endif
 
                 @if ($hasChildren1)
-                    <ul class="invisible opacity-0 pointer-events-none group-hover/lvl1:visible group-hover/lvl1:opacity-100 group-hover/lvl1:pointer-events-auto group-focus-within/lvl1:visible group-focus-within/lvl1:opacity-100 group-focus-within/lvl1:pointer-events-auto transition absolute left-0 top-full pt-2 min-w-[240px] z-40">
-                        <div class="bg-white border border-gray-100 shadow-lg rounded-lg py-2">
-                            @foreach ($level1['children'] as $level2)
-                                @php
-                                    $active2 = $isCurrent($level2) || $hasActiveDescendant($level2);
-                                    $hasChildren2 = ! empty($level2['children']);
-                                @endphp
-                                <div class="relative {{ $hasChildren2 ? 'group/lvl2' : '' }}">
-                                    @if (! empty($level2['href']))
-                                        <a href="{{ $level2['href'] }}"
-                                           @if (! empty($level2['open_in_new_tab'])) target="_blank" rel="noopener" @endif
-                                           @if ($active2) aria-current="page" @endif
-                                           class="flex items-center justify-between gap-2 px-4 py-2 text-sm {{ $active2 ? 'text-primary-700' : 'text-gray-700 hover:bg-gray-50 hover:text-primary-700' }}">
-                                            <span>{{ $level2['label'] }}</span>
-                                            @if ($hasChildren2)<span aria-hidden="true" class="text-[10px]">&#9656;</span>@endif
-                                        </a>
-                                    @else
-                                        <button type="button"
-                                            class="flex w-full items-center justify-between gap-2 px-4 py-2 text-sm {{ $active2 ? 'text-primary-700' : 'text-gray-700' }} group-hover/lvl2:bg-gray-50 group-hover/lvl2:text-primary-700 group-focus-within/lvl2:text-primary-700">
-                                            <span>{{ $level2['label'] }}</span>
-                                            @if ($hasChildren2)<span aria-hidden="true" class="text-[10px]">&#9656;</span>@endif
-                                        </button>
-                                    @endif
+                    <ul class="invisible opacity-0 pointer-events-none group-hover/lvl1:visible group-hover/lvl1:opacity-100 group-hover/lvl1:pointer-events-auto group-focus-within/lvl1:visible group-focus-within/lvl1:opacity-100 group-focus-within/lvl1:pointer-events-auto transition absolute left-0 top-full pt-2 min-w-[240px] z-40 bg-white border border-gray-100 shadow-lg rounded-lg py-2">
+                        @foreach ($level1['children'] as $level2)
+                            @php
+                                $active2 = $isCurrent($level2) || $hasActiveDescendant($level2);
+                                $hasChildren2 = ! empty($level2['children']);
+                            @endphp
+                            <li class="relative {{ $hasChildren2 ? 'group/lvl2' : '' }}">
+                                @if (! empty($level2['href']))
+                                    <a href="{{ $level2['href'] }}"
+                                       @if (! empty($level2['open_in_new_tab'])) target="_blank" rel="noopener" @endif
+                                       @if ($active2) aria-current="page" @endif
+                                       class="flex items-center justify-between gap-2 px-4 py-2 text-sm {{ $active2 ? 'text-primary-700' : 'text-gray-700 hover:bg-gray-50 hover:text-primary-700' }}">
+                                        <span>{{ $level2['label'] }}</span>
+                                        @if ($hasChildren2)<span aria-hidden="true" class="text-[10px]">&#9656;</span>@endif
+                                    </a>
+                                @else
+                                    <button type="button"
+                                        class="flex w-full items-center justify-between gap-2 px-4 py-2 text-sm {{ $active2 ? 'text-primary-700' : 'text-gray-700' }} group-hover/lvl2:bg-gray-50 group-hover/lvl2:text-primary-700 group-focus-within/lvl2:text-primary-700">
+                                        <span>{{ $level2['label'] }}</span>
+                                        @if ($hasChildren2)<span aria-hidden="true" class="text-[10px]">&#9656;</span>@endif
+                                    </button>
+                                @endif
 
-                                    @if ($hasChildren2)
-                                        <ul class="invisible opacity-0 pointer-events-none group-hover/lvl2:visible group-hover/lvl2:opacity-100 group-hover/lvl2:pointer-events-auto group-focus-within/lvl2:visible group-focus-within/lvl2:opacity-100 group-focus-within/lvl2:pointer-events-auto transition absolute left-full top-0 pl-2 min-w-[220px] z-50">
-                                            <div class="bg-white border border-gray-100 shadow-lg rounded-lg py-2">
-                                                @foreach ($level2['children'] as $level3)
-                                                    @php $active3 = $isCurrent($level3); @endphp
-                                                    <a href="{{ $level3['href'] }}"
-                                                       @if (! empty($level3['open_in_new_tab'])) target="_blank" rel="noopener" @endif
-                                                       @if ($active3) aria-current="page" @endif
-                                                       class="block px-4 py-2 text-sm {{ $active3 ? 'text-primary-700' : 'text-gray-700 hover:bg-gray-50 hover:text-primary-700' }}">
-                                                        {{ $level3['label'] }}
-                                                    </a>
-                                                @endforeach
-                                            </div>
-                                        </ul>
-                                    @endif
-                                </div>
-                            @endforeach
-                        </div>
+                                @if ($hasChildren2)
+                                    <ul class="invisible opacity-0 pointer-events-none group-hover/lvl2:visible group-hover/lvl2:opacity-100 group-hover/lvl2:pointer-events-auto group-focus-within/lvl2:visible group-focus-within/lvl2:opacity-100 group-focus-within/lvl2:pointer-events-auto transition absolute left-full top-0 pl-2 min-w-[220px] z-50 bg-white border border-gray-100 shadow-lg rounded-lg py-2">
+                                        @foreach ($level2['children'] as $level3)
+                                            @php $active3 = $isCurrent($level3); @endphp
+                                            <li>
+                                                <a href="{{ $level3['href'] }}"
+                                                   @if (! empty($level3['open_in_new_tab'])) target="_blank" rel="noopener" @endif
+                                                   @if ($active3) aria-current="page" @endif
+                                                   class="block px-4 py-2 text-sm {{ $active3 ? 'text-primary-700' : 'text-gray-700 hover:bg-gray-50 hover:text-primary-700' }}">
+                                                    {{ $level3['label'] }}
+                                                </a>
+                                            </li>
+                                        @endforeach
+                                    </ul>
+                                @endif
+                            </li>
+                        @endforeach
                     </ul>
                 @endif
             </li>
@@ -126,6 +124,11 @@
                         <details>
                             <summary class="cursor-pointer select-none px-3 py-2 rounded text-sm font-medium text-gray-700 hover:bg-gray-50">{{ $level1['label'] }}</summary>
                             <ul class="pl-4 space-y-1">
+                                @if (! empty($level1['href']))
+                                    <li>
+                                        <a href="{{ $level1['href'] }}" @if (! empty($level1['open_in_new_tab'])) target="_blank" rel="noopener" @endif class="block px-3 py-2 rounded text-sm font-medium text-gray-700 hover:bg-gray-50 hover:text-primary-700">{{ $level1['label'] }}</a>
+                                    </li>
+                                @endif
                                 @foreach ($level1['children'] as $level2)
                                     @php $hasChildren2 = ! empty($level2['children']); @endphp
                                     <li>
@@ -133,6 +136,11 @@
                                             <details>
                                                 <summary class="cursor-pointer select-none px-3 py-2 rounded text-sm text-gray-700 hover:bg-gray-50">{{ $level2['label'] }}</summary>
                                                 <ul class="pl-4 space-y-1">
+                                                    @if (! empty($level2['href']))
+                                                        <li>
+                                                            <a href="{{ $level2['href'] }}" @if (! empty($level2['open_in_new_tab'])) target="_blank" rel="noopener" @endif class="block px-3 py-2 rounded text-sm text-gray-700 hover:bg-gray-50 hover:text-primary-700">{{ $level2['label'] }}</a>
+                                                        </li>
+                                                    @endif
                                                     @foreach ($level2['children'] as $level3)
                                                         <li>
                                                             <a href="{{ $level3['href'] }}" @if (! empty($level3['open_in_new_tab'])) target="_blank" rel="noopener" @endif class="block px-3 py-2 rounded text-sm text-gray-600 hover:bg-gray-50 hover:text-primary-700">{{ $level3['label'] }}</a>

@@ -73,6 +73,30 @@ class MenuItemApiTest extends TestCase
             ->assertJsonPath('message', 'Menu item created successfully');
     }
 
+    public function test_show_nests_the_linked_page_as_a_page_resource(): void
+    {
+        $page = Page::factory()->create(['slug' => 'about-us', 'title' => 'আমাদের সম্পর্কে']);
+        $item = MenuItem::factory()->page($page->id)->create();
+
+        $this->actingAs($this->admin, 'sanctum')
+            ->getJson("/api/menu-items/{$item->id}")
+            ->assertOk()
+            ->assertJsonPath('data.page.id', $page->id)
+            ->assertJsonPath('data.page.title', 'আমাদের সম্পর্কে')
+            ->assertJsonPath('data.page.slug', 'about-us')
+            ->assertJsonPath('data.page.web_url', $page->url());
+    }
+
+    public function test_index_returns_a_null_page_for_an_item_with_no_linked_page(): void
+    {
+        MenuItem::factory()->heading()->create();
+
+        $this->actingAs($this->admin, 'sanctum')
+            ->getJson('/api/menu-items')
+            ->assertOk()
+            ->assertJsonPath('data.0.page', null);
+    }
+
     public function test_store_creates_a_route_item_with_resolved_href(): void
     {
         $this->actingAs($this->admin, 'sanctum')
@@ -206,6 +230,35 @@ class MenuItemApiTest extends TestCase
             ->assertJsonValidationErrors('sort_order');
     }
 
+    public function test_store_rejects_a_protocol_relative_url(): void
+    {
+        $this->actingAs($this->admin, 'sanctum')
+            ->postJson('/api/menu-items', ['label' => 'X', 'type' => 'url', 'url' => '//evil.example'])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('url');
+    }
+
+    public function test_store_defaults_sort_order_to_the_highest_sibling_plus_one(): void
+    {
+        MenuItem::factory()->heading()->create(['parent_id' => null, 'sort_order' => 0]);
+        MenuItem::factory()->heading()->create(['parent_id' => null, 'sort_order' => 3]);
+
+        $this->actingAs($this->admin, 'sanctum')
+            ->postJson('/api/menu-items', ['label' => 'নতুন শীর্ষ আইটেম', 'type' => 'heading'])
+            ->assertCreated()
+            ->assertJsonPath('data.sort_order', 4);
+    }
+
+    public function test_store_defaults_sort_order_to_zero_for_the_first_item_under_a_parent(): void
+    {
+        $parent = MenuItem::factory()->heading()->create();
+
+        $this->actingAs($this->admin, 'sanctum')
+            ->postJson('/api/menu-items', ['label' => 'প্রথম সন্তান', 'type' => 'route', 'route_name' => 'home', 'parent_id' => $parent->id])
+            ->assertCreated()
+            ->assertJsonPath('data.sort_order', 0);
+    }
+
     public function test_store_rejects_a_parent_deeper_than_the_maximum_depth(): void
     {
         $level1 = MenuItem::factory()->heading()->create();
@@ -239,6 +292,23 @@ class MenuItemApiTest extends TestCase
             ->assertJsonValidationErrors('parent_id');
     }
 
+    public function test_update_rejects_moving_an_item_with_children_under_a_level_two_item(): void
+    {
+        // level1 (depth 1) > level2 (depth 2). $movedItem has its own child, so its
+        // subtree is 2 levels tall; nesting it under level2 would push its child to
+        // depth 4, past MenuItem::MAX_DEPTH.
+        $level1 = MenuItem::factory()->heading()->create();
+        $level2 = MenuItem::factory()->heading()->create(['parent_id' => $level1->id]);
+
+        $movedItem = MenuItem::factory()->heading()->create();
+        MenuItem::factory()->create(['parent_id' => $movedItem->id]);
+
+        $this->actingAs($this->admin, 'sanctum')
+            ->putJson("/api/menu-items/{$movedItem->id}", ['parent_id' => $level2->id])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('parent_id');
+    }
+
     public function test_reorder_persists_new_sort_order_and_parent_id(): void
     {
         $parentA = MenuItem::factory()->heading()->create(['sort_order' => 0]);
@@ -258,6 +328,63 @@ class MenuItemApiTest extends TestCase
         $this->assertDatabaseHas('menu_items', ['id' => $parentA->id, 'sort_order' => 1, 'parent_id' => null]);
         $this->assertDatabaseHas('menu_items', ['id' => $parentB->id, 'sort_order' => 0, 'parent_id' => null]);
         $this->assertDatabaseHas('menu_items', ['id' => $child->id, 'sort_order' => 0, 'parent_id' => $parentB->id]);
+    }
+
+    public function test_reorder_rejects_a_batch_that_creates_a_cycle_between_two_items(): void
+    {
+        $itemA = MenuItem::factory()->heading()->create();
+        $itemB = MenuItem::factory()->heading()->create();
+
+        $this->actingAs($this->admin, 'sanctum')
+            ->putJson('/api/menu-items/reorder', [
+                'items' => [
+                    ['id' => $itemA->id, 'parent_id' => $itemB->id, 'sort_order' => 0],
+                    ['id' => $itemB->id, 'parent_id' => $itemA->id, 'sort_order' => 0],
+                ],
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('items');
+
+        $this->assertDatabaseHas('menu_items', ['id' => $itemA->id, 'parent_id' => null]);
+        $this->assertDatabaseHas('menu_items', ['id' => $itemB->id, 'parent_id' => null]);
+    }
+
+    public function test_reorder_rejects_a_row_naming_itself_as_its_own_parent(): void
+    {
+        $item = MenuItem::factory()->heading()->create();
+
+        $this->actingAs($this->admin, 'sanctum')
+            ->putJson('/api/menu-items/reorder', [
+                'items' => [
+                    ['id' => $item->id, 'parent_id' => $item->id, 'sort_order' => 0],
+                ],
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('items');
+    }
+
+    public function test_reorder_rejects_a_batch_that_would_exceed_the_maximum_depth(): void
+    {
+        // level1 > level2 > leaf (depth 3, the maximum). $movedItem has a child of
+        // its own, so moving it under leaf would push that child to depth 5.
+        $level1 = MenuItem::factory()->heading()->create();
+        $level2 = MenuItem::factory()->heading()->create(['parent_id' => $level1->id]);
+        $leaf = MenuItem::factory()->create(['parent_id' => $level2->id, 'type' => 'route', 'route_name' => 'home']);
+
+        $movedItem = MenuItem::factory()->heading()->create();
+        $movedChild = MenuItem::factory()->create(['parent_id' => $movedItem->id]);
+
+        $this->actingAs($this->admin, 'sanctum')
+            ->putJson('/api/menu-items/reorder', [
+                'items' => [
+                    ['id' => $movedItem->id, 'parent_id' => $leaf->id, 'sort_order' => 0],
+                ],
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('items');
+
+        $this->assertDatabaseHas('menu_items', ['id' => $movedItem->id, 'parent_id' => null]);
+        $this->assertDatabaseHas('menu_items', ['id' => $movedChild->id, 'parent_id' => $movedItem->id]);
     }
 
     public function test_menu_and_page_changes_invalidate_the_header_cache(): void

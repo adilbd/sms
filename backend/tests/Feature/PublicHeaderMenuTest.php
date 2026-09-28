@@ -50,6 +50,27 @@ class PublicHeaderMenuTest extends TestCase
         $this->assertStringContainsString('>Admissions<', $html);
     }
 
+    public function test_a_future_dated_published_page_appears_once_its_time_passes_without_any_save(): void
+    {
+        $page = Page::factory()->create([
+            'is_published' => true,
+            'published_at' => now()->addMinutes(30),
+            'title' => 'ভবিষ্যতে প্রকাশিতব্য পাতা',
+        ]);
+
+        MenuItem::factory()->page($page->id)->create(['label' => 'ভবিষ্যতের পাতার লিংক']);
+
+        // Not yet visible: this request also populates the header cache, whose TTL
+        // must be short enough to expire once the page's published_at arrives.
+        $this->get('/')->assertOk()->assertDontSee('ভবিষ্যতের পাতার লিংক');
+
+        $this->travelTo(now()->addMinutes(31));
+
+        // No save happened on either the page or the menu item in between, so this
+        // only passes if the cache entry itself expired on time.
+        $this->get('/')->assertOk()->assertSee('ভবিষ্যতের পাতার লিংক');
+    }
+
     public function test_every_public_page_still_has_exactly_one_h1_with_the_menu_seeded(): void
     {
         $this->seed(PublicContentSeeder::class);

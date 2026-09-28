@@ -14,17 +14,18 @@ class MenuItemRepository extends EloquentRepository implements MenuItemRepositor
 
     public function create(array $attributes): Model
     {
-        return parent::create($attributes)->load('page:id,slug,title,is_published');
+        return parent::create($attributes)->load('page');
     }
 
     public function update(Model $model, array $attributes): Model
     {
-        return parent::update($model, $attributes)->load('page:id,slug,title,is_published');
+        return parent::update($model, $attributes)->load('page');
     }
 
     public function activeTree(string $location): Collection
     {
-        return MenuItem::where('location', $location)
+        return parent::query()
+            ->where('location', $location)
             ->where('is_active', true)
             ->with('page:id,slug,is_published,published_at')
             ->orderBy('sort_order')
@@ -51,6 +52,26 @@ class MenuItemRepository extends EloquentRepository implements MenuItemRepositor
         return $depth;
     }
 
+    public function subtreeHeight(MenuItem $item): int
+    {
+        return $this->computeSubtreeHeight($item->id);
+    }
+
+    private function computeSubtreeHeight(int $itemId, int $guard = 0): int
+    {
+        if ($guard > MenuItem::MAX_DEPTH + 5) {
+            return 1;
+        }
+
+        $childIds = parent::query()->where('parent_id', $itemId)->pluck('id');
+
+        if ($childIds->isEmpty()) {
+            return 1;
+        }
+
+        return 1 + $childIds->max(fn ($childId) => $this->computeSubtreeHeight($childId, $guard + 1));
+    }
+
     public function isDescendantOf(MenuItem $candidate, MenuItem $item): bool
     {
         $current = $candidate;
@@ -71,6 +92,21 @@ class MenuItemRepository extends EloquentRepository implements MenuItemRepositor
         return false;
     }
 
+    public function maxSortOrder(string $location, ?int $parentId): ?int
+    {
+        $max = parent::query()
+            ->where('location', $location)
+            ->where('parent_id', $parentId)
+            ->max('sort_order');
+
+        return $max === null ? null : (int) $max;
+    }
+
+    public function treeState(): Collection
+    {
+        return parent::query()->get(['id', 'parent_id', 'location']);
+    }
+
     public function reorder(array $rows): void
     {
         foreach ($rows as $row) {
@@ -85,7 +121,7 @@ class MenuItemRepository extends EloquentRepository implements MenuItemRepositor
     protected function query(): Builder
     {
         return parent::query()
-            ->with('page:id,slug,title,is_published')
+            ->with('page')
             ->orderBy('sort_order')
             ->orderBy('id');
     }

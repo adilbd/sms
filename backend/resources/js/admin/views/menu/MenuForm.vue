@@ -153,14 +153,31 @@ const parentOptions = computed(() => {
     .sort((a, b) => a.label.localeCompare(b.label))
 })
 
+// Loops over every page of results so a menu or page list with more than 100 items
+// (per_page's cap) isn't silently truncated.
+const fetchAllPages = async (url, params = {}) => {
+  const all = []
+  let page = 1
+  let lastPage = 1
+
+  do {
+    const { data } = await api.get(url, { params: { ...params, per_page: 100, page } })
+    all.push(...data.data)
+    lastPage = data.meta.last_page
+    page += 1
+  } while (page <= lastPage)
+
+  return all
+}
+
 const fetchOptions = async () => {
   try {
-    const [menuRes, pagesRes] = await Promise.all([
-      api.get('/menu-items', { params: { location: 'header', per_page: 100 } }),
-      api.get('/pages', { params: { per_page: 100 } }),
+    const [menuItems, pageList] = await Promise.all([
+      fetchAllPages('/menu-items', { location: 'header' }),
+      fetchAllPages('/pages'),
     ])
-    allItems.value = menuRes.data.data
-    pages.value = pagesRes.data.data
+    allItems.value = menuItems
+    pages.value = pageList
   } catch (error) {
     console.error('Failed to load menu options:', error)
   }

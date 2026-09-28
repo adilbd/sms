@@ -106,11 +106,27 @@ const typeLabels = {
   heading: 'Heading (dropdown)',
 }
 
+// Loops over every page of results so a menu with more than 100 items (per_page's
+// cap) isn't silently truncated.
+const fetchAllPages = async (url, params = {}) => {
+  const all = []
+  let page = 1
+  let lastPage = 1
+
+  do {
+    const { data } = await api.get(url, { params: { ...params, per_page: 100, page } })
+    all.push(...data.data)
+    lastPage = data.meta.last_page
+    page += 1
+  } while (page <= lastPage)
+
+  return all
+}
+
 const fetchItems = async () => {
   loading.value = true
   try {
-    const { data } = await api.get('/menu-items', { params: { location: 'header', per_page: 100 } })
-    items.value = data.data
+    items.value = await fetchAllPages('/menu-items', { location: 'header' })
   } catch (error) {
     console.error('Failed to fetch menu items:', error)
   } finally {
@@ -154,15 +170,23 @@ const canMoveDown = (row) => {
 const move = async (row, direction) => {
   const siblings = siblingsOf(row)
   const index = siblings.findIndex((r) => r.id === row.id)
-  const swapWith = siblings[index + direction]
-  if (!swapWith) return
+  const swapIndex = index + direction
+  if (swapIndex < 0 || swapIndex >= siblings.length) return
+
+  // Swap the pair, then send the whole sibling list renumbered 0..n-1 by position.
+  // Siblings' existing sort_order values aren't necessarily distinct or contiguous
+  // (e.g. after a batch reorder or a manual edit), so swapping just the two values
+  // being moved can be a no-op; renumbering the full list always produces a change.
+  const reordered = [...siblings]
+  ;[reordered[index], reordered[swapIndex]] = [reordered[swapIndex], reordered[index]]
 
   try {
     await api.put('/menu-items/reorder', {
-      items: [
-        { id: row.id, parent_id: row.parent_id ?? null, sort_order: swapWith.sort_order },
-        { id: swapWith.id, parent_id: swapWith.parent_id ?? null, sort_order: row.sort_order },
-      ],
+      items: reordered.map((item, position) => ({
+        id: item.id,
+        parent_id: item.parent_id ?? null,
+        sort_order: position,
+      })),
     })
     await fetchItems()
   } catch (error) {

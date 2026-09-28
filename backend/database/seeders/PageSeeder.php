@@ -7,8 +7,9 @@ use App\Support\PostBody;
 use Illuminate\Database\Seeder;
 
 /**
- * Standalone Bangla content pages for a Class 6-10 school. Real vhbub text is copied
- * verbatim where noted; the rest is written Bangla fill modelled on vhbub and sagc.
+ * Standalone Bangla content pages for a Class 1-12 school (Primary through Higher
+ * Secondary, ending with the SSC and HSC exams). Real vhbub text is copied verbatim
+ * where noted; the rest is written Bangla fill modelled on vhbub and sagc.
  * Explicit ASCII slugs (Str::slug() of a Bangla title is empty), and none collides
  * with the slugs PublicSeoTest creates through Page factories ('facilities',
  * 'draft-handbook', 'future-page', 'to-be-deleted').
@@ -139,7 +140,7 @@ class PageSeeder extends Seeder
                 'title' => 'ভৌত অবকাঠামো',
                 'meta_description' => 'বিদ্যালয়ের শ্রেণিকক্ষ, ল্যাবরেটরি, মিলনায়তন ও খেলার মাঠসহ ভৌত অবকাঠামোর সংক্ষিপ্ত বিবরণ।',
                 'paragraphs' => [
-                    'বিদ্যালয়ের নিজস্ব জমির ওপর নির্মিত তিনতলা ভবনে ষষ্ঠ থেকে দশম শ্রেণি পর্যন্ত পাঠদানের জন্য পর্যাপ্ত শ্রেণিকক্ষ রয়েছে। এছাড়া বিজ্ঞানাগার, কম্পিউটার ল্যাব, মিলনায়তন ও একটি সুপরিসর খেলার মাঠ রয়েছে।',
+                    'বিদ্যালয়ের নিজস্ব জমির ওপর নির্মিত তিনতলা ভবনে প্রথম থেকে দ্বাদশ শ্রেণি পর্যন্ত পাঠদানের জন্য পর্যাপ্ত শ্রেণিকক্ষ রয়েছে। এছাড়া বিজ্ঞানাগার, কম্পিউটার ল্যাব, মিলনায়তন ও একটি সুপরিসর খেলার মাঠ রয়েছে।',
                     'বিদ্যালয় প্রাঙ্গণে বিদ্যুৎ সংযোগ, পানীয় জলের ব্যবস্থা এবং ছাত্র-ছাত্রীদের জন্য পৃথক শৌচাগার রয়েছে, যা শিক্ষার্থীদের জন্য একটি নিরাপদ ও স্বাস্থ্যকর শিক্ষার পরিবেশ নিশ্চিত করে।',
                 ],
                 'daysAgo' => 60,

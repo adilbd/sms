@@ -99,6 +99,7 @@ class MenuServiceTest extends TestCase
     public function test_create_does_not_require_a_target_for_a_heading(): void
     {
         $this->mock(MenuItemRepositoryInterface::class, function (MockInterface $mock) {
+            $mock->shouldReceive('maxSortOrder')->once()->with(MenuItem::LOCATION_HEADER, null)->andReturn(null);
             $mock->shouldReceive('create')->once()->andReturn(
                 $this->menuItem(1, ['type' => MenuItem::TYPE_HEADING, 'label' => 'আমাদের তথ্য'])
             );
@@ -107,6 +108,95 @@ class MenuServiceTest extends TestCase
         $menuItem = app(MenuService::class)->create(['label' => 'আমাদের তথ্য', 'type' => MenuItem::TYPE_HEADING]);
 
         $this->assertSame(MenuItem::TYPE_HEADING, $menuItem->type);
+    }
+
+    public function test_create_defaults_sort_order_to_siblings_max_plus_one(): void
+    {
+        $this->mock(MenuItemRepositoryInterface::class, function (MockInterface $mock) {
+            $mock->shouldReceive('maxSortOrder')->once()->with(MenuItem::LOCATION_HEADER, null)->andReturn(4);
+            $mock->shouldReceive('create')->once()
+                ->withArgs(fn (array $data) => ($data['sort_order'] ?? null) === 5)
+                ->andReturn($this->menuItem(1, ['type' => MenuItem::TYPE_HEADING, 'sort_order' => 5]));
+        });
+
+        $menuItem = app(MenuService::class)->create(['label' => 'নতুন আইটেম', 'type' => MenuItem::TYPE_HEADING]);
+
+        $this->assertSame(5, $menuItem->sort_order);
+    }
+
+    public function test_create_defaults_sort_order_to_zero_when_there_are_no_siblings(): void
+    {
+        $this->mock(MenuItemRepositoryInterface::class, function (MockInterface $mock) {
+            $mock->shouldReceive('maxSortOrder')->once()->with(MenuItem::LOCATION_HEADER, null)->andReturn(null);
+            $mock->shouldReceive('create')->once()
+                ->withArgs(fn (array $data) => ($data['sort_order'] ?? null) === 0)
+                ->andReturn($this->menuItem(1, ['type' => MenuItem::TYPE_HEADING, 'sort_order' => 0]));
+        });
+
+        $menuItem = app(MenuService::class)->create(['label' => 'প্রথম আইটেম', 'type' => MenuItem::TYPE_HEADING]);
+
+        $this->assertSame(0, $menuItem->sort_order);
+    }
+
+    public function test_create_does_not_look_up_a_default_sort_order_when_one_is_given(): void
+    {
+        $this->mock(MenuItemRepositoryInterface::class, function (MockInterface $mock) {
+            $mock->shouldNotReceive('maxSortOrder');
+            $mock->shouldReceive('create')->once()
+                ->withArgs(fn (array $data) => ($data['sort_order'] ?? null) === 9)
+                ->andReturn($this->menuItem(1, ['type' => MenuItem::TYPE_HEADING, 'sort_order' => 9]));
+        });
+
+        app(MenuService::class)->create(['label' => 'আইটেম', 'type' => MenuItem::TYPE_HEADING, 'sort_order' => 9]);
+    }
+
+    public function test_update_is_refused_when_moving_an_item_with_children_would_exceed_the_maximum_depth(): void
+    {
+        // The moved item has children of its own (subtree height 2), and the new
+        // parent already sits at depth 2, so the item's descendants would land at
+        // depth 4 — one past MenuItem::MAX_DEPTH.
+        $item = $this->menuItem(30, ['location' => MenuItem::LOCATION_HEADER, 'type' => MenuItem::TYPE_HEADING]);
+        $newParent = $this->menuItem(40, ['location' => MenuItem::LOCATION_HEADER, 'type' => MenuItem::TYPE_HEADING]);
+
+        $this->mock(MenuItemRepositoryInterface::class, function (MockInterface $mock) use ($item, $newParent) {
+            $mock->shouldReceive('find')->once()->with(40)->andReturn($newParent);
+            $mock->shouldReceive('isDescendantOf')->once()->with($newParent, $item)->andReturn(false);
+            $mock->shouldReceive('subtreeHeight')->once()->with($item)->andReturn(2);
+            $mock->shouldReceive('depthOf')->once()->with($newParent)->andReturn(2);
+            $mock->shouldNotReceive('update');
+        });
+
+        $this->assertValidationError(
+            fn () => app(MenuService::class)->update($item, ['parent_id' => 40]),
+            'parent_id'
+        );
+    }
+
+    public function test_update_rejects_changing_location_on_an_item_that_has_children(): void
+    {
+        $item = $this->menuItem(50, ['location' => MenuItem::LOCATION_HEADER, 'type' => MenuItem::TYPE_HEADING]);
+
+        $this->mock(MenuItemRepositoryInterface::class, function (MockInterface $mock) use ($item) {
+            $mock->shouldReceive('subtreeHeight')->once()->with($item)->andReturn(2);
+            $mock->shouldNotReceive('update');
+        });
+
+        $this->assertValidationError(
+            fn () => app(MenuService::class)->update($item, ['location' => 'footer']),
+            'location'
+        );
+    }
+
+    public function test_update_allows_changing_location_on_a_leaf_item(): void
+    {
+        $item = $this->menuItem(51, ['location' => MenuItem::LOCATION_HEADER, 'type' => MenuItem::TYPE_HEADING]);
+
+        $this->mock(MenuItemRepositoryInterface::class, function (MockInterface $mock) use ($item) {
+            $mock->shouldReceive('subtreeHeight')->once()->with($item)->andReturn(1);
+            $mock->shouldReceive('update')->once()->andReturn($item);
+        });
+
+        app(MenuService::class)->update($item, ['location' => 'footer']);
     }
 
     public function test_header_tree_drops_a_page_item_whose_page_is_unpublished(): void
