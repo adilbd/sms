@@ -16,7 +16,7 @@
         </div>
         <div class="md:col-span-2">
           <label class="block text-sm font-medium text-gray-700 mb-1">Body</label>
-          <rich-text-editor v-model="form.body" />
+          <rich-text-editor v-model="form.body" placeholder="Write the page content…" />
           <p v-if="errors.body" class="text-sm text-red-600 mt-1">{{ errors.body[0] }}</p>
         </div>
       </div>

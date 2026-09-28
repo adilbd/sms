@@ -213,6 +213,17 @@ class PublicSeoTest extends TestCase
         $this->get('/sitemap.xml')->assertSee($page->url(), false);
     }
 
+    public function test_sitemap_refreshes_when_a_page_is_deleted(): void
+    {
+        $page = Page::factory()->create(['slug' => 'to-be-deleted']);
+
+        $this->get('/sitemap.xml')->assertSee($page->url(), false);
+
+        $page->delete();
+
+        $this->get('/sitemap.xml')->assertDontSee($page->url(), false);
+    }
+
     public function test_home_has_organization_schema(): void
     {
         $types = $this->jsonLdTypes($this->get('/')->getContent());

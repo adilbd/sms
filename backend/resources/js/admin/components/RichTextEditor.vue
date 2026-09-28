@@ -184,6 +184,7 @@ import api from '@/services/api'
 
 const props = defineProps({
   modelValue: { type: String, default: '' },
+  placeholder: { type: String, default: 'Write the post body…' },
 })
 const emit = defineEmits(['update:modelValue'])
 
@@ -282,7 +283,7 @@ onMounted(() => {
         HTMLAttributes: { rel: 'noopener noreferrer', target: '_blank' },
       }),
       Image.configure({ HTMLAttributes: { loading: 'lazy' } }),
-      Placeholder.configure({ placeholder: 'Write the post body…' }),
+      Placeholder.configure({ placeholder: props.placeholder }),
       VideoEmbed,
     ],
     editorProps: {

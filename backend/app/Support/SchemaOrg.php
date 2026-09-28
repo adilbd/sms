@@ -129,7 +129,7 @@ class SchemaOrg
             'url' => $page->url(),
             'datePublished' => $page->published_at?->toIso8601String(),
             'dateModified' => $page->updated_at?->toIso8601String(),
-            'isPartOf' => ['@id' => url('/').'#organization'],
+            'publisher' => ['@id' => url('/').'#organization'],
         ]);
     }
 }

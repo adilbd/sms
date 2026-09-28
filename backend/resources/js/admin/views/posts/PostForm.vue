@@ -119,6 +119,12 @@ const fetchPost = async () => {
   try {
     const { data } = await api.get(`/posts/${route.params.id}`)
     const post = data.data
+    // A direct link (or the legacy /posts/:id/edit redirect) may not match the post's
+    // actual type; move to the matching section so heading, Cancel and the post-save
+    // redirect all point at the right place.
+    if (post.type !== postType.value) {
+      router.replace(post.type === 'event' ? `/events/${route.params.id}/edit` : `/news/${route.params.id}/edit`)
+    }
     Object.keys(form).forEach((key) => {
       // `excerpt` is the computed public fallback (title/body derived when there is no
       // custom excerpt); the form edits the raw column, sent back as `custom_excerpt`.

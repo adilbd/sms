@@ -110,6 +110,10 @@ const routes = [
         redirect: '/news',
       },
       {
+        path: 'posts/create',
+        redirect: '/news/create',
+      },
+      {
         path: 'posts/:id/edit',
         redirect: (to) => `/news/${to.params.id}/edit`,
       },
