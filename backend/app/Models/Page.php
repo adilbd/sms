@@ -41,8 +41,16 @@ class Page extends Model
             }
         });
 
-        static::saved(fn () => Cache::forget('sitemap.xml'));
-        static::deleted(fn () => Cache::forget('sitemap.xml'));
+        static::saved(function () {
+            Cache::forget('sitemap.xml');
+            // A page linked from the menu may have just been published, unpublished,
+            // or had its slug change, so the cached header nav needs to catch up too.
+            Cache::forget('menu.header');
+        });
+        static::deleted(function () {
+            Cache::forget('sitemap.xml');
+            Cache::forget('menu.header');
+        });
     }
 
     public static function uniqueSlug(string $title, ?int $ignoreId = null): string

@@ -2,9 +2,11 @@
 
 namespace App\Providers;
 
+use App\Repositories\Contracts\MenuItemRepositoryInterface;
 use App\Repositories\Contracts\PageRepositoryInterface;
 use App\Repositories\Contracts\PostRepositoryInterface;
 use App\Repositories\Contracts\SubjectRepositoryInterface;
+use App\Repositories\Eloquent\MenuItemRepository;
 use App\Repositories\Eloquent\PageRepository;
 use App\Repositories\Eloquent\PostRepository;
 use App\Repositories\Eloquent\SubjectRepository;
@@ -21,5 +23,6 @@ class RepositoryServiceProvider extends ServiceProvider
         SubjectRepositoryInterface::class => SubjectRepository::class,
         PostRepositoryInterface::class => PostRepository::class,
         PageRepositoryInterface::class => PageRepository::class,
+        MenuItemRepositoryInterface::class => MenuItemRepository::class,
     ];
 }

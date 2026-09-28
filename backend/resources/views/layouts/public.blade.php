@@ -18,25 +18,7 @@
         <div class="container-page flex items-center justify-between h-16">
             <a href="{{ route('home') }}" class="text-lg font-bold text-primary-700">{{ config('seo.site_name') }}</a>
 
-            <nav aria-label="Main">
-                <ul class="flex flex-wrap items-center gap-x-5 gap-y-1 text-sm font-medium">
-                    @foreach ([
-                        'home' => 'Home',
-                        'about' => 'About',
-                        'admissions' => 'Admissions',
-                        'news.index' => 'News',
-                        'events.index' => 'Events',
-                        'contact' => 'Contact',
-                    ] as $routeName => $label)
-                        @php($active = request()->routeIs($routeName) || request()->routeIs(str_replace('.index', '.*', $routeName)))
-                        <li>
-                            <a href="{{ route($routeName) }}"
-                               class="{{ $active ? 'text-primary-700' : 'text-gray-600 hover:text-primary-700' }}"
-                               @if ($active) aria-current="page" @endif>{{ $label }}</a>
-                        </li>
-                    @endforeach
-                </ul>
-            </nav>
+            <x-header-menu :items="$headerMenu ?? []" />
         </div>
     </header>
 
