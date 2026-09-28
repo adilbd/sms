@@ -79,6 +79,12 @@ Route::middleware('auth:sanctum')->group(function () {
     // Standalone public content pages
     Route::apiResource('pages', \App\Http\Controllers\Api\PageController::class)->where(['page' => '[0-9]+']);
 
+    // Header navigation menu. The reorder route is registered before the resource
+    // so 'reorder' isn't captured by the {menu_item} wildcard.
+    Route::put('menu-items/reorder', [\App\Http\Controllers\Api\MenuItemController::class, 'reorder']);
+    Route::apiResource('menu-items', \App\Http\Controllers\Api\MenuItemController::class)
+        ->where(['menu_item' => '[0-9]+']);
+
     // Dashboard
     Route::get('dashboard/stats', [\App\Http\Controllers\Api\DashboardController::class, 'stats']);
     Route::get('dashboard/recent-activities', [\App\Http\Controllers\Api\DashboardController::class, 'recentActivities']);

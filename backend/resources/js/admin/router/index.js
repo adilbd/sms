@@ -133,6 +133,21 @@ const routes = [
         component: () => import('@/views/pages/PageForm.vue'),
       },
       {
+        path: 'menu',
+        name: 'Menu',
+        component: () => import('@/views/menu/MenuList.vue'),
+      },
+      {
+        path: 'menu/create',
+        name: 'Add Menu Item',
+        component: () => import('@/views/menu/MenuForm.vue'),
+      },
+      {
+        path: 'menu/:id/edit',
+        name: 'Edit Menu Item',
+        component: () => import('@/views/menu/MenuForm.vue'),
+      },
+      {
         path: 'profile',
         name: 'Profile',
         component: () => import('@/views/Profile.vue'),

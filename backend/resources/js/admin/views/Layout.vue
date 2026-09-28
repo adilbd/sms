@@ -127,6 +127,7 @@ const cmsItems = [
   { name: 'News', path: '/news', icon: '📰' },
   { name: 'Events', path: '/events', icon: '📅' },
   { name: 'Pages', path: '/pages', icon: '📄' },
+  { name: 'Menu', path: '/menu', icon: '🧭' },
 ]
 
 const isChildActive = (child) => route.path === child.path || route.path.startsWith(`${child.path}/`)

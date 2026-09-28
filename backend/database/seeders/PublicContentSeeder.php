@@ -6,65 +6,220 @@ use App\Models\Post;
 use App\Support\PostBody;
 use Illuminate\Database\Seeder;
 
+/**
+ * Bangla news and events for a Bangladeshi Class 6-10 school (NCTB curriculum, SSC
+ * exam). Real notices are copied verbatim from vhbub.edu.bd.shongket.com where noted;
+ * the rest is written Bangla fill modelled on the same site and on sagc.edu.bd.
+ * Explicit ASCII slugs, because Str::slug() of a Bangla title is empty.
+ */
 class PublicContentSeeder extends Seeder
 {
     public function run(): void
     {
-        $news = [
-            ['Students Win Regional Science Fair', 'Our Grade 9 team took first place with a low-cost water purification project.', 3],
-            ['New Library and Reading Room Opens', 'A bright new space with over 5,000 books, quiet study areas and digital resources.', 10],
-            ['Annual Sports Day Results', 'Congratulations to all houses on a day of great teamwork and personal bests.', 21],
-            ['Admissions Open for the New Academic Year', 'Applications are now open for all classes. Book a school tour today.', 30],
-        ];
+        $this->seedNews();
+        $this->seedEvents();
 
-        foreach ($news as [$title, $excerpt, $daysAgo]) {
-            Post::updateOrCreate(['slug' => \Illuminate\Support\Str::slug($title)], [
-                'type' => Post::TYPE_NEWS,
-                'title' => $title,
-                'excerpt' => $excerpt,
-                'body' => PostBody::sanitize(
-                    "<p>{$excerpt}</p><h2>Highlights</h2><ul><li>Outstanding effort from students and staff</li>".
-                    '<li>Parents and families joined the celebration</li>'.
-                    '<li>More updates to follow in the coming weeks</li></ul>'.
-                    '<p>Thank you to everyone in our school community who made this possible.</p>'
-                ),
-                'is_published' => true,
-                'published_at' => now()->subDays($daysAgo),
-            ]);
-        }
-
-        $events = [
-            ['Open Day for Prospective Families', 'Tour the campus, meet teachers and learn about our curriculum.', 7, 'Main Hall'],
-            ['Parent–Teacher Meetings', 'Discuss your child\'s progress with class and subject teachers.', 14, 'Classrooms'],
-            ['Winter Music Concert', 'An evening of performances by our choir, band and soloists.', 28, 'School Auditorium'],
-            ['Inter-School Debate Competition', 'Our debate club hosted six schools for a day of lively discussion.', -12, 'Library'],
-        ];
-
-        foreach ($events as [$title, $excerpt, $inDays, $location]) {
-            $start = now()->addDays($inDays)->setTime(10, 0);
-
-            Post::updateOrCreate(['slug' => \Illuminate\Support\Str::slug($title)], [
-                'type' => Post::TYPE_EVENT,
-                'title' => $title,
-                'excerpt' => $excerpt,
-                'body' => PostBody::sanitize(
-                    "<p>{$excerpt}</p><p>All families are welcome. Please arrive 15 minutes early.</p>".
-                    '<p><strong>Contact the school office</strong> if you have any questions.</p>'
-                ),
-                'event_starts_at' => $start,
-                'event_ends_at' => $start->copy()->addHours(3),
-                'location' => $location,
-                'is_published' => true,
-                'published_at' => now()->subDays(20),
-            ]);
-        }
-
-        // A draft that must never appear publicly.
+        // A draft that must never appear publicly. PublicSeoTest depends on this slug.
         Post::updateOrCreate(['slug' => 'draft-upcoming-announcement'], [
             'type' => Post::TYPE_NEWS,
-            'title' => 'Draft: Upcoming Announcement',
-            'body' => 'Not ready yet.',
+            'title' => 'খসড়া: আসন্ন ঘোষণা',
+            'excerpt' => 'এই খবরটি এখনও প্রকাশের জন্য প্রস্তুত নয়।',
+            'body' => PostBody::sanitize('<p>এই সংবাদটি এখনও প্রকাশের জন্য প্রস্তুত নয়।</p>'),
             'is_published' => false,
         ]);
+    }
+
+    private function seedNews(): void
+    {
+        $news = [
+            // Verbatim from vhbub's notice pages.
+            [
+                'slug' => 'ssc-practical-exam-notice',
+                'title' => 'এসএসসি পরীক্ষার্থীদের ব্যবহারিক পরীক্ষা উপলক্ষে শ্রেণি কার্যক্রম বন্ধ থাকবে',
+                'excerpt' => 'এসএসসি ব্যবহারিক পরীক্ষা উপলক্ষে সাধারণ শাখার শ্রেণি কার্যক্রম কয়েক দিন বন্ধ থাকবে, কারিগরি শাখা চলমান থাকবে।',
+                'paragraphs' => [
+                    'এতদ্দ্বারা এ বিদ্যালয়ের সকল শিক্ষার্থী-শিক্ষক ও কর্মচারীদের জানানো যাচ্ছে যে, এসএসসি পরীক্ষা-২০২৬ এর ব্যবহারিক পরীক্ষা উপলক্ষে আগামী ০৮/০৬/২০২৬ খ্রি. সোমবার হতে ১১/০৬/২০২৬ খ্রি. বৃহস্পতিবার পর্যন্ত বিদ্যালয়ের সাধারণ শাখার শিক্ষার্থীর জন্য শ্রেণিকার্যক্রম বন্ধ থাকবে এবং কারিগরি শাখার শ্রেণি কার্যক্রম চলমান থাকবে। আগামী ১৪/০৬/২০২৬ খ্রি. রবিবার হতে সাধারণ ও কারিগরি শাখার জন্য শ্রেণিকার্যক্রম যথারীতি চলমান থাকবে।',
+                ],
+                'daysAgo' => 4,
+            ],
+            [
+                'slug' => 'eid-ul-azha-summer-vacation-notice',
+                'title' => 'পবিত্র ইদ-উল-আযহা ও গ্রীষ্মকালীন অবকাশ উপলক্ষে বিদ্যালয় বন্ধ',
+                'excerpt' => 'পবিত্র ইদ-উল-আযহা ও গ্রীষ্মকালীন অবকাশ উপলক্ষে নির্ধারিত সময়ের জন্য বিদ্যালয় বন্ধ থাকবে।',
+                'paragraphs' => [
+                    'এতদ্বারা স্কুলের সকল ছাত্র, শিক্ষক, কর্মচারী ও অভিভাবকের অবগতির জন্য জানানো যাচ্ছে যে, আগামী ২৪/০৫/২০২৬ হতে ০৪/০৬/২০২৬ খ্রিঃ তারিখ পর্যন্ত পবিত্র ইদ-উল-আযহা ও গ্রীষ্মকালীন অবকাশ উপলক্ষে বিদ্যালয় বন্ধ থাকবে। ০৭/০৬/২০২৬ খ্রিঃ তারিখ হতে বিদ্যালয় যথারীতি চলবে।',
+                ],
+                'daysAgo' => 12,
+            ],
+            // Short notices covering vhbub's PDF-only exam-routine entries, without the attachment.
+            [
+                'slug' => 'half-yearly-exam-routine-general',
+                'title' => 'অর্ধবার্ষিক/প্রাক-নির্বাচনী পরীক্ষা ২০২৬ রুটিন প্রকাশ (জেনারেল শাখা)',
+                'excerpt' => 'জেনারেল শাখার অর্ধবার্ষিক/প্রাক-নির্বাচনী পরীক্ষার রুটিন প্রকাশ করা হয়েছে। নোটিশ বোর্ডে বিস্তারিত দেখা যাবে।',
+                'paragraphs' => [
+                    'ষষ্ঠ থেকে দশম শ্রেণির জেনারেল শাখার অর্ধবার্ষিক/প্রাক-নির্বাচনী পরীক্ষা ২০২৬-এর রুটিন প্রকাশ করা হলো। পরীক্ষা যথাসময়ে শুরু হবে এবং সংশ্লিষ্ট শ্রেণি শিক্ষকের কাছে বিস্তারিত সময়সূচি পাওয়া যাবে।',
+                    'সকল শিক্ষার্থীকে যথাসময়ে উপস্থিত হয়ে প্রবেশপত্র সঙ্গে আনার জন্য অনুরোধ করা হলো।',
+                ],
+                'daysAgo' => 20,
+            ],
+            [
+                'slug' => 'half-yearly-exam-routine-vocational',
+                'title' => 'পর্বমধ্য/প্রাক-নির্বাচনী পরীক্ষা ২০২৬ রুটিন প্রকাশ (ভোকেশনাল শাখা)',
+                'excerpt' => 'নবম ও দশম শ্রেণির ভোকেশনাল (কারিগরি) শাখার পর্বমধ্য/প্রাক-নির্বাচনী পরীক্ষার রুটিন প্রকাশ করা হয়েছে।',
+                'paragraphs' => [
+                    'নবম ও দশম শ্রেণির ভোকেশনাল শাখার পর্বমধ্য/প্রাক-নির্বাচনী পরীক্ষা ২০২৬-এর রুটিন প্রকাশ করা হলো। ট্রেডভিত্তিক ব্যবহারিক ও তাত্ত্বিক পরীক্ষার সময়সূচি সংশ্লিষ্ট প্রশিক্ষকের কাছে পাওয়া যাবে।',
+                ],
+                'daysAgo' => 19,
+            ],
+            [
+                'slug' => 'scholarship-congratulations',
+                'title' => 'অষ্টম শ্রেণি বৃত্তি পরীক্ষায় বিদ্যালয়ের সাফল্য',
+                'excerpt' => 'অষ্টম শ্রেণি বৃত্তি পরীক্ষা-২০২৫-এ বিদ্যালয়ের ০৭ জন শিক্ষার্থী বৃত্তি লাভ করেছে।',
+                'paragraphs' => [
+                    'অষ্টম শ্রেণি বৃত্তি পরীক্ষা-২০২৫-এ আমাদের বিদ্যালয়ের ০৭ জন শিক্ষার্থী বৃত্তি পেয়েছে। বিদ্যালয়ের পক্ষ থেকে তাদেরকে জানাই প্রাণঢালা অভিনন্দন।',
+                    'এই সাফল্য শিক্ষার্থীদের একাগ্র পরিশ্রম এবং শিক্ষক ও অভিভাবকদের নিরলস সহযোগিতার ফসল। আগামী দিনেও বিদ্যালয় এই ধারাবাহিকতা বজায় রাখতে বদ্ধপরিকর।',
+                ],
+                'daysAgo' => 30,
+            ],
+            // Bangla fill, modelled on sagc's news feed.
+            [
+                'slug' => 'tree-plantation-program',
+                'title' => 'বিদ্যালয় প্রাঙ্গণে বৃক্ষরোপণ কর্মসূচি অনুষ্ঠিত',
+                'excerpt' => 'পরিবেশ সুরক্ষার লক্ষ্যে বিদ্যালয়ের উদ্যোগে শিক্ষার্থী ও শিক্ষকদের অংশগ্রহণে বৃক্ষরোপণ কর্মসূচি অনুষ্ঠিত হয়েছে।',
+                'paragraphs' => [
+                    'পরিবেশ সুরক্ষা ও সবুজায়নের লক্ষ্যে বিদ্যালয় প্রাঙ্গণে একটি বৃক্ষরোপণ কর্মসূচি অনুষ্ঠিত হয়েছে। প্রধান শিক্ষকের নেতৃত্বে শিক্ষার্থী ও শিক্ষকবৃন্দ ফলদ, বনজ ও ঔষধি গাছের চারা রোপণ করেন।',
+                    'অনুষ্ঠানে বক্তারা জলবায়ু পরিবর্তনের প্রভাব মোকাবিলায় বৃক্ষরোপণের গুরুত্ব তুলে ধরেন এবং প্রতিটি শিক্ষার্থীকে অন্তত একটি করে গাছ লাগানোর আহ্বান জানান।',
+                ],
+                'daysAgo' => 45,
+            ],
+            [
+                'slug' => 'ssc-gpa5-reception',
+                'title' => 'এসএসসিতে জিপিএ-৫ প্রাপ্ত শিক্ষার্থীদের সংবর্ধনা',
+                'excerpt' => 'সদ্য প্রকাশিত এসএসসি পরীক্ষার ফলাফলে জিপিএ-৫ অর্জনকারী শিক্ষার্থীদের বিদ্যালয়ের পক্ষ থেকে সংবর্ধনা দেওয়া হয়েছে।',
+                'paragraphs' => [
+                    'সদ্য প্রকাশিত এসএসসি পরীক্ষার ফলাফলে বিজ্ঞান, ব্যবসায় শিক্ষা ও মানবিক শাখা থেকে জিপিএ-৫ অর্জনকারী শিক্ষার্থীদের বিদ্যালয় প্রাঙ্গণে ফুলেল শুভেচ্ছা ও সংবর্ধনা দেওয়া হয়।',
+                    'প্রধান শিক্ষক শিক্ষার্থীদের এই সাফল্যে অভিনন্দন জানিয়ে বলেন, এই ধারাবাহিকতা আগামী বছরগুলোতেও অব্যাহত থাকবে বলে তিনি আশাবাদী।',
+                ],
+                'daysAgo' => 60,
+            ],
+            [
+                'slug' => 'admission-notice-new-session',
+                'title' => 'নতুন শিক্ষাবর্ষে ভর্তি বিজ্ঞপ্তি',
+                'excerpt' => 'ষষ্ঠ থেকে নবম শ্রেণিতে নতুন শিক্ষাবর্ষের ভর্তি কার্যক্রম শুরু হয়েছে। নির্ধারিত ফরম পূরণ করে আবেদন করা যাবে।',
+                'paragraphs' => [
+                    'আগামী শিক্ষাবর্ষের জন্য ষষ্ঠ থেকে নবম শ্রেণিতে ভর্তি কার্যক্রম শুরু হয়েছে। আগ্রহী অভিভাবকগণকে বিদ্যালয় কার্যালয় থেকে ভর্তি ফরম সংগ্রহ করে নির্ধারিত সময়ের মধ্যে জমা দেওয়ার জন্য অনুরোধ করা হলো।',
+                    'ভর্তি সংক্রান্ত যেকোনো তথ্যের জন্য বিদ্যালয়ের কার্যালয়ে অফিস চলাকালীন যোগাযোগ করা যাবে।',
+                ],
+                'daysAgo' => 15,
+            ],
+            [
+                'slug' => 'winter-vacation-notice',
+                'title' => 'শীতকালীন ছুটির নোটিশ',
+                'excerpt' => 'শীতকালীন ছুটি উপলক্ষে নির্ধারিত সময়সূচি অনুযায়ী বিদ্যালয় বন্ধ থাকবে বলে জানানো হয়েছে।',
+                'paragraphs' => [
+                    'শীতকালীন ছুটি উপলক্ষে বিদ্যালয়ের ছুটির তালিকা অনুযায়ী নির্ধারিত সময়ের জন্য বিদ্যালয় বন্ধ থাকবে। ছুটি শেষে যথারীতি শ্রেণি কার্যক্রম শুরু হবে।',
+                    'সকল শিক্ষার্থী ও অভিভাবককে এই সময়ে নিরাপদ ও স্বাস্থ্যসম্মত থাকার পরামর্শ দেওয়া হলো।',
+                ],
+                'daysAgo' => 55,
+            ],
+        ];
+
+        foreach ($news as $item) {
+            $body = collect($item['paragraphs'])->map(fn ($p) => "<p>{$p}</p>")->implode('');
+
+            Post::updateOrCreate(['slug' => $item['slug']], [
+                'type' => Post::TYPE_NEWS,
+                'title' => $item['title'],
+                'excerpt' => $item['excerpt'],
+                'body' => PostBody::sanitize($body),
+                'is_published' => true,
+                'published_at' => now()->subDays($item['daysAgo']),
+            ]);
+        }
+    }
+
+    private function seedEvents(): void
+    {
+        $events = [
+            // Real vhbub event, spelling fixed from "বিতরিণী" to "বিতরণী".
+            [
+                'slug' => 'annual-prize-giving-ceremony',
+                'title' => 'বার্ষিক পুরস্কার বিতরণী অনুষ্ঠান',
+                'excerpt' => 'শিক্ষা, সহপাঠ কার্যক্রম ও খেলাধুলায় কৃতিত্বপূর্ণ শিক্ষার্থীদের হাতে পুরস্কার তুলে দেওয়া হবে এই বার্ষিক অনুষ্ঠানে।',
+                'paragraphs' => [
+                    'শিক্ষাবর্ষের সমাপনী অনুষ্ঠান হিসেবে বার্ষিক পুরস্কার বিতরণী অনুষ্ঠিত হবে। শিক্ষা, সহপাঠ কার্যক্রম ও ক্রীড়া প্রতিযোগিতায় কৃতিত্বপূর্ণ শিক্ষার্থীদের হাতে অতিথিবৃন্দ পুরস্কার তুলে দেবেন।',
+                    'অনুষ্ঠানে বিদ্যালয়ের পরিচালনা পরিষদ, শিক্ষক-শিক্ষিকা, অভিভাবক ও প্রাক্তন শিক্ষার্থীগণ উপস্থিত থাকবেন।',
+                ],
+                'inDays' => 30,
+                'hour' => 10,
+                'location' => 'বিদ্যালয় অডিটোরিয়াম',
+            ],
+            [
+                'slug' => 'annual-sports-competition',
+                'title' => 'বার্ষিক ক্রীড়া প্রতিযোগিতা',
+                'excerpt' => 'বিদ্যালয়ের বার্ষিক ক্রীড়া প্রতিযোগিতায় বিভিন্ন ইভেন্টে অংশ নেবে ষষ্ঠ থেকে দশম শ্রেণির শিক্ষার্থীরা।',
+                'paragraphs' => [
+                    'বিদ্যালয়ের বার্ষিক ক্রীড়া প্রতিযোগিতা অনুষ্ঠিত হবে খেলার মাঠে। দৌড়, লং জাম্প, ব্যাডমিন্টন ও রশি টানাটানিসহ বিভিন্ন ইভেন্টে ষষ্ঠ থেকে দশম শ্রেণির শিক্ষার্থীরা অংশ নেবে।',
+                    'বিজয়ী শিক্ষার্থীদের পরবর্তী বার্ষিক পুরস্কার বিতরণী অনুষ্ঠানে পুরস্কৃত করা হবে।',
+                ],
+                'inDays' => 14,
+                'hour' => 9,
+                'location' => 'বিদ্যালয় খেলার মাঠ',
+            ],
+            [
+                'slug' => 'victory-day-celebration',
+                'title' => 'মহান বিজয় দিবস উদযাপন',
+                'excerpt' => '১৬ ডিসেম্বর মহান বিজয় দিবস উপলক্ষে আলোচনা সভা, দেশাত্মবোধক সাংস্কৃতিক অনুষ্ঠান ও চিত্রাঙ্কন প্রতিযোগিতার আয়োজন করা হয়েছে।',
+                'paragraphs' => [
+                    'মহান বিজয় দিবস উপলক্ষে বিদ্যালয়ে জাতীয় পতাকা উত্তোলন, আলোচনা সভা ও দেশাত্মবোধক সাংস্কৃতিক অনুষ্ঠানের আয়োজন করা হয়েছে। মুক্তিযুদ্ধের চেতনার ওপর একটি চিত্রাঙ্কন প্রতিযোগিতাও অনুষ্ঠিত হবে।',
+                    'সকল শিক্ষার্থী ও অভিভাবককে যথাসময়ে উপস্থিত থাকার জন্য আমন্ত্রণ জানানো হচ্ছে।',
+                ],
+                'inDays' => 79,
+                'hour' => 9,
+                'location' => 'বিদ্যালয় প্রাঙ্গণ',
+            ],
+            [
+                'slug' => 'international-mother-language-day',
+                'title' => 'আন্তর্জাতিক মাতৃভাষা দিবস পালন',
+                'excerpt' => '২১ ফেব্রুয়ারি আন্তর্জাতিক মাতৃভাষা দিবস উপলক্ষে প্রভাতফেরি, শহীদ বেদিতে পুষ্পস্তবক অর্পণ ও রচনা প্রতিযোগিতার আয়োজন করা হয়েছে।',
+                'paragraphs' => [
+                    'আন্তর্জাতিক মাতৃভাষা দিবস ও শহীদ দিবস উপলক্ষে বিদ্যালয়ে প্রভাতফেরি, শহীদ মিনারে পুষ্পস্তবক অর্পণ এবং বাংলা ভাষার ওপর একটি রচনা প্রতিযোগিতার আয়োজন করা হয়েছে।',
+                    'ষষ্ঠ থেকে দশম শ্রেণির প্রতিটি শিক্ষার্থীকে এই আয়োজনে অংশ নেওয়ার জন্য উৎসাহিত করা হচ্ছে।',
+                ],
+                'inDays' => 146,
+                'hour' => 8,
+                'location' => 'শহীদ মিনার প্রাঙ্গণ',
+            ],
+            [
+                'slug' => 'science-fair',
+                'title' => 'বিজ্ঞান মেলা',
+                'excerpt' => 'শিক্ষার্থীদের বৈজ্ঞানিক দৃষ্টিভঙ্গি ও উদ্ভাবনী চিন্তাকে উৎসাহিত করতে বিদ্যালয়ে বিজ্ঞান মেলার আয়োজন করা হয়েছে।',
+                'paragraphs' => [
+                    'শিক্ষার্থীদের মধ্যে বৈজ্ঞানিক দৃষ্টিভঙ্গি ও উদ্ভাবনী চিন্তার বিকাশ ঘটাতে বিদ্যালয়ে বিজ্ঞান মেলার আয়োজন করা হয়েছে। বিজ্ঞান, ব্যবসায় শিক্ষা ও মানবিক শাখার শিক্ষার্থীরা বিভিন্ন প্রকল্প নিয়ে অংশ নেবে।',
+                    'সেরা তিনটি প্রকল্পকে জেলা পর্যায়ের বিজ্ঞান মেলায় পাঠানো হবে।',
+                ],
+                'inDays' => 45,
+                'hour' => 10,
+                'location' => 'বিদ্যালয় মিলনায়তন',
+            ],
+        ];
+
+        foreach ($events as $item) {
+            $body = collect($item['paragraphs'])->map(fn ($p) => "<p>{$p}</p>")->implode('');
+
+            $start = now()->addDays($item['inDays'])->setTime($item['hour'], 0);
+
+            Post::updateOrCreate(['slug' => $item['slug']], [
+                'type' => Post::TYPE_EVENT,
+                'title' => $item['title'],
+                'excerpt' => $item['excerpt'],
+                'body' => PostBody::sanitize($body),
+                'event_starts_at' => $start,
+                'event_ends_at' => $start->copy()->addHours(3),
+                'location' => $item['location'],
+                'is_published' => true,
+                'published_at' => now()->subDays(5),
+            ]);
+        }
     }
 }
