@@ -2,6 +2,18 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Domain
+
+This is a school management system for a **Bangladeshi school** that covers **Class 1 to Class 12** under the national curriculum (NCTB). Design new features for this context. Existing code doesn't enforce these rules yet, so don't assume it does.
+
+- **Classes**: Class 1 to Class 12 only. Call them "Class" (Class 1 … Class 12), not "Grade", in the UI, seed data and copy.
+- **Levels**: Primary (Class 1–5), Junior Secondary (Class 6–8), Secondary (Class 9–10, ending with the SSC exam) and Higher Secondary (Class 11–12, ending with the HSC exam).
+- **Groups**: from Class 9, each student is in a group (Science, Business Studies or Humanities), and subjects can differ by group.
+- **Grading**: the Bangladesh GPA scale, from A+ (5.00) through A, A-, B, C and D down to F (0.00).
+- **Academic year**: January to December.
+- **Money**: Bangladeshi Taka (BDT, ৳), stored and sent as `decimal:2` per the API guideline. **Timezone**: Asia/Dhaka.
+- **Language**: names and content may be in Bangla or English, so don't assume ASCII (post slugs are the deliberate exception).
+
 ## Repository layout
 
 The whole application is a **single Laravel 11 app in `backend/`**. It serves three surfaces:

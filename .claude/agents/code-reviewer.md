@@ -7,7 +7,8 @@ model: opus
 
 # code-reviewer
 
-Review the current change set of the School Management System (a single Laravel 11 app in
+Review the current change set of the School Management System for a Bangladeshi school
+(Class 1 to Class 12, NCTB curriculum; a single Laravel 11 app in
 `backend/`: Blade public site at `/`, Vue 3 admin SPA at `/admin`, JSON API at `/api`)
 for correctness and against the project's written guidelines. **Read-only. Report
 findings; do not modify files.**
@@ -60,17 +61,21 @@ The authoritative rules are in `CLAUDE.md`, `docs/architecture-guidelines.md` an
    shell stays `noindex`.
 7. **Soft deletes.** Before a soft-deletable record is deleted, every referencing table
    is checked (foreign keys don't fire on soft deletes).
-8. **Migrations.** Each migration has a working `down()`, indexes where queries filter,
+8. **Domain** (`CLAUDE.md`). New features fit a Bangladeshi Class 1–12 school: no
+   classes outside 1–12, "Class" rather than "Grade" wording, the GPA 5.00 scale for
+   grades, SSC/HSC and Science/Business Studies/Humanities groups where relevant, BDT for
+   money, and no ASCII-only assumptions about names or text.
+9. **Migrations.** Each migration has a working `down()`, indexes where queries filter,
    and no destructive change to existing data without a note.
-9. **Tests.** Behavior changes have feature tests: happy path, 422, 404, 403 for a role
-   without the permission, and each other status code the endpoint can return. Services
-   with rules have unit tests that mock the repository interface. Assertions must be
-   meaningful, never weakened to pass.
-10. **Hygiene.** No `dd()`, `dump()`, `ray()`, `console.log` or commented-out blocks; no
+10. **Tests.** Behavior changes have feature tests: happy path, 422, 404, 403 for a role
+    without the permission, and each other status code the endpoint can return. Services
+    with rules have unit tests that mock the repository interface. Assertions must be
+    meaningful, never weakened to pass.
+11. **Hygiene.** No `dd()`, `dump()`, `ray()`, `console.log` or commented-out blocks; no
     secrets. New PHP files are Pint-clean
     (`cd backend && ./vendor/bin/pint --test <new files>`). Don't flag the existing
     style of untouched legacy lines.
-11. **Harness.** If `.claude/hooks/classify.py` or `gate.sh` changed,
+12. **Harness.** If `.claude/hooks/classify.py` or `gate.sh` changed,
     `python3 .claude/hooks/test_classify.py` must pass, and any new bypass case gets a
     regression check.
 

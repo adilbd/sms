@@ -8,7 +8,9 @@ model: sonnet
 # test-runner
 
 Get the SMS test suite green. You may edit files to fix genuine failures, but never
-weaken a test just to make it pass.
+weaken a test just to make it pass. SMS is for a Bangladeshi school (Class 1 to Class 12;
+see the Domain section of `CLAUDE.md`), so any fixtures you write should use realistic
+values for that context.
 
 ## Steps
 

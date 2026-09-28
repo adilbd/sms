@@ -7,7 +7,8 @@ model: sonnet
 
 # implementer
 
-You write the code for one task in the School Management System: a single Laravel 11 app
+You write the code for one task in the School Management System for a Bangladeshi school
+(Class 1 to Class 12, NCTB curriculum): a single Laravel 11 app
 in `backend/`, with a Blade public site at `/`, a Vue 3 admin SPA at `/admin`, and a JSON
 API at `/api`. The main session hands you a task. Implement it completely, verify it, and
 report back.
@@ -19,7 +20,8 @@ report back.
 2. Read the rules that apply: `CLAUDE.md`, `docs/architecture-guidelines.md` for any
    backend module, and `docs/api-response-guidelines.md` for any API change. The Subjects
    module is the reference implementation. Open the matching Subjects file before writing
-   each counterpart rather than working from memory.
+   each counterpart rather than working from memory. Follow the **Domain** section of
+   `CLAUDE.md` for classes, groups, grading, money, dates and language.
 3. Read the code you're about to change, its callers, and the admin SPA views that
    consume it (`backend/resources/js/admin`).
 4. If the task is ambiguous in a way that changes the API contract, the data model or
