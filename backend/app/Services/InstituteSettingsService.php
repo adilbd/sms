@@ -18,7 +18,25 @@ use Illuminate\Support\Str;
  */
 class InstituteSettingsService
 {
-    private const CACHE_KEY = 'settings.institute';
+    /**
+     * Public so callers that write to the cache directly (InstituteSettingsSeeder) can
+     * invalidate it without duplicating the key.
+     */
+    public const CACHE_KEY = 'settings.institute';
+
+    /**
+     * Memoizes all() and profile() for the lifetime of the instance (see the `scoped()`
+     * binding in AppServiceProvider), so a request that reads them repeatedly hits the
+     * cache store at most once each. update() resets both.
+     *
+     * @var array<string, ?string>|null
+     */
+    private ?array $allMemo = null;
+
+    /**
+     * @var array<string, mixed>|null
+     */
+    private ?array $profileMemo = null;
 
     public function __construct(private SettingRepositoryInterface $settings) {}
 
@@ -29,7 +47,7 @@ class InstituteSettingsService
      */
     public function all(): array
     {
-        return Cache::rememberForever(self::CACHE_KEY, function () {
+        return $this->allMemo ??= Cache::rememberForever(self::CACHE_KEY, function () {
             $stored = $this->settings->valuesFor(InstituteSettings::keyNames());
 
             return array_merge(array_fill_keys(InstituteSettings::keyNames(), null), $stored);
@@ -63,21 +81,41 @@ class InstituteSettingsService
             $pairs['favicon'] = null;
         }
 
-        DB::transaction(function () use ($pairs) {
-            $this->settings->upsertMany($pairs);
-        });
+        try {
+            DB::transaction(function () use ($pairs, $oldLogoPath, $oldFaviconPath, $newLogoPath, $newFaviconPath, $removeLogo, $removeFavicon) {
+                $this->settings->upsertMany($pairs);
 
+                // Deferred with afterCommit() (rather than run right after the
+                // transaction() call returns) so an outer transaction can't delete
+                // these files before the write that stops referencing them actually
+                // commits.
+                DB::afterCommit(function () use ($oldLogoPath, $oldFaviconPath, $newLogoPath, $newFaviconPath, $removeLogo, $removeFavicon) {
+                    if ($oldLogoPath && ($newLogoPath || $removeLogo)) {
+                        Storage::disk('public')->delete($oldLogoPath);
+                    }
+
+                    if ($oldFaviconPath && ($newFaviconPath || $removeFavicon)) {
+                        Storage::disk('public')->delete($oldFaviconPath);
+                    }
+                });
+            });
+        } catch (\Throwable $e) {
+            // The row was never saved, so the newly uploaded file(s) would otherwise
+            // be orphaned on disk.
+            if ($newLogoPath) {
+                Storage::disk('public')->delete($newLogoPath);
+            }
+
+            if ($newFaviconPath) {
+                Storage::disk('public')->delete($newFaviconPath);
+            }
+
+            throw $e;
+        }
+
+        $this->allMemo = null;
+        $this->profileMemo = null;
         Cache::forget(self::CACHE_KEY);
-
-        // Only delete once the write has committed, so a failed write never orphans
-        // the file that's still referenced by the saved row.
-        if ($oldLogoPath && ($newLogoPath || $removeLogo)) {
-            Storage::disk('public')->delete($oldLogoPath);
-        }
-
-        if ($oldFaviconPath && ($newFaviconPath || $removeFavicon)) {
-            Storage::disk('public')->delete($oldFaviconPath);
-        }
 
         return $this->all();
     }
@@ -91,6 +129,14 @@ class InstituteSettingsService
      * @return array<string, mixed>
      */
     public function profile(): array
+    {
+        return $this->profileMemo ??= $this->buildProfile();
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function buildProfile(): array
     {
         $settings = $this->all();
         $org = config('seo.organization');

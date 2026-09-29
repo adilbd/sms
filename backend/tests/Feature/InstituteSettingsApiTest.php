@@ -122,28 +122,29 @@ class InstituteSettingsApiTest extends TestCase
     public static function invalidPayloads(): array
     {
         return [
-            'bad email' => [['email' => 'not-an-email']],
-            'latitude too high' => [['latitude' => 91]],
-            'longitude too low' => [['longitude' => -181]],
-            'eiin too short' => [['eiin' => '12345']],
-            'eiin non numeric' => [['eiin' => 'abcdef']],
-            'unknown division' => [['division' => 'london']],
-            'unknown board' => [['education_board' => 'oxford']],
-            'empty name' => [['name_en' => '']],
-            'established year too early' => [['established_year' => 1700]],
-            'facebook url not a url' => [['facebook_url' => 'not-a-url']],
-            'name too long' => [['name_en' => str_repeat('a', 256)]],
+            'bad email' => [['email' => 'not-an-email'], 'email'],
+            'latitude too high' => [['latitude' => 91], 'latitude'],
+            'longitude too low' => [['longitude' => -181], 'longitude'],
+            'eiin too short' => [['eiin' => '12345'], 'eiin'],
+            'eiin non numeric' => [['eiin' => 'abcdef'], 'eiin'],
+            'unknown division' => [['division' => 'london'], 'division'],
+            'unknown board' => [['education_board' => 'oxford'], 'education_board'],
+            'empty name' => [['name_en' => ''], 'name_en'],
+            'established year too early' => [['established_year' => 1700], 'established_year'],
+            'facebook url not a url' => [['facebook_url' => 'not-a-url'], 'facebook_url'],
+            'name too long' => [['name_en' => str_repeat('a', 256)], 'name_en'],
         ];
     }
 
     /**
      * @dataProvider invalidPayloads
      */
-    public function test_invalid_payloads_are_rejected(array $payload): void
+    public function test_invalid_payloads_are_rejected(array $payload, string $field): void
     {
         $this->actingAs($this->admin, 'sanctum')
             ->putJson('/api/settings/institute', $payload)
-            ->assertUnprocessable();
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors($field);
     }
 
     public function test_logo_upload_is_stored_and_returns_an_absolute_url(): void

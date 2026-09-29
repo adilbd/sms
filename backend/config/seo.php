@@ -23,6 +23,8 @@ return [
         'city' => env('SCHOOL_CITY', 'Springfield'),
         'region' => env('SCHOOL_REGION', ''),
         'postal_code' => env('SCHOOL_POSTAL_CODE', '00000'),
+        // Not read anywhere: App\Support\SchemaOrg::address() always hardcodes "BD",
+        // since the school this app serves is always in Bangladesh (see CLAUDE.md).
         'country' => env('SCHOOL_COUNTRY', 'US'),
         'founding_year' => env('SCHOOL_FOUNDING_YEAR'),
         'social' => array_filter(explode(',', (string) env('SCHOOL_SOCIAL_LINKS', ''))),

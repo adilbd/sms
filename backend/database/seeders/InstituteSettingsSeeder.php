@@ -3,7 +3,9 @@
 namespace Database\Seeders;
 
 use App\Models\Setting;
+use App\Services\InstituteSettingsService;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\Cache;
 
 /**
  * Sample Bangla/English institute settings so a fresh install shows a real school
@@ -18,6 +20,11 @@ class InstituteSettingsSeeder extends Seeder
         foreach ($this->values() as $key => $value) {
             Setting::firstOrCreate(['key' => $key], ['value' => $value]);
         }
+
+        // Writing rows directly with the model bypasses InstituteSettingsService::update(),
+        // so forget the cache here too, or a request served (and cached) before seeding
+        // would keep showing the empty profile.
+        Cache::forget(InstituteSettingsService::CACHE_KEY);
     }
 
     /**

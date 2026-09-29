@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use App\Services\InstituteSettingsService;
 use App\View\Composers\HeaderMenuComposer;
 use App\View\Composers\InstituteComposer;
 use Illuminate\Support\Facades\View;
@@ -14,7 +15,10 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        // profile()/all() are read many times per request (the view composer, SchemaOrg,
+        // /api/public/school, ...). Scoping it to the request lets the service memoize
+        // both, instead of hitting the cache store repeatedly.
+        $this->app->scoped(InstituteSettingsService::class);
     }
 
     /**

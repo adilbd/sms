@@ -197,7 +197,8 @@
         </div>
       </section>
 
-      <div class="flex justify-end">
+      <div class="flex items-center justify-end gap-3">
+        <p v-if="successMessage" class="text-sm text-green-800">{{ successMessage }}</p>
         <button type="submit" class="btn btn-primary" :disabled="saving">
           {{ saving ? 'Saving...' : 'Save' }}
         </button>
@@ -207,7 +208,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import api from '@/services/api'
 
 // Mirrors App\Support\InstituteSettings::EDUCATION_BOARDS / DIVISIONS.
@@ -274,12 +275,21 @@ const fetchSettings = async () => {
   }
 }
 
+const revokeLogoObjectUrl = () => {
+  if (logoObjectUrl.value) URL.revokeObjectURL(logoObjectUrl.value)
+}
+
+const revokeFaviconObjectUrl = () => {
+  if (faviconObjectUrl.value) URL.revokeObjectURL(faviconObjectUrl.value)
+}
+
 const onLogoChange = (event) => {
   const file = event.target.files?.[0]
   event.target.value = ''
   if (!file) return
   logoFile.value = file
   removeLogoFlag.value = false
+  revokeLogoObjectUrl()
   logoObjectUrl.value = URL.createObjectURL(file)
 }
 
@@ -289,20 +299,28 @@ const onFaviconChange = (event) => {
   if (!file) return
   faviconFile.value = file
   removeFaviconFlag.value = false
+  revokeFaviconObjectUrl()
   faviconObjectUrl.value = URL.createObjectURL(file)
 }
 
 const removeLogo = () => {
   logoFile.value = null
+  revokeLogoObjectUrl()
   logoObjectUrl.value = null
   removeLogoFlag.value = true
 }
 
 const removeFavicon = () => {
   faviconFile.value = null
+  revokeFaviconObjectUrl()
   faviconObjectUrl.value = null
   removeFaviconFlag.value = true
 }
+
+onBeforeUnmount(() => {
+  revokeLogoObjectUrl()
+  revokeFaviconObjectUrl()
+})
 
 const save = async () => {
   errors.value = {}
@@ -326,11 +344,14 @@ const save = async () => {
     applySettings(data.data)
     logoFile.value = null
     faviconFile.value = null
+    revokeLogoObjectUrl()
+    revokeFaviconObjectUrl()
     logoObjectUrl.value = null
     faviconObjectUrl.value = null
     removeLogoFlag.value = false
     removeFaviconFlag.value = false
     successMessage.value = data.message || 'Institute settings saved'
+    window.scrollTo({ top: 0, behavior: 'smooth' })
   } catch (error) {
     if (error.response?.status === 422) {
       errors.value = error.response.data.errors

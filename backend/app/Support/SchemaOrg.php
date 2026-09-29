@@ -11,15 +11,16 @@ use App\Services\InstituteSettingsService;
  */
 class SchemaOrg
 {
-    public static function organization(): array
+    public static function organization(?array $institute = null): array
     {
-        $institute = app(InstituteSettingsService::class)->profile();
+        $institute ??= app(InstituteSettingsService::class)->profile();
 
         return array_filter([
             '@context' => 'https://schema.org',
             '@type' => 'EducationalOrganization',
             '@id' => url('/').'#organization',
             'name' => $institute['name_en'],
+            'legalName' => config('seo.organization.legal_name'),
             'alternateName' => $institute['name_bn'],
             'url' => url('/'),
             'logo' => $institute['logo_url'] ?: Seo::absoluteUrl(config('seo.default_image')),
@@ -51,9 +52,15 @@ class SchemaOrg
         ]);
     }
 
-    private static function instituteName(): string
+    /**
+     * @param  array<string, mixed>|null  $institute  Pass the already-resolved profile()
+     *                                                to avoid resolving the service again; resolved lazily otherwise.
+     */
+    private static function instituteName(?array $institute = null): string
     {
-        return app(InstituteSettingsService::class)->profile()['name_en'];
+        $institute ??= app(InstituteSettingsService::class)->profile();
+
+        return $institute['name_en'];
     }
 
     /**
@@ -72,12 +79,16 @@ class SchemaOrg
         ];
     }
 
-    public static function website(): array
+    /**
+     * @param  array<string, mixed>|null  $institute  Pass the already-resolved profile()
+     *                                                to avoid resolving the service again; resolved lazily otherwise.
+     */
+    public static function website(?array $institute = null): array
     {
         return [
             '@context' => 'https://schema.org',
             '@type' => 'WebSite',
-            'name' => self::instituteName(),
+            'name' => self::instituteName($institute),
             'url' => url('/'),
             'publisher' => ['@id' => url('/').'#organization'],
         ];
@@ -100,8 +111,13 @@ class SchemaOrg
         ];
     }
 
-    public static function post(Post $post): array
+    /**
+     * @param  array<string, mixed>|null  $institute  Pass the already-resolved profile()
+     *                                                to avoid resolving the service again; resolved lazily otherwise.
+     */
+    public static function post(Post $post, ?array $institute = null): array
     {
+        $institute ??= app(InstituteSettingsService::class)->profile();
         $image = $post->coverImageUrl() ?? Seo::absoluteUrl(config('seo.default_image'));
 
         if ($post->type === Post::TYPE_EVENT) {
@@ -118,12 +134,12 @@ class SchemaOrg
                 'eventAttendanceMode' => 'https://schema.org/OfflineEventAttendanceMode',
                 'location' => [
                     '@type' => 'Place',
-                    'name' => $post->location ?: self::instituteName(),
-                    'address' => self::address(),
+                    'name' => $post->location ?: self::instituteName($institute),
+                    'address' => self::address($institute),
                 ],
                 'organizer' => [
                     '@type' => 'EducationalOrganization',
-                    'name' => self::instituteName(),
+                    'name' => self::instituteName($institute),
                     'url' => url('/'),
                 ],
             ]);
@@ -140,7 +156,7 @@ class SchemaOrg
             'dateModified' => $post->updated_at?->toIso8601String(),
             'author' => [
                 '@type' => 'Organization',
-                'name' => self::instituteName(),
+                'name' => self::instituteName($institute),
                 'url' => url('/'),
             ],
             'publisher' => ['@id' => url('/').'#organization'],
