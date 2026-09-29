@@ -29,6 +29,28 @@ class PublicHeaderMenuTest extends TestCase
         $this->assertStringContainsString('href="'.$history->url().'"', $html);
     }
 
+    public function test_seeded_menu_has_a_gallery_link_between_events_and_contact(): void
+    {
+        $this->seed(PublicContentSeeder::class);
+        $this->seed(PageSeeder::class);
+        $this->seed(MenuSeeder::class);
+
+        $html = $this->get('/')->assertOk()->getContent();
+
+        $this->assertStringContainsString('গ্যালারি', $html);
+        $this->assertStringContainsString('href="'.route('gallery.index').'"', $html);
+
+        $eventsPosition = strpos($html, 'ইভেন্ট');
+        $galleryPosition = strpos($html, 'গ্যালারি');
+        $contactPosition = strpos($html, 'যোগাযোগ');
+
+        $this->assertNotFalse($eventsPosition);
+        $this->assertNotFalse($galleryPosition);
+        $this->assertNotFalse($contactPosition);
+        $this->assertTrue($eventsPosition < $galleryPosition);
+        $this->assertTrue($galleryPosition < $contactPosition);
+    }
+
     public function test_inactive_item_and_unpublished_page_item_are_hidden(): void
     {
         MenuItem::factory()->create(['label' => 'নিষ্ক্রিয় আইটেম', 'is_active' => false]);
