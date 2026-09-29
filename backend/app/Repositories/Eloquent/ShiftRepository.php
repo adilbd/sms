@@ -26,6 +26,15 @@ class ShiftRepository extends EloquentRepository implements ShiftRepositoryInter
         return Shift::where('slug', $slug)->first();
     }
 
+    public function lockForUpdate(array $ids): void
+    {
+        if (empty($ids)) {
+            return;
+        }
+
+        Shift::whereIn('id', $ids)->lockForUpdate()->get();
+    }
+
     protected function query(): Builder
     {
         return parent::query()->orderBy('sort_order')->orderBy('id');

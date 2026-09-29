@@ -14,8 +14,11 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('subject_assignments', function (Blueprint $table) {
-            $table->dropUnique('unique_subject_assignment');
+            // MySQL refuses to drop the unique index first: it's the index the foreign
+            // key constraint relies on ("Cannot drop index ...: needed in a foreign key
+            // constraint"). The constraint must go first.
             $table->dropForeign(['teacher_id']);
+            $table->dropUnique('unique_subject_assignment');
             $table->dropColumn('teacher_id');
         });
 
@@ -56,8 +59,10 @@ return new class extends Migration
         });
 
         Schema::table('subject_assignments', function (Blueprint $table) {
-            $table->dropUnique('unique_subject_assignment');
+            // Same MySQL ordering constraint as up(): drop the foreign key before the
+            // unique index it depends on.
             $table->dropForeign(['staff_id']);
+            $table->dropUnique('unique_subject_assignment');
             $table->dropColumn('staff_id');
         });
 

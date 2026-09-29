@@ -92,12 +92,14 @@
       <section class="card space-y-4">
         <h2 class="text-lg font-semibold text-gray-900">Shifts</h2>
         <div class="flex flex-wrap gap-4">
-          <label v-for="shift in shifts" :key="shift.id" class="flex items-center gap-2">
+          <label v-for="shift in shiftOptions" :key="shift.id" class="flex items-center gap-2">
             <input type="checkbox" :value="shift.id" v-model="form.shift_ids" />
-            <span class="text-sm text-gray-700">{{ shift.name_bn }} ({{ shift.name_en }})</span>
+            <span class="text-sm text-gray-700">
+              {{ shift.name_bn }} ({{ shift.name_en }})<span v-if="shift.is_active === false" class="text-gray-400"> — inactive</span>
+            </span>
           </label>
         </div>
-        <p v-if="errors.shift_ids" class="text-sm text-red-600 mt-1">{{ errors.shift_ids[0] }}</p>
+        <p v-if="shiftIdErrors.length" class="text-sm text-red-600 mt-1">{{ shiftIdErrors.join(' ') }}</p>
         <p class="text-xs text-gray-500">Every staff member must have at least one shift.</p>
       </section>
 
@@ -209,12 +211,13 @@
         <p v-if="educationErrors.length" class="text-sm text-red-600">{{ educationErrors.join(' ') }}</p>
         <p v-if="educations.length === 0" class="text-sm text-gray-500">No education rows yet.</p>
         <ul v-else class="space-y-3">
-          <li v-for="(row, index) in educations" :key="row.key" class="grid grid-cols-1 gap-2 rounded-lg border border-gray-200 p-3 md:grid-cols-5">
+          <li v-for="(row, index) in educations" :key="row.key" class="grid grid-cols-1 gap-2 rounded-lg border border-gray-200 p-3 md:grid-cols-6">
             <input v-model="row.degree" type="text" placeholder="Degree / examination" class="input md:col-span-2" />
-            <input v-model="row.board_university" type="text" placeholder="Board / University" class="input" />
+            <input v-model="row.institution" type="text" placeholder="Institution" class="input md:col-span-2" />
+            <input v-model="row.board_university" type="text" placeholder="Board / University" class="input md:col-span-2" />
             <input v-model="row.passing_year" type="text" placeholder="Passing year" class="input" />
+            <input v-model="row.result" type="text" placeholder="Result" class="input" />
             <div class="flex items-center gap-2">
-              <input v-model="row.result" type="text" placeholder="Result" class="input" />
               <button type="button" class="text-gray-500 hover:text-gray-800 disabled:opacity-30" :disabled="index === 0" @click="moveRow(educations, index, -1)" title="Move up">↑</button>
               <button type="button" class="text-gray-500 hover:text-gray-800 disabled:opacity-30" :disabled="index === educations.length - 1" @click="moveRow(educations, index, 1)" title="Move down">↓</button>
               <button type="button" class="text-red-600 hover:text-red-800" @click="educations.splice(index, 1)" title="Remove">🗑️</button>
@@ -265,6 +268,22 @@ const isEdit = computed(() => !!route.params.id)
 const saving = ref(false)
 const errors = ref({})
 const shifts = ref([])
+// The member's shifts as loaded from the API, which may include one that was
+// deactivated after they were assigned to it. Kept separate from `shifts` (always
+// active, used for the "add a shift" list) so an inactive one can still be shown,
+// labelled, and unchecked — otherwise it would stay silently selected in
+// form.shift_ids with no checkbox to represent it, and saving would fail with a 422
+// on shift_ids.* that nothing on the page explained.
+const memberShifts = ref([])
+const shiftOptions = computed(() => {
+  const activeIds = new Set(shifts.value.map((s) => s.id))
+  const inactiveAssigned = memberShifts.value.filter((s) => !activeIds.has(s.id))
+
+  return [...shifts.value, ...inactiveAssigned]
+})
+const shiftIdErrors = computed(() =>
+  Object.entries(errors.value).filter(([key]) => key.startsWith('shift_ids')).flatMap(([, m]) => m)
+)
 const bloodGroups = ['A+', 'A-', 'B+', 'B-', 'O+', 'O-', 'AB+', 'AB-']
 
 const form = reactive({
@@ -294,6 +313,13 @@ const form = reactive({
   bio: '',
   is_published: true,
   shift_ids: [],
+})
+
+// A leaving date left over from a previous "archive" is meaningless once the member
+// is set back to active, and the backend rejects an active status with the leaving
+// date still before the joining date or otherwise inconsistent, so clear it here.
+watch(() => form.status, (status) => {
+  if (status === 'active') form.leaving_date = ''
 })
 
 const sameAsPresent = ref(false)
@@ -397,6 +423,7 @@ const fetchStaff = async () => {
       shift_ids: (member.shifts || []).map((s) => s.id),
     })
     sameAsPresent.value = !!member.present_address && member.present_address === member.permanent_address
+    memberShifts.value = member.shifts || []
     existingPhotoUrl.value = member.photo_url
     educations.value = (member.educations || []).map((e) => ({ key: nextKey++, ...e }))
     trainings.value = (member.trainings || []).map((t) => ({ key: nextKey++, ...t }))
@@ -423,21 +450,34 @@ const save = async () => {
   payload.append('is_published', form.is_published ? '1' : '0')
   form.shift_ids.forEach((id) => payload.append('shift_ids[]', id))
 
-  educations.value.forEach((row, index) => {
-    if (row.id) payload.append(`educations[${index}][id]`, row.id)
-    payload.append(`educations[${index}][degree]`, row.degree || '')
-    payload.append(`educations[${index}][institution]`, row.institution || '')
-    payload.append(`educations[${index}][board_university]`, row.board_university || '')
-    payload.append(`educations[${index}][passing_year]`, row.passing_year || '')
-    payload.append(`educations[${index}][result]`, row.result || '')
-  })
-  trainings.value.forEach((row, index) => {
-    if (row.id) payload.append(`trainings[${index}][id]`, row.id)
-    payload.append(`trainings[${index}][title]`, row.title || '')
-    payload.append(`trainings[${index}][organizer]`, row.organizer || '')
-    payload.append(`trainings[${index}][duration]`, row.duration || '')
-    payload.append(`trainings[${index}][year]`, row.year || '')
-  })
+  // A multipart request can't express an empty array by omitting the field — there
+  // would be nothing to distinguish "the list is empty" from "don't touch the
+  // existing rows" — so send an explicit empty marker when every row was removed.
+  // The backend's "nullable" rule (see HasStaffChildRules) and
+  // StaffService::extractChildData() both treat this the same as [].
+  if (educations.value.length === 0) {
+    payload.append('educations', '')
+  } else {
+    educations.value.forEach((row, index) => {
+      if (row.id) payload.append(`educations[${index}][id]`, row.id)
+      payload.append(`educations[${index}][degree]`, row.degree || '')
+      payload.append(`educations[${index}][institution]`, row.institution || '')
+      payload.append(`educations[${index}][board_university]`, row.board_university || '')
+      payload.append(`educations[${index}][passing_year]`, row.passing_year || '')
+      payload.append(`educations[${index}][result]`, row.result || '')
+    })
+  }
+  if (trainings.value.length === 0) {
+    payload.append('trainings', '')
+  } else {
+    trainings.value.forEach((row, index) => {
+      if (row.id) payload.append(`trainings[${index}][id]`, row.id)
+      payload.append(`trainings[${index}][title]`, row.title || '')
+      payload.append(`trainings[${index}][organizer]`, row.organizer || '')
+      payload.append(`trainings[${index}][duration]`, row.duration || '')
+      payload.append(`trainings[${index}][year]`, row.year || '')
+    })
+  }
 
   if (photoFile.value) payload.append('photo', photoFile.value)
   if (removePhotoFlag.value) payload.append('remove_photo', '1')

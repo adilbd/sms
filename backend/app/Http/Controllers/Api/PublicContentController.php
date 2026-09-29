@@ -7,12 +7,14 @@ use App\Http\Resources\GalleryResource;
 use App\Http\Resources\PostResource;
 use App\Http\Resources\StaffResource;
 use App\Models\Post;
+use App\Models\Staff;
 use App\Services\ContactService;
 use App\Services\GalleryService;
 use App\Services\InstituteSettingsService;
 use App\Services\PostService;
 use App\Services\StaffService;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 
 /**
  * Unauthenticated, read-mostly endpoints for the mobile app.
@@ -98,22 +100,31 @@ class PublicContentController extends Controller
 
     public function staff(Request $request)
     {
+        $validated = $request->validate([
+            // An array query value (?shift[]=x) would otherwise reach
+            // StaffService::resolveActiveShift(), which type-hints string, as a 500.
+            'position' => ['sometimes', 'nullable', 'string', Rule::in(Staff::POSITIONS)],
+            'former' => ['sometimes', 'nullable', 'boolean'],
+            'shift' => ['sometimes', 'nullable', 'string', 'max:255'],
+        ]);
+
         $filters = [
-            'position' => $request->query('position'),
-            'shift' => $request->query('shift'),
+            'position' => $validated['position'] ?? null,
+            'shift' => $validated['shift'] ?? null,
         ];
 
         if ($request->has('former')) {
             $filters['former'] = $request->boolean('former');
         }
 
-        // StaffResource::collection() has no hook to flag every item public(), so the
-        // "data" wrapper (see docs/api-response-guidelines.md) is built explicitly here.
-        return response()->json([
-            'data' => $this->staff->publicList($filters)
-                ->map(fn ($member) => (new StaffResource($member))->public())
-                ->values(),
-        ]);
+        // StaffResource::collection() has no hook to flag every item public() up front,
+        // but ResourceCollection::collectResource() already maps every item into a
+        // StaffResource before this method returns, so mutating each one in place still
+        // produces the normal, auto-wrapped {"data": [...]} response.
+        return tap(
+            StaffResource::collection($this->staff->publicList($filters)),
+            fn ($collection) => $collection->collection->each->public(),
+        );
     }
 
     public function staffShow(int $staff)

@@ -73,14 +73,15 @@ class StaffController extends Controller
 
     private function renderInline(Request $request, string $position, bool $former, string $title, string $routeName)
     {
+        $this->abortOnInvalidPage($request);
         $shift = $this->resolveShiftFilter($request);
         $activeShifts = $this->shifts->activeShifts();
 
         $members = $this->staff->publicList([
             'position' => $position,
             'former' => $former,
-            'shift' => $shift?->slug,
-        ]);
+            'shift_id' => $shift?->id,
+        ], withFullProfile: true);
 
         return view('public.staff.heads', [
             'title' => $title,
@@ -100,13 +101,14 @@ class StaffController extends Controller
 
     private function renderList(Request $request, string $position, bool $former, string $title, string $routeName)
     {
+        $this->abortOnInvalidPage($request);
         $shift = $this->resolveShiftFilter($request);
         $activeShifts = $this->shifts->activeShifts();
 
         $members = $this->staff->publicList([
             'position' => $position,
             'former' => $former,
-            'shift' => $shift?->slug,
+            'shift_id' => $shift?->id,
         ]);
 
         return view('public.staff.list', [
@@ -126,10 +128,30 @@ class StaffController extends Controller
         ]);
     }
 
+    /**
+     * These pages are never paginated (small, fixed lists), so ?page=N would otherwise
+     * render the same content at an indexable duplicate URL and leave a stray query
+     * string in the canonical.
+     */
+    private function abortOnInvalidPage(Request $request): void
+    {
+        $page = $request->query('page');
+
+        abort_if($page !== null && (! is_string($page) || $page !== '1'), 404);
+    }
+
     private function resolveShiftFilter(Request $request): ?Shift
     {
         $slug = $request->query('shift');
 
-        return $slug ? $this->staff->resolveActiveShift($slug) : null;
+        if ($slug === null) {
+            return null;
+        }
+
+        // A malformed query string (?shift[]=x) arrives as an array; there's no shift
+        // it could mean, so treat it the same as an unknown slug.
+        abort_if(! is_string($slug), 404);
+
+        return $this->staff->resolveActiveShift($slug);
     }
 }

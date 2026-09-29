@@ -19,6 +19,19 @@ interface StaffRepositoryInterface extends RepositoryInterface
     public function syncShifts(Staff $staff, array $shiftIds): void;
 
     /**
+     * The ids of every shift $staff currently belongs to.
+     *
+     * @return list<int>
+     */
+    public function shiftIdsFor(Staff $staff): array;
+
+    /**
+     * Whether $staff has any subject_assignments rows. Foreign keys don't protect
+     * soft-deleted rows, so StaffService::delete() checks this explicitly.
+     */
+    public function hasSubjectAssignments(Staff $staff): bool;
+
+    /**
      * @param  list<array<string, mixed>>  $rows
      */
     public function syncEducations(Staff $staff, array $rows): void;
@@ -30,8 +43,11 @@ interface StaffRepositoryInterface extends RepositoryInterface
 
     /**
      * @param  array{position?: string, former?: bool, shift_id?: int}  $filters
+     * @param  bool  $withFullProfile  Also eager-load educations/trainings, for pages
+     *                                 that render each result's full profile inline
+     *                                 (see Web\StaffController::renderInline()).
      */
-    public function publicList(array $filters): Collection;
+    public function publicList(array $filters, bool $withFullProfile = false): Collection;
 
     public function findPublished(int $id): Staff;
 

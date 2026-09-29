@@ -26,7 +26,7 @@
         @endif
         @if ($member->isFormer())
             <p class="mt-2 text-xs text-gray-500">
-                {{ $member->joining_date?->format('Y') }} – {{ $member->leaving_date?->format('Y') ?: 'অজানা' }}
+                {{ $member->joining_date?->format('Y') }} – {{ $member->leaving_date?->format('Y') ?: 'Unknown' }}
             </p>
         @endif
     </div>

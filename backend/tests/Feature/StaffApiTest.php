@@ -4,10 +4,12 @@ namespace Tests\Feature;
 
 use App\Models\Shift;
 use App\Models\Staff;
+use App\Models\Subject;
 use App\Models\User;
 use Database\Seeders\RolePermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
@@ -126,6 +128,84 @@ class StaffApiTest extends TestCase
         $this->assertDatabaseHas('staff_educations', ['degree' => 'PhD', 'sort_order' => 0]);
     }
 
+    /**
+     * A multipart request (the SPA's StaffForm.vue always uses one) sends every field,
+     * including a row's id, as a string. A strict in_array() against pluck()'s integer
+     * ids would never match, so every save would delete and recreate every row instead
+     * of updating it in place.
+     */
+    public function test_multipart_update_preserves_education_and_training_ids(): void
+    {
+        $shift = Shift::factory()->create();
+        $staff = Staff::factory()->create();
+        $staff->shifts()->attach($shift);
+        $education = $staff->educations()->create(['degree' => 'B.A', 'sort_order' => 0]);
+        $training = $staff->trainings()->create(['title' => 'CPD-1', 'sort_order' => 0]);
+
+        $this->actingAs($this->admin, 'sanctum')
+            ->post("/api/staff/{$staff->id}", [
+                '_method' => 'PUT',
+                'educations' => [
+                    ['id' => (string) $education->id, 'degree' => 'B.A (updated)'],
+                ],
+                'trainings' => [
+                    ['id' => (string) $training->id, 'title' => 'CPD-1 (updated)'],
+                ],
+            ])
+            ->assertOk();
+
+        $this->assertDatabaseHas('staff_educations', ['id' => $education->id, 'degree' => 'B.A (updated)']);
+        $this->assertDatabaseHas('staff_trainings', ['id' => $training->id, 'title' => 'CPD-1 (updated)']);
+        $this->assertSame(1, $staff->educations()->count());
+        $this->assertSame(1, $staff->trainings()->count());
+    }
+
+    /**
+     * A multipart request can't express an empty array by omitting the field: there is
+     * nothing to distinguish "the list is now empty" from "the field wasn't sent, leave
+     * the existing rows alone". StaffForm.vue sends an explicit empty string in that
+     * case, which the nullable rule + extractChildData() treat as "sync to zero rows".
+     */
+    public function test_multipart_update_with_an_empty_marker_clears_every_row(): void
+    {
+        $shift = Shift::factory()->create();
+        $staff = Staff::factory()->create();
+        $staff->shifts()->attach($shift);
+        $staff->educations()->create(['degree' => 'B.A', 'sort_order' => 0]);
+        $staff->trainings()->create(['title' => 'CPD-1', 'sort_order' => 0]);
+
+        $this->actingAs($this->admin, 'sanctum')
+            ->post("/api/staff/{$staff->id}", [
+                '_method' => 'PUT',
+                'educations' => '',
+                'trainings' => '',
+            ])
+            ->assertOk()
+            ->assertJsonCount(0, 'data.educations')
+            ->assertJsonCount(0, 'data.trainings');
+
+        $this->assertSame(0, $staff->educations()->count());
+        $this->assertSame(0, $staff->trainings()->count());
+    }
+
+    /**
+     * Omitting the field entirely (the JSON API path, or a partial update that isn't
+     * touching educations at all) must leave existing rows untouched.
+     */
+    public function test_update_without_educations_key_leaves_existing_rows_untouched(): void
+    {
+        $shift = Shift::factory()->create();
+        $staff = Staff::factory()->create();
+        $staff->shifts()->attach($shift);
+        $staff->educations()->create(['degree' => 'B.A', 'sort_order' => 0]);
+
+        $this->actingAs($this->admin, 'sanctum')
+            ->putJson("/api/staff/{$staff->id}", ['bio' => 'Updated bio'])
+            ->assertOk();
+
+        $this->assertSame(1, $staff->educations()->count());
+    }
+
     public function test_index_filters_by_status_position_shift_and_search(): void
     {
         $shift = Shift::factory()->create();
@@ -158,6 +238,27 @@ class StaffApiTest extends TestCase
         $this->assertSoftDeleted('staff', ['id' => $staff->id]);
     }
 
+    public function test_destroy_is_refused_when_staff_has_subject_assignments(): void
+    {
+        $staff = Staff::factory()->create();
+        $subject = Subject::factory()->create();
+        $classId = DB::table('classes')->insertGetId(['name' => 'Class 1', 'code' => 'C1', 'created_at' => now(), 'updated_at' => now()]);
+        $sectionId = DB::table('sections')->insertGetId(['class_id' => $classId, 'name' => 'A', 'code' => 'A', 'created_at' => now(), 'updated_at' => now()]);
+        $academicYearId = DB::table('academic_years')->insertGetId([
+            'name' => '2026', 'code' => 'AY2026', 'start_date' => '2026-01-01', 'end_date' => '2026-12-31',
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+        DB::table('subject_assignments')->insert([
+            'staff_id' => $staff->id, 'subject_id' => $subject->id, 'class_id' => $classId,
+            'section_id' => $sectionId, 'academic_year_id' => $academicYearId,
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+
+        $this->actingAs($this->admin, 'sanctum')->deleteJson("/api/staff/{$staff->id}")->assertStatus(409);
+
+        $this->assertDatabaseHas('staff', ['id' => $staff->id, 'deleted_at' => null]);
+    }
+
     public static function invalidStorePayloads(): array
     {
         return [
@@ -184,6 +285,19 @@ class StaffApiTest extends TestCase
         ])->assertUnprocessable()->assertJsonValidationErrors('name_en');
     }
 
+    public function test_store_rejects_a_mismatched_category_and_position(): void
+    {
+        $shift = Shift::factory()->create();
+
+        $this->actingAs($this->admin, 'sanctum')->postJson('/api/staff', [
+            'name_en' => 'X', 'category' => 'staff', 'position' => 'teacher', 'shift_ids' => [$shift->id],
+        ])->assertUnprocessable()->assertJsonValidationErrors('category');
+
+        $this->actingAs($this->admin, 'sanctum')->postJson('/api/staff', [
+            'name_en' => 'X', 'category' => 'teacher', 'position' => 'staff', 'shift_ids' => [$shift->id],
+        ])->assertUnprocessable()->assertJsonValidationErrors('category');
+    }
+
     public function test_store_rejects_an_inactive_shift_id(): void
     {
         $shift = Shift::factory()->inactive()->create();
@@ -194,6 +308,45 @@ class StaffApiTest extends TestCase
             'position' => 'teacher',
             'shift_ids' => [$shift->id],
         ])->assertUnprocessable()->assertJsonValidationErrors('shift_ids.0');
+    }
+
+    /**
+     * Regression test: a shift deactivated after a staff member was assigned to it used
+     * to turn every later update to that member into a hidden 422 on shift_ids.*, since
+     * the form only shows active shifts and had no way to un-assign the one that isn't.
+     */
+    public function test_update_keeps_a_members_existing_inactive_shift_when_shift_ids_is_not_resent(): void
+    {
+        $shift = Shift::factory()->create();
+        $staff = Staff::factory()->create();
+        $staff->shifts()->attach($shift);
+        $shift->update(['is_active' => false]);
+
+        $this->actingAs($this->admin, 'sanctum')
+            ->putJson("/api/staff/{$staff->id}", ['bio' => 'Updated bio'])
+            ->assertOk();
+
+        $this->assertTrue($staff->shifts()->where('shifts.id', $shift->id)->exists());
+    }
+
+    public function test_update_still_rejects_resubmitting_the_members_own_inactive_shift_alongside_a_new_one(): void
+    {
+        $activeShift = Shift::factory()->create();
+        $inactiveShift = Shift::factory()->inactive()->create();
+        $newInactiveShift = Shift::factory()->inactive()->create();
+        $staff = Staff::factory()->create();
+        $staff->shifts()->attach($inactiveShift);
+
+        // Resubmitting the member's own (now inactive) shift is fine...
+        $this->actingAs($this->admin, 'sanctum')
+            ->putJson("/api/staff/{$staff->id}", ['shift_ids' => [$inactiveShift->id, $activeShift->id]])
+            ->assertOk();
+
+        // ...but a newly added inactive shift the member never had is still rejected.
+        $this->actingAs($this->admin, 'sanctum')
+            ->putJson("/api/staff/{$staff->id}", ['shift_ids' => [$inactiveShift->id, $newInactiveShift->id]])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('shift_ids.1');
     }
 
     public function test_store_rejects_a_non_image_photo(): void

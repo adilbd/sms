@@ -73,6 +73,31 @@ class StaffPublicSeoTest extends TestCase
         $this->get('/administration/head?shift=nope')->assertNotFound();
     }
 
+    /**
+     * Regression test: a malformed query string (?shift[]=x) makes $request->query
+     * ('shift') an array, which used to reach StaffService::resolveActiveShift()
+     * (type-hinted string) uncaught, a 500 instead of a 404.
+     */
+    public function test_array_shift_query_parameter_returns_404_not_a_500(): void
+    {
+        $this->get('/administration/teachers?shift[]=x')->assertNotFound();
+        $this->get('/administration/head?shift[]=x&shift[]=y')->assertNotFound();
+    }
+
+    /**
+     * These list pages are never paginated (small, fixed lists), so ?page=N other than
+     * 1 must not render the same content again at a second, indexable URL.
+     */
+    public function test_a_page_query_other_than_one_returns_404(): void
+    {
+        Shift::factory()->create();
+
+        $this->get('/administration/teachers?page=1')->assertOk();
+        $this->get('/administration/teachers?page=2')->assertNotFound();
+        $this->get('/administration/teachers?page=9')->assertNotFound();
+        $this->get('/administration/head?page=2')->assertNotFound();
+    }
+
     public function test_former_staff_appear_only_on_ex_pages(): void
     {
         $active = Staff::factory()->create(['name_en' => 'Active Teacher', 'position' => Staff::POSITION_TEACHER]);
@@ -172,6 +197,19 @@ class StaffPublicSeoTest extends TestCase
         $this->getJson('/api/public/staff?position=teacher')
             ->assertOk()
             ->assertJsonCount(2, 'data');
+    }
+
+    /**
+     * Regression test: an unvalidated ?shift[]=x used to reach StaffService::
+     * resolveActiveShift() (type-hinted string) as an array, a 500 instead of a 422.
+     * An invalid position/former is rejected the same way.
+     */
+    public function test_public_staff_list_validates_its_filters(): void
+    {
+        $this->getJson('/api/public/staff?shift[]=x')->assertUnprocessable()->assertJsonValidationErrors('shift');
+        $this->getJson('/api/public/staff?position[]=teacher')->assertUnprocessable()->assertJsonValidationErrors('position');
+        $this->getJson('/api/public/staff?position=nope')->assertUnprocessable()->assertJsonValidationErrors('position');
+        $this->getJson('/api/public/staff?former=maybe')->assertUnprocessable()->assertJsonValidationErrors('former');
     }
 
     private function assertSeoHead(string $html, string $canonical): void

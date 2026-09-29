@@ -48,6 +48,21 @@ class UpdateStaffRequest extends FormRequest
             'bio' => 'sometimes|nullable|string|max:5000',
             'sort_order' => 'sometimes|integer|min:0|max:65535',
             'is_published' => 'sometimes|boolean',
-        ], $this->shiftRules(required: false), $this->educationRules(), $this->trainingRules());
+        ], $this->shiftRules(required: false, alwaysAllowedShiftIds: $this->currentShiftIds()), $this->educationRules(), $this->trainingRules());
+    }
+
+    /**
+     * The ids of every shift this member already has, including an inactive one, so
+     * a request that doesn't touch shift_ids at all (or that resubmits the member's
+     * current shifts unchanged) never fails because one of them was deactivated after
+     * the member was assigned to it.
+     *
+     * @return list<int>
+     */
+    private function currentShiftIds(): array
+    {
+        $staff = $this->route('staff');
+
+        return $staff instanceof Staff ? $staff->shifts()->pluck('shifts.id')->map(fn ($id) => (int) $id)->all() : [];
     }
 }

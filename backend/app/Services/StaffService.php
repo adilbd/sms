@@ -50,8 +50,8 @@ class StaffService
         // status is still checked (see SubjectService::create() for the same pattern).
         $staff = new Staff($data);
         $this->ensureAtLeastOneName($staff);
+        $this->ensureCategoryMatchesPosition($staff);
         $this->ensureLeavingDateRules($staff);
-        $this->ensureUniqueHeadPerShift($shiftIds, $staff->position, $staff->status, null);
 
         $photoPath = null;
         if ($photo) {
@@ -59,7 +59,13 @@ class StaffService
         }
 
         try {
-            return DB::transaction(function () use ($data, $shiftIds, $educations, $trainings) {
+            return DB::transaction(function () use ($data, $shiftIds, $educations, $trainings, $staff) {
+                // Locks the affected shifts (inside ensureUniqueHeadPerShift()) before
+                // checking the rule, and before the write, so a concurrent request
+                // promoting another head/assistant_head for the same shift can't race
+                // past this check.
+                $this->ensureUniqueHeadPerShift($shiftIds, $staff->position, $staff->status, null);
+
                 $staff = $this->staff->create($data);
                 $this->staff->syncShifts($staff, $shiftIds);
                 $this->staff->syncEducations($staff, $educations);
@@ -87,10 +93,8 @@ class StaffService
         // update() for the same pattern).
         $merged = (clone $staff)->fill($data);
         $this->ensureAtLeastOneName($merged);
+        $this->ensureCategoryMatchesPosition($merged);
         $this->ensureLeavingDateRules($merged);
-
-        $effectiveShiftIds = $shiftIds ?? $staff->shifts()->pluck('shifts.id')->all();
-        $this->ensureUniqueHeadPerShift($effectiveShiftIds, $merged->position, $merged->status, $staff->id);
 
         $oldPhotoPath = $staff->photo;
         $newPhotoPath = null;
@@ -102,7 +106,14 @@ class StaffService
         }
 
         try {
-            $staff = DB::transaction(function () use ($staff, $data, $shiftIds, $educations, $trainings, $oldPhotoPath, $newPhotoPath, $removePhoto) {
+            $staff = DB::transaction(function () use ($staff, $data, $shiftIds, $educations, $trainings, $merged, $oldPhotoPath, $newPhotoPath, $removePhoto) {
+                // Read this staff member's current shifts (when none were sent) and
+                // check the head/assistant_head rule inside the transaction, after
+                // locking the affected shifts, so a concurrent request can't race past
+                // it between the read and the write below.
+                $effectiveShiftIds = $shiftIds ?? $this->staff->shiftIdsFor($staff);
+                $this->ensureUniqueHeadPerShift($effectiveShiftIds, $merged->position, $merged->status, $staff->id);
+
                 $staff = $this->staff->update($staff, $data);
 
                 if ($shiftIds !== null) {
@@ -140,24 +151,40 @@ class StaffService
 
     public function delete(Staff $staff): void
     {
+        // Foreign keys don't protect soft-deleted rows, so check the reference here
+        // (see SubjectService::delete() for the same pattern).
+        abort_if(
+            $this->staff->hasSubjectAssignments($staff),
+            409,
+            'Staff member is assigned to subjects and cannot be deleted.'
+        );
+
         $this->staff->delete($staff);
     }
 
     /**
-     * @param  array{position?: string, former?: bool, shift?: string}  $filters
+     * $filters['shift_id'] takes priority over $filters['shift'] when both are given,
+     * so a caller that already resolved the Shift (Web\StaffController, to 404 on an
+     * unknown slug and show it in the view) passes the id straight through instead of
+     * making resolveActiveShift() look the same slug up a second time.
+     *
+     * @param  array{position?: string, former?: bool, shift?: string, shift_id?: int}  $filters
+     * @param  bool  $withFullProfile  See StaffRepositoryInterface::publicList().
      */
-    public function publicList(array $filters): Collection
+    public function publicList(array $filters, bool $withFullProfile = false): Collection
     {
         $repoFilters = [
             'position' => $filters['position'] ?? null,
             'former' => array_key_exists('former', $filters) ? $filters['former'] : null,
         ];
 
-        if (filled($filters['shift'] ?? null)) {
+        if (filled($filters['shift_id'] ?? null)) {
+            $repoFilters['shift_id'] = $filters['shift_id'];
+        } elseif (filled($filters['shift'] ?? null)) {
             $repoFilters['shift_id'] = $this->resolveActiveShift($filters['shift'])->id;
         }
 
-        return $this->staff->publicList($repoFilters);
+        return $this->staff->publicList($repoFilters, $withFullProfile);
     }
 
     public function publicFind(int $id): Staff
@@ -189,9 +216,13 @@ class StaffService
      */
     private function extractChildData(array $data, bool $forUpdate = false): array
     {
-        $shiftIds = array_key_exists('shift_ids', $data) ? $data['shift_ids'] : ($forUpdate ? null : []);
-        $educations = array_key_exists('educations', $data) ? $data['educations'] : ($forUpdate ? null : []);
-        $trainings = array_key_exists('trainings', $data) ? $data['trainings'] : ($forUpdate ? null : []);
+        // A present-but-null value (StaffForm.vue sends an explicit empty string for
+        // "educations"/"trainings" when clearing every row, since a multipart request
+        // can't express an empty array by omitting the field — see the "nullable" rule
+        // in HasStaffChildRules) means "sync to zero rows", not "field wasn't sent".
+        $shiftIds = array_key_exists('shift_ids', $data) ? ($data['shift_ids'] ?? []) : ($forUpdate ? null : []);
+        $educations = array_key_exists('educations', $data) ? ($data['educations'] ?? []) : ($forUpdate ? null : []);
+        $trainings = array_key_exists('trainings', $data) ? ($data['trainings'] ?? []) : ($forUpdate ? null : []);
 
         unset($data['shift_ids'], $data['educations'], $data['trainings']);
 
@@ -203,6 +234,21 @@ class StaffService
         if (! $staff->name_en && ! $staff->name_bn) {
             throw ValidationException::withMessages([
                 'name_en' => ['Either the English or Bangla name is required.'],
+            ]);
+        }
+    }
+
+    /**
+     * head/assistant_head/teacher are teaching positions (category=teacher); staff is
+     * the only non-teaching position (category=staff).
+     */
+    private function ensureCategoryMatchesPosition(Staff $staff): void
+    {
+        $expected = $staff->position === Staff::POSITION_STAFF ? Staff::CATEGORY_STAFF : Staff::CATEGORY_TEACHER;
+
+        if ($staff->category !== $expected) {
+            throw ValidationException::withMessages([
+                'category' => ["The category must be \"{$expected}\" for position \"{$staff->position}\"."],
             ]);
         }
     }
@@ -236,6 +282,12 @@ class StaffService
         if (! in_array($position, [Staff::POSITION_HEAD, Staff::POSITION_ASSISTANT_HEAD], true)) {
             return;
         }
+
+        // Locks the shift rows for the rest of this transaction, so a concurrent
+        // request that's also trying to promote a head/assistant_head into one of
+        // these shifts has to wait for this one to commit (or roll back) instead of
+        // reading the same "no active head yet" state and both succeeding.
+        $this->shifts->lockForUpdate(array_map('intval', $shiftIds));
 
         foreach ($shiftIds as $shiftId) {
             if ($this->staff->hasActiveInPosition((int) $shiftId, $position, $exceptId)) {

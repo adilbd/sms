@@ -26,6 +26,16 @@ class StaffRepository extends EloquentRepository implements StaffRepositoryInter
         $staff->shifts()->sync($shiftIds);
     }
 
+    public function shiftIdsFor(Staff $staff): array
+    {
+        return $staff->shifts()->pluck('shifts.id')->map(fn ($id) => (int) $id)->all();
+    }
+
+    public function hasSubjectAssignments(Staff $staff): bool
+    {
+        return $staff->subjectAssignments()->exists();
+    }
+
     public function syncEducations(Staff $staff, array $rows): void
     {
         $this->syncChildRows($staff, 'educations', $rows, [
@@ -40,9 +50,14 @@ class StaffRepository extends EloquentRepository implements StaffRepositoryInter
         ]);
     }
 
-    public function publicList(array $filters): Collection
+    public function publicList(array $filters, bool $withFullProfile = false): Collection
     {
-        $query = Staff::published()->with('shifts')
+        // The head/assistant-head pages render each result's full profile inline
+        // (education, training), so eager-load those too rather than lazy-loading per
+        // member. List pages only render a card (photo/name/designation/shifts), so
+        // skip the extra queries there.
+        $query = Staff::published()
+            ->with($withFullProfile ? ['shifts', 'educations', 'trainings'] : ['shifts'])
             ->orderBy('sort_order')->orderBy('id');
 
         if (filled($filters['position'] ?? null)) {
@@ -126,14 +141,18 @@ class StaffRepository extends EloquentRepository implements StaffRepositoryInter
      */
     private function syncChildRows(Staff $staff, string $relation, array $rows, array $columns): void
     {
-        $existingIds = $staff->{$relation}()->pluck('id')->all();
+        // Cast to int: a multipart request (see StaffForm.vue) sends every field,
+        // including this id, as a string, so a strict in_array() against the
+        // integer ids pluck() returns would never match and every save would delete
+        // and recreate every row instead of updating it.
+        $existingIds = $staff->{$relation}()->pluck('id')->map(fn ($id) => (int) $id)->all();
         $keepIds = [];
 
         foreach ($rows as $position => $row) {
             $attributes = collect($columns)->mapWithKeys(fn ($column) => [$column => $row[$column] ?? null])->all();
             $attributes['sort_order'] = $position;
 
-            $id = $row['id'] ?? null;
+            $id = filled($row['id'] ?? null) ? (int) $row['id'] : null;
 
             if ($id && in_array($id, $existingIds, true)) {
                 $staff->{$relation}()->whereKey($id)->update($attributes);
