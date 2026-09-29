@@ -123,6 +123,7 @@ const routeOptions = [
   { value: 'admissions', label: 'ভর্তি (Admissions)' },
   { value: 'news.index', label: 'সংবাদ (News)' },
   { value: 'events.index', label: 'ইভেন্ট (Events)' },
+  { value: 'gallery.index', label: 'গ্যালারি (Gallery)' },
   { value: 'contact', label: 'যোগাযোগ (Contact)' },
 ]
 

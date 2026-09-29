@@ -4,12 +4,13 @@ namespace App\Http\Controllers\Web;
 
 use App\Http\Controllers\Controller;
 use App\Models\Post;
+use App\Services\GalleryService;
 use App\Services\PageService;
 use Illuminate\Support\Facades\Cache;
 
 class SeoController extends Controller
 {
-    public function __construct(private PageService $pages) {}
+    public function __construct(private PageService $pages, private GalleryService $galleries) {}
 
     public function sitemap()
     {
@@ -25,6 +26,7 @@ class SeoController extends Controller
                     'lastmod' => Post::published()->ofType(Post::TYPE_NEWS)->max('updated_at')],
                 ['loc' => route('events.index'), 'changefreq' => 'daily', 'priority' => '0.8',
                     'lastmod' => Post::published()->ofType(Post::TYPE_EVENT)->max('updated_at')],
+                ['loc' => route('gallery.index'), 'changefreq' => 'weekly', 'priority' => '0.7'],
             ]);
 
             Post::published()->orderByDesc('published_at')
@@ -44,6 +46,15 @@ class SeoController extends Controller
                 $urls->push([
                     'loc' => $page->url(),
                     'lastmod' => $page->updated_at,
+                    'changefreq' => 'monthly',
+                    'priority' => '0.5',
+                ]);
+            }
+
+            foreach ($this->galleries->publishedForSitemap() as $gallery) {
+                $urls->push([
+                    'loc' => $gallery->url(),
+                    'lastmod' => $gallery->updated_at,
                     'changefreq' => 'monthly',
                     'priority' => '0.5',
                 ]);

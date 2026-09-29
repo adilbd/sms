@@ -138,6 +138,26 @@ const routes = [
         component: () => import('@/views/pages/PageForm.vue'),
       },
       {
+        path: 'media',
+        name: 'Media',
+        component: () => import('@/views/media/MediaLibrary.vue'),
+      },
+      {
+        path: 'galleries',
+        name: 'Galleries',
+        component: () => import('@/views/galleries/GalleryList.vue'),
+      },
+      {
+        path: 'galleries/create',
+        name: 'Add Gallery',
+        component: () => import('@/views/galleries/GalleryForm.vue'),
+      },
+      {
+        path: 'galleries/:id/edit',
+        name: 'Edit Gallery',
+        component: () => import('@/views/galleries/GalleryForm.vue'),
+      },
+      {
         path: 'menu',
         name: 'Menu',
         component: () => import('@/views/menu/MenuList.vue'),

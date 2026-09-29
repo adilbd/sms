@@ -2,11 +2,15 @@
 
 namespace App\Providers;
 
+use App\Repositories\Contracts\GalleryRepositoryInterface;
+use App\Repositories\Contracts\MediaRepositoryInterface;
 use App\Repositories\Contracts\MenuItemRepositoryInterface;
 use App\Repositories\Contracts\PageRepositoryInterface;
 use App\Repositories\Contracts\PostRepositoryInterface;
 use App\Repositories\Contracts\SettingRepositoryInterface;
 use App\Repositories\Contracts\SubjectRepositoryInterface;
+use App\Repositories\Eloquent\GalleryRepository;
+use App\Repositories\Eloquent\MediaRepository;
 use App\Repositories\Eloquent\MenuItemRepository;
 use App\Repositories\Eloquent\PageRepository;
 use App\Repositories\Eloquent\PostRepository;
@@ -27,5 +31,7 @@ class RepositoryServiceProvider extends ServiceProvider
         PageRepositoryInterface::class => PageRepository::class,
         MenuItemRepositoryInterface::class => MenuItemRepository::class,
         SettingRepositoryInterface::class => SettingRepository::class,
+        MediaRepositoryInterface::class => MediaRepository::class,
+        GalleryRepositoryInterface::class => GalleryRepository::class,
     ];
 }

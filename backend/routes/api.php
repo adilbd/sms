@@ -14,6 +14,8 @@ Route::prefix('public')->middleware('throttle:60,1')->group(function () {
     Route::get('news/{slug}', [\App\Http\Controllers\Api\PublicContentController::class, 'newsShow']);
     Route::get('events', [\App\Http\Controllers\Api\PublicContentController::class, 'events']);
     Route::get('events/{slug}', [\App\Http\Controllers\Api\PublicContentController::class, 'eventsShow']);
+    Route::get('galleries', [\App\Http\Controllers\Api\PublicContentController::class, 'galleries']);
+    Route::get('galleries/{slug}', [\App\Http\Controllers\Api\PublicContentController::class, 'galleriesShow']);
     Route::post('contact', [\App\Http\Controllers\Api\PublicContentController::class, 'contact'])->middleware('throttle:5,1');
 });
 
@@ -78,6 +80,17 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Standalone public content pages
     Route::apiResource('pages', \App\Http\Controllers\Api\PageController::class)->where(['page' => '[0-9]+']);
+
+    // Reusable media library images, picked into galleries.
+    Route::apiResource('media', \App\Http\Controllers\Api\MediaController::class)
+        ->only(['index', 'store', 'update', 'destroy'])
+        ->parameters(['media' => 'media'])
+        ->where(['media' => '[0-9]+']);
+
+    // Photo and video galleries. Items are managed through the gallery's own
+    // store/update payload; there is no standalone gallery-item endpoint.
+    Route::apiResource('galleries', \App\Http\Controllers\Api\GalleryController::class)
+        ->where(['gallery' => '[0-9]+']);
 
     // Header navigation menu. The reorder route is registered before the resource
     // so 'reorder' isn't captured by the {menu_item} wildcard.

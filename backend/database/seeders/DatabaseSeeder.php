@@ -18,6 +18,7 @@ class DatabaseSeeder extends Seeder
             InstituteSettingsSeeder::class,
             PublicContentSeeder::class,
             PageSeeder::class,
+            GallerySeeder::class,
             MenuSeeder::class,
         ]);
     }
