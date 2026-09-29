@@ -101,3 +101,9 @@ already has something to show.
 - [x] Sitemap: includes `/gallery` and each published gallery URL, not drafts.
 - [x] Edge case: gallery with no items renders with a placeholder cover and an empty-state message; Bangla title gets a non-empty unique ASCII slug.
 - [x] Seeder: running `GallerySeeder` twice leaves the same number of galleries.
+
+## Notes
+- `GallerySeeder`'s two YouTube video items use fictitious placeholder ids
+  (`SPORTS_DAY_VIDEO_ID` / `VICTORY_DAY_VIDEO_ID` constants in the seeder). They don't
+  resolve to real videos; replace them with the school's own uploaded videos before
+  going live.

@@ -26,7 +26,7 @@ class UpdateGalleryRequest extends FormRequest
             'cover_media_id' => ['nullable', 'integer', Rule::exists('media', 'id')],
             'is_published' => 'sometimes|boolean',
             'published_at' => 'nullable|date',
-            'sort_order' => 'sometimes|integer|min:0',
+            'sort_order' => 'sometimes|integer|min:0|max:65535',
         ], $this->itemRules());
     }
 }

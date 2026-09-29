@@ -25,7 +25,7 @@ class GalleryRepository extends EloquentRepository implements GalleryRepositoryI
     {
         return Gallery::published()
             ->withCount('items')
-            ->with(['coverMedia', 'items.media'])
+            ->with(['coverMedia', 'firstImageItem.media', 'firstVideoItem'])
             ->orderBy('sort_order')
             ->orderByDesc('published_at')
             ->paginate($perPage);
@@ -36,6 +36,11 @@ class GalleryRepository extends EloquentRepository implements GalleryRepositoryI
         return Gallery::published()->orderByDesc('published_at')
             ->select(['id', 'slug', 'updated_at'])
             ->get();
+    }
+
+    public function latestPublishedUpdatedAt(): ?string
+    {
+        return Gallery::published()->max('updated_at');
     }
 
     /**
@@ -76,9 +81,12 @@ class GalleryRepository extends EloquentRepository implements GalleryRepositoryI
 
     protected function query(): Builder
     {
+        // Lists (admin index) never ship the full items array (see GalleryResource::
+        // withItems()), so only eager-load enough to compute cover_url without an N+1:
+        // the first image item (with its media) and the first video item.
         return parent::query()
             ->withCount('items')
-            ->with(['coverMedia', 'items.media'])
+            ->with(['coverMedia', 'firstImageItem.media', 'firstVideoItem'])
             ->orderBy('sort_order')
             ->orderByDesc('id');
     }

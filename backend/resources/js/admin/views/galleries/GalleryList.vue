@@ -14,7 +14,7 @@
           type="text"
           placeholder="Search by title..."
           class="input"
-          @input="fetchGalleries()"
+          @input="onSearch"
         />
         <select v-model="filters.is_published" class="input" @change="fetchGalleries()">
           <option value="">All statuses</option>
@@ -142,6 +142,12 @@ const pagination = reactive({
   from: 0,
   to: 0,
 })
+
+let searchTimeout = null
+const onSearch = () => {
+  clearTimeout(searchTimeout)
+  searchTimeout = setTimeout(() => fetchGalleries(), 300)
+}
 
 const fetchGalleries = async (page = 1) => {
   loading.value = true

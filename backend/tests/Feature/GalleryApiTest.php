@@ -8,6 +8,7 @@ use App\Models\Media;
 use App\Models\User;
 use Database\Seeders\RolePermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class GalleryApiTest extends TestCase
@@ -22,6 +23,7 @@ class GalleryApiTest extends TestCase
 
         $this->seed(RolePermissionSeeder::class);
         $this->admin = User::where('email', 'admin@sms.com')->firstOrFail();
+        Storage::fake('public');
     }
 
     public function test_requires_authentication(): void
@@ -58,6 +60,27 @@ class GalleryApiTest extends TestCase
                 'meta' => ['current_page', 'last_page', 'per_page', 'total'],
             ])
             ->assertJsonPath('meta.total', 3);
+    }
+
+    public function test_index_does_not_include_each_gallery_full_items_array(): void
+    {
+        $gallery = Gallery::factory()->create();
+        GalleryItem::factory()->create(['gallery_id' => $gallery->id]);
+
+        $response = $this->actingAs($this->admin, 'sanctum')->getJson('/api/galleries')->assertOk();
+
+        $this->assertArrayNotHasKey('items', $response->json('data.0'));
+    }
+
+    public function test_show_includes_the_items_array(): void
+    {
+        $gallery = Gallery::factory()->create();
+        GalleryItem::factory()->create(['gallery_id' => $gallery->id]);
+
+        $this->actingAs($this->admin, 'sanctum')
+            ->getJson("/api/galleries/{$gallery->id}")
+            ->assertOk()
+            ->assertJsonCount(1, 'data.items');
     }
 
     public function test_store_creates_a_gallery_with_ordered_image_and_video_items(): void
@@ -118,6 +141,38 @@ class GalleryApiTest extends TestCase
         $this->assertDatabaseMissing('gallery_items', ['id' => $item3->id]);
         $this->assertDatabaseHas('gallery_items', ['id' => $item1->id, 'sort_order' => 1]);
         $this->assertDatabaseHas('gallery_items', ['id' => $item2->id, 'sort_order' => 0]);
+    }
+
+    public function test_update_with_an_item_id_from_another_gallery_creates_a_new_item_and_leaves_the_other_gallery_untouched(): void
+    {
+        $gallery = Gallery::factory()->create();
+        $otherGallery = Gallery::factory()->create();
+        $media = Media::factory()->create();
+        $foreignItem = GalleryItem::factory()->create(['gallery_id' => $otherGallery->id, 'media_id' => $media->id]);
+
+        $response = $this->actingAs($this->admin, 'sanctum')
+            ->putJson("/api/galleries/{$gallery->id}", [
+                'items' => [
+                    ['id' => $foreignItem->id, 'type' => 'image', 'media_id' => $media->id, 'caption' => 'Borrowed id'],
+                ],
+            ])
+            ->assertOk()
+            ->assertJsonPath('data.item_count', 1);
+
+        $newItemId = $response->json('data.items.0.id');
+        $this->assertNotSame($foreignItem->id, $newItemId);
+
+        // The other gallery's own item is untouched: still there, unchanged, still theirs.
+        $this->assertDatabaseHas('gallery_items', [
+            'id' => $foreignItem->id,
+            'gallery_id' => $otherGallery->id,
+            'caption' => $foreignItem->caption,
+        ]);
+        $this->assertDatabaseHas('gallery_items', [
+            'id' => $newItemId,
+            'gallery_id' => $gallery->id,
+            'caption' => 'Borrowed id',
+        ]);
     }
 
     public function test_update_without_an_items_key_leaves_existing_items_untouched(): void
@@ -187,6 +242,48 @@ class GalleryApiTest extends TestCase
             ->assertJsonValidationErrors(['items.0.youtube_url']);
     }
 
+    public function test_store_rejects_a_video_item_that_also_sends_media_id(): void
+    {
+        $media = Media::factory()->create();
+
+        $this->actingAs($this->admin, 'sanctum')
+            ->postJson('/api/galleries', [
+                'title' => 'X',
+                'items' => [[
+                    'type' => 'video',
+                    'media_id' => $media->id,
+                    'youtube_url' => 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+                ]],
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['items.0.media_id']);
+    }
+
+    public function test_store_rejects_an_image_item_that_also_sends_youtube_url(): void
+    {
+        $media = Media::factory()->create();
+
+        $this->actingAs($this->admin, 'sanctum')
+            ->postJson('/api/galleries', [
+                'title' => 'X',
+                'items' => [[
+                    'type' => 'image',
+                    'media_id' => $media->id,
+                    'youtube_url' => 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+                ]],
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['items.0.youtube_url']);
+    }
+
+    public function test_store_rejects_sort_order_above_the_maximum(): void
+    {
+        $this->actingAs($this->admin, 'sanctum')
+            ->postJson('/api/galleries', ['title' => 'X', 'sort_order' => 65536])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['sort_order']);
+    }
+
     public function test_store_rejects_an_unknown_item_type(): void
     {
         $media = Media::factory()->create();
@@ -234,6 +331,33 @@ class GalleryApiTest extends TestCase
         $this->assertDatabaseMissing('galleries', ['id' => $gallery->id]);
         $this->assertDatabaseMissing('gallery_items', ['id' => $item->id]);
         $this->assertDatabaseHas('media', ['id' => $media->id]);
+    }
+
+    public function test_deleting_the_cover_media_clears_it_and_falls_back_to_the_next_cover(): void
+    {
+        $coverMedia = Media::factory()->create();
+        $fallbackMedia = Media::factory()->create();
+        $gallery = Gallery::factory()->create(['cover_media_id' => $coverMedia->id]);
+        GalleryItem::factory()->create([
+            'gallery_id' => $gallery->id,
+            'media_id' => $fallbackMedia->id,
+            'sort_order' => 0,
+        ]);
+
+        // Not referenced by any gallery_items row (only by cover_media_id, which is
+        // nullOnDelete), so the delete is allowed.
+        $this->actingAs($this->admin, 'sanctum')
+            ->deleteJson("/api/media/{$coverMedia->id}")
+            ->assertNoContent();
+
+        $this->assertDatabaseMissing('media', ['id' => $coverMedia->id]);
+
+        $response = $this->actingAs($this->admin, 'sanctum')
+            ->getJson("/api/galleries/{$gallery->id}")
+            ->assertOk()
+            ->assertJsonPath('data.cover_media_id', null);
+
+        $this->assertSame($fallbackMedia->url(), $response->json('data.cover_url'));
     }
 
     public function test_unknown_gallery_returns_404(): void

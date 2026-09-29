@@ -36,6 +36,7 @@ class GalleryController extends Controller implements HasMiddleware
         $gallery = $this->galleries->create($request->validated());
 
         return (new GalleryResource($gallery))
+            ->withItems()
             ->additional(['message' => 'Gallery created successfully'])
             ->response()
             ->setStatusCode(201);
@@ -43,14 +44,14 @@ class GalleryController extends Controller implements HasMiddleware
 
     public function show(Gallery $gallery)
     {
-        return new GalleryResource($this->galleries->find($gallery));
+        return (new GalleryResource($this->galleries->find($gallery)))->withItems();
     }
 
     public function update(UpdateGalleryRequest $request, Gallery $gallery)
     {
         $gallery = $this->galleries->update($gallery, $request->validated());
 
-        return (new GalleryResource($gallery))->additional(['message' => 'Gallery updated successfully']);
+        return (new GalleryResource($gallery))->withItems()->additional(['message' => 'Gallery updated successfully']);
     }
 
     public function destroy(Gallery $gallery)

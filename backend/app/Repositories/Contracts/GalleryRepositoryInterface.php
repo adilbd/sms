@@ -18,6 +18,13 @@ interface GalleryRepositoryInterface extends RepositoryInterface
     public function publishedForSitemap(): Collection;
 
     /**
+     * The most recent updated_at among published galleries, for the /gallery sitemap
+     * entry's <lastmod> (mirrors Post::published()->max('updated_at') for news/events).
+     * Null when there are no published galleries.
+     */
+    public function latestPublishedUpdatedAt(): ?string;
+
+    /**
      * Replaces a gallery's items with the given list in one pass: existing ids present
      * in $items are updated, ids that aren't sent are deleted, and everything else is
      * created. sort_order is the item's position in $items.

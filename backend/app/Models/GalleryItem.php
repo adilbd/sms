@@ -48,13 +48,14 @@ class GalleryItem extends Model
     }
 
     /**
-     * The image itself, or the video's YouTube thumbnail. Relies on `media` already
-     * being eager loaded for image items; never lazy-loads.
+     * The image itself, or the video's YouTube thumbnail. Never lazy-loads: returns
+     * null for an image item whose `media` relation wasn't eager loaded, rather than
+     * issuing a query per item.
      */
     public function thumbnailUrl(): ?string
     {
         return match ($this->type) {
-            self::TYPE_IMAGE => $this->media?->url(),
+            self::TYPE_IMAGE => $this->relationLoaded('media') ? $this->media?->url() : null,
             self::TYPE_VIDEO => $this->youtube_id ? YouTube::thumbnailUrl($this->youtube_id) : null,
             default => null,
         };

@@ -5,9 +5,12 @@ namespace Tests\Unit;
 use App\Models\Media;
 use App\Repositories\Contracts\MediaRepositoryInterface;
 use App\Services\MediaService;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Mockery\MockInterface;
+use PDOException;
+use RuntimeException;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 use Tests\TestCase;
 
@@ -42,6 +45,27 @@ class MediaServiceTest extends TestCase
         app(MediaService::class)->upload($file);
     }
 
+    public function test_upload_deletes_the_stored_file_when_the_row_fails_to_save(): void
+    {
+        $file = UploadedFile::fake()->image('photo.jpg', 400, 300);
+
+        $this->mock(MediaRepositoryInterface::class, function (MockInterface $mock) {
+            $mock->shouldReceive('create')->once()->andThrow(new RuntimeException('db down'));
+        });
+
+        try {
+            app(MediaService::class)->upload($file);
+            $this->fail('Expected the repository exception to propagate.');
+        } catch (RuntimeException $e) {
+            $this->assertSame('db down', $e->getMessage());
+        }
+
+        $this->assertEmpty(
+            Storage::disk('public')->allFiles('media'),
+            'Expected the uploaded file to be deleted after the row failed to save.'
+        );
+    }
+
     public function test_delete_is_refused_when_the_image_is_used_in_a_gallery_item(): void
     {
         $media = $this->mediaWithId(1);
@@ -72,6 +96,35 @@ class MediaServiceTest extends TestCase
         app(MediaService::class)->delete($media);
 
         Storage::disk('public')->assertMissing('media/a.jpg');
+    }
+
+    public function test_delete_reports_a_concurrent_link_as_a_conflict_instead_of_a_server_error(): void
+    {
+        Storage::disk('public')->put('media/a.jpg', 'contents');
+        $media = $this->mediaWithId(1, 'media/a.jpg');
+
+        // Real PDO drivers report a foreign key violation with a string SQLSTATE code
+        // ('23000'), which PDOException::$code (protected) doesn't allow constructing
+        // directly with a string — set it the same way the driver would.
+        $previous = new PDOException('integrity constraint violation');
+        (new \ReflectionProperty(PDOException::class, 'code'))->setValue($previous, '23000');
+        $queryException = new QueryException('sqlite', 'delete from media where id = ?', [1], $previous);
+
+        $this->mock(MediaRepositoryInterface::class, function (MockInterface $mock) use ($media, $queryException) {
+            $mock->shouldReceive('isUsedInGalleryItems')->once()->with($media)->andReturn(false);
+            $mock->shouldReceive('delete')->once()->with($media)->andThrow($queryException);
+        });
+
+        try {
+            app(MediaService::class)->delete($media);
+            $this->fail('Expected a 409 HttpException.');
+        } catch (HttpException $e) {
+            $this->assertSame(409, $e->getStatusCode());
+        }
+
+        // The delete never committed, so the file that backs the still-existing row
+        // must be kept.
+        Storage::disk('public')->assertExists('media/a.jpg');
     }
 
     private function mediaWithId(int $id, string $path = 'media/a.jpg'): Media

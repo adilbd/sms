@@ -9,6 +9,20 @@ use Illuminate\Http\Resources\Json\JsonResource;
 /** @mixin Gallery */
 class GalleryResource extends JsonResource
 {
+    /**
+     * Include the full items array (single-gallery reads) or omit it entirely (lists),
+     * mirroring PostResource::withBody(). Lists still get cover_url and item_count
+     * without shipping every item.
+     */
+    public bool $withItems = false;
+
+    public function withItems(): static
+    {
+        $this->withItems = true;
+
+        return $this;
+    }
+
     public function toArray(Request $request): array
     {
         return [
@@ -19,7 +33,7 @@ class GalleryResource extends JsonResource
             'cover_media_id' => $this->cover_media_id,
             'cover_url' => $this->coverImageUrl(),
             'item_count' => (int) $this->items_count,
-            'items' => GalleryItemResource::collection($this->whenLoaded('items')),
+            'items' => $this->when($this->withItems, fn () => GalleryItemResource::collection($this->items)),
             'is_published' => (bool) $this->is_published,
             'published_at' => $this->published_at?->toIso8601String(),
             'sort_order' => $this->sort_order,

@@ -26,7 +26,8 @@ class SeoController extends Controller
                     'lastmod' => Post::published()->ofType(Post::TYPE_NEWS)->max('updated_at')],
                 ['loc' => route('events.index'), 'changefreq' => 'daily', 'priority' => '0.8',
                     'lastmod' => Post::published()->ofType(Post::TYPE_EVENT)->max('updated_at')],
-                ['loc' => route('gallery.index'), 'changefreq' => 'weekly', 'priority' => '0.7'],
+                ['loc' => route('gallery.index'), 'changefreq' => 'weekly', 'priority' => '0.7',
+                    'lastmod' => $this->galleries->latestPublishedUpdatedAt()],
             ]);
 
             Post::published()->orderByDesc('published_at')

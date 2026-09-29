@@ -19,6 +19,14 @@ use Illuminate\Support\Str;
  */
 class GallerySeeder extends Seeder
 {
+    /**
+     * These are placeholder ids, not real YouTube videos — they don't resolve to
+     * anything. Replace them with the school's own uploaded videos before going live.
+     */
+    private const SPORTS_DAY_VIDEO_ID = 'SchoolVid01';
+
+    private const VICTORY_DAY_VIDEO_ID = 'SchoolVid02';
+
     public function run(): void
     {
         foreach ($this->galleries() as $definition) {
@@ -119,7 +127,7 @@ class GallerySeeder extends Seeder
                     ['label' => 'Prize distribution', 'caption' => 'পুরস্কার বিতরণী অনুষ্ঠান'],
                 ],
                 'videos' => [
-                    ['url' => 'https://www.youtube.com/watch?v=SchoolVid01', 'caption' => 'ক্রীড়া প্রতিযোগিতার হাইলাইটস'],
+                    ['url' => 'https://www.youtube.com/watch?v='.self::SPORTS_DAY_VIDEO_ID, 'caption' => 'ক্রীড়া প্রতিযোগিতার হাইলাইটস'],
                 ],
             ],
             [
@@ -133,7 +141,7 @@ class GallerySeeder extends Seeder
                     ['label' => 'Freedom fighters honored', 'caption' => 'মুক্তিযোদ্ধাদের সংবর্ধনা'],
                 ],
                 'videos' => [
-                    ['url' => 'https://youtu.be/SchoolVid02', 'caption' => 'বিজয় দিবসের অনুষ্ঠান'],
+                    ['url' => 'https://youtu.be/'.self::VICTORY_DAY_VIDEO_ID, 'caption' => 'বিজয় দিবসের অনুষ্ঠান'],
                 ],
             ],
             [

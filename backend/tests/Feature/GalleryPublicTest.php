@@ -60,6 +60,21 @@ class GalleryPublicTest extends TestCase
         $this->assertStringContainsString('youtube-nocookie.com/embed/dQw4w9WgXcQ', $html);
     }
 
+    public function test_gallery_show_has_the_full_seo_head(): void
+    {
+        $gallery = Gallery::factory()->create(['title' => 'Annual Sports Day', 'description' => 'Photos from the day.']);
+
+        $html = $this->get("/gallery/{$gallery->slug}")->assertOk()->getContent();
+
+        $this->assertMatchesRegularExpression('/<title>[^<]+<\/title>/', $html);
+        $this->assertMatchesRegularExpression('/<meta name="description" content="[^"]{20,160}">/u', $html);
+        $this->assertStringContainsString('<link rel="canonical" href="'.$gallery->url().'">', $html);
+        foreach (['og:title', 'og:description', 'og:url', 'og:type', 'og:image', 'twitter:card'] as $tag) {
+            $this->assertStringContainsString($tag, $html, "Missing {$tag}");
+        }
+        $this->assertStringContainsString('<script type="application/ld+json">', $html);
+    }
+
     public function test_gallery_show_with_no_items_renders_an_empty_state(): void
     {
         $gallery = Gallery::factory()->create();
@@ -97,12 +112,15 @@ class GalleryPublicTest extends TestCase
     {
         $published = Gallery::factory()->create(['title' => 'Published Gallery']);
         Gallery::factory()->draft()->create(['title' => 'Draft Gallery']);
+        GalleryItem::factory()->create(['gallery_id' => $published->id]);
 
-        $this->getJson('/api/public/galleries')
+        $response = $this->getJson('/api/public/galleries')
             ->assertOk()
             ->assertJsonStructure(['data' => [['id', 'title', 'slug', 'cover_url', 'item_count']], 'meta' => ['total']])
             ->assertJsonCount(1, 'data')
             ->assertJsonPath('data.0.title', 'Published Gallery');
+
+        $this->assertArrayNotHasKey('items', $response->json('data.0'));
     }
 
     public function test_public_api_show_includes_items(): void

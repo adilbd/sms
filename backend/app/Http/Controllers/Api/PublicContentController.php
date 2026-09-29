@@ -91,7 +91,7 @@ class PublicContentController extends Controller
 
     public function galleriesShow(string $slug)
     {
-        return new GalleryResource($this->galleries->findPublishedBySlug($slug));
+        return (new GalleryResource($this->galleries->findPublishedBySlug($slug)))->withItems();
     }
 
     public function contact(Request $request, ContactService $contact)

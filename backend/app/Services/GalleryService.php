@@ -81,6 +81,11 @@ class GalleryService
         return $this->galleries->publishedForSitemap();
     }
 
+    public function latestPublishedUpdatedAt(): ?string
+    {
+        return $this->galleries->latestPublishedUpdatedAt();
+    }
+
     /**
      * Computes youtube_id for every video item, using the one place (App\Support\
      * YouTube) that parses a YouTube URL. The store/update FormRequest already

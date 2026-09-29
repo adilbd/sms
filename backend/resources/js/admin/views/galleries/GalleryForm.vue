@@ -11,15 +11,15 @@
 
     <form class="card space-y-6" @submit.prevent="save">
       <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Slug (optional)</label>
-          <input v-model="form.slug" type="text" class="input" placeholder="auto-generated from title" />
-          <p v-if="errors.slug" class="text-sm text-red-600 mt-1">{{ errors.slug[0] }}</p>
-        </div>
         <div class="md:col-span-2">
           <label class="block text-sm font-medium text-gray-700 mb-1">Title</label>
           <input v-model="form.title" type="text" class="input" required />
           <p v-if="errors.title" class="text-sm text-red-600 mt-1">{{ errors.title[0] }}</p>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Slug (optional)</label>
+          <input v-model="form.slug" type="text" class="input" placeholder="auto-generated from title" />
+          <p v-if="errors.slug" class="text-sm text-red-600 mt-1">{{ errors.slug[0] }}</p>
         </div>
         <div class="md:col-span-2">
           <label class="block text-sm font-medium text-gray-700 mb-1">Description (optional)</label>
@@ -100,7 +100,7 @@
     </form>
 
     <media-picker-modal :open="pickerOpen" @close="pickerOpen = false" @select="onItemsPicked" />
-    <media-picker-modal :open="coverPickerOpen" @close="coverPickerOpen = false" @select="onCoverPicked" />
+    <media-picker-modal :open="coverPickerOpen" :multiple="false" @close="coverPickerOpen = false" @select="onCoverPicked" />
   </div>
 </template>
 

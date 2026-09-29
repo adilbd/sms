@@ -88,6 +88,15 @@ class GalleryServiceTest extends TestCase
         app(GalleryService::class)->delete($gallery);
     }
 
+    public function test_latest_published_updated_at_delegates_to_the_repository(): void
+    {
+        $this->mock(GalleryRepositoryInterface::class, function (MockInterface $mock) {
+            $mock->shouldReceive('latestPublishedUpdatedAt')->once()->andReturn('2026-01-01 00:00:00');
+        });
+
+        $this->assertSame('2026-01-01 00:00:00', app(GalleryService::class)->latestPublishedUpdatedAt());
+    }
+
     private function galleryWithId(int $id): Gallery
     {
         $gallery = new Gallery(['title' => 'Sports Day']);

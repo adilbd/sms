@@ -2,7 +2,7 @@
   <div v-if="open" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" @click.self="close">
     <div class="flex max-h-[85vh] w-full max-w-4xl flex-col rounded-lg bg-white shadow-xl">
       <div class="flex items-center justify-between border-b border-gray-200 px-6 py-4">
-        <h2 class="text-lg font-semibold text-gray-900">Select images</h2>
+        <h2 class="text-lg font-semibold text-gray-900">{{ multiple ? 'Select images' : 'Select an image' }}</h2>
         <button type="button" class="text-gray-400 hover:text-gray-600" @click="close">✕</button>
       </div>
 
@@ -84,7 +84,7 @@
             ref="fileInput"
             type="file"
             accept="image/jpeg,image/png,image/webp,image/gif"
-            multiple
+            :multiple="multiple"
             class="hidden"
             @change="onFilesSelected"
           />
@@ -128,9 +128,12 @@ import api from '@/services/api'
 // Reusable image picker: the Library tab searches and multi-selects existing media
 // rows, the Upload tab uploads one or more new images (landing in the library) and
 // selects them too. Emits 'select' with the combined list of MediaResource-shaped
-// objects ({ id, url, alt, ... }) when the caller confirms.
+// objects ({ id, url, alt, ... }) when the caller confirms. Pass multiple: false for a
+// single-select picker (e.g. a gallery's cover): picking a new item replaces rather
+// than adds to the selection, and the file input only accepts one file at a time.
 const props = defineProps({
   open: { type: Boolean, default: false },
+  multiple: { type: Boolean, default: true },
 })
 const emit = defineEmits(['close', 'select'])
 
@@ -176,6 +179,14 @@ const fetchMedia = async (page = 1) => {
 const isSelected = (item) => selected.value.some((i) => i.id === item.id)
 
 const toggle = (item) => {
+  if (!props.multiple) {
+    // A single-select picker (e.g. a gallery's cover) replaces the selection instead
+    // of adding to it, and can't hold both a library pick and an upload at once.
+    selected.value = isSelected(item) ? [] : [item]
+    uploaded.value = []
+    return
+  }
+
   if (isSelected(item)) {
     selected.value = selected.value.filter((i) => i.id !== item.id)
   } else {
@@ -188,10 +199,19 @@ const onFilesSelected = async (event) => {
   event.target.value = ''
   if (!files.length) return
 
+  if (!props.multiple) {
+    selected.value = []
+    uploaded.value = []
+  }
+
   uploading.value = true
   uploadError.value = ''
   try {
-    for (const file of files) {
+    // The file input itself already restricts to one file when !multiple, but guard
+    // here too in case a caller pastes more than one file some other way.
+    const toUpload = props.multiple ? files : files.slice(0, 1)
+
+    for (const file of toUpload) {
       const formData = new FormData()
       formData.append('file', file)
       const { data } = await api.post('/media', formData, {

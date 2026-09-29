@@ -68,7 +68,7 @@
         <div id="photo-{{ $item->id }}" class="gallery-lightbox" role="dialog" aria-modal="true" aria-label="{{ $item->caption ?: $gallery->title }}">
             <a href="#" class="gallery-lightbox-backdrop" aria-label="Close"></a>
             <figure class="gallery-lightbox-content">
-                <img src="{{ $item->thumbnailUrl() }}" alt="{{ $item->caption ?: $gallery->title }}" class="gallery-lightbox-image">
+                <img src="{{ $item->thumbnailUrl() }}" alt="{{ $item->caption ?: $gallery->title }}" loading="lazy" class="gallery-lightbox-image">
                 @if ($item->caption)
                     <figcaption class="mt-2 text-center text-sm text-white">{{ $item->caption }}</figcaption>
                 @endif

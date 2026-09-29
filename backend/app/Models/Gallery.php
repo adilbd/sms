@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Str;
 
@@ -76,6 +77,30 @@ class Gallery extends Model
         return $this->belongsTo(Media::class, 'cover_media_id');
     }
 
+    /**
+     * The gallery's first image item (lowest sort_order, then lowest id), for computing
+     * the cover on lists without eager-loading every item. See GalleryRepository::query()
+     * and ::paginatePublished(), which load this with 'media' instead of 'items.media'.
+     */
+    public function firstImageItem(): HasOne
+    {
+        return $this->hasOne(GalleryItem::class)->ofMany(
+            ['sort_order' => 'min', 'id' => 'min'],
+            fn (Builder $query) => $query->where('type', GalleryItem::TYPE_IMAGE)
+        );
+    }
+
+    /**
+     * The gallery's first video item, same purpose as firstImageItem() above.
+     */
+    public function firstVideoItem(): HasOne
+    {
+        return $this->hasOne(GalleryItem::class)->ofMany(
+            ['sort_order' => 'min', 'id' => 'min'],
+            fn (Builder $query) => $query->where('type', GalleryItem::TYPE_VIDEO)
+        );
+    }
+
     public function scopePublished(Builder $query): Builder
     {
         return $query->where('is_published', true)
@@ -101,8 +126,9 @@ class Gallery extends Model
     /**
      * The explicit cover if set, otherwise the first image item, otherwise the first
      * video's YouTube thumbnail, otherwise null (the view/resource renders a
-     * placeholder). Relies on 'coverMedia' and 'items.media' already being eager
-     * loaded; never lazy-loads.
+     * placeholder). Never lazy-loads: works from whichever of 'coverMedia',
+     * 'firstImageItem.media'/'firstVideoItem' (lists) or 'items.media' (single-gallery
+     * reads) the caller already eager-loaded.
      */
     public function coverImageUrl(): ?string
     {
@@ -110,18 +136,26 @@ class Gallery extends Model
             return $this->coverMedia->url();
         }
 
-        if (! $this->relationLoaded('items')) {
-            return null;
+        if ($this->relationLoaded('firstImageItem')) {
+            if ($this->firstImageItem?->media) {
+                return $this->firstImageItem->media->url();
+            }
+        } elseif ($this->relationLoaded('items')) {
+            $firstImage = $this->items->firstWhere('type', GalleryItem::TYPE_IMAGE);
+            if ($firstImage?->media) {
+                return $firstImage->media->url();
+            }
         }
 
-        $firstImage = $this->items->firstWhere('type', GalleryItem::TYPE_IMAGE);
-        if ($firstImage?->media) {
-            return $firstImage->media->url();
-        }
-
-        $firstVideo = $this->items->firstWhere('type', GalleryItem::TYPE_VIDEO);
-        if ($firstVideo?->youtube_id) {
-            return YouTube::thumbnailUrl($firstVideo->youtube_id);
+        if ($this->relationLoaded('firstVideoItem')) {
+            if ($this->firstVideoItem?->youtube_id) {
+                return YouTube::thumbnailUrl($this->firstVideoItem->youtube_id);
+            }
+        } elseif ($this->relationLoaded('items')) {
+            $firstVideo = $this->items->firstWhere('type', GalleryItem::TYPE_VIDEO);
+            if ($firstVideo?->youtube_id) {
+                return YouTube::thumbnailUrl($firstVideo->youtube_id);
+            }
         }
 
         return null;
