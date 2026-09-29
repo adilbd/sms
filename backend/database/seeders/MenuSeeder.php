@@ -47,6 +47,7 @@ class MenuSeeder extends Seeder
             ['label' => 'ভর্তি', 'type' => MenuItem::TYPE_ROUTE, 'route_name' => 'admissions'],
             ['label' => 'সংবাদ', 'type' => MenuItem::TYPE_ROUTE, 'route_name' => 'news.index'],
             ['label' => 'ইভেন্ট', 'type' => MenuItem::TYPE_ROUTE, 'route_name' => 'events.index'],
+            ['label' => 'গ্যালারি', 'type' => MenuItem::TYPE_ROUTE, 'route_name' => 'gallery.index'],
             ['label' => 'যোগাযোগ', 'type' => MenuItem::TYPE_ROUTE, 'route_name' => 'contact'],
         ];
 
