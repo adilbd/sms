@@ -5,17 +5,19 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\GalleryResource;
 use App\Http\Resources\PostResource;
+use App\Http\Resources\StaffResource;
 use App\Models\Post;
 use App\Services\ContactService;
 use App\Services\GalleryService;
 use App\Services\InstituteSettingsService;
 use App\Services\PostService;
+use App\Services\StaffService;
 use Illuminate\Http\Request;
 
 /**
  * Unauthenticated, read-mostly endpoints for the mobile app.
- * Uses the same PostService/GalleryService as the Blade site, so both show identical
- * content.
+ * Uses the same PostService/GalleryService/StaffService as the Blade site, so both
+ * show identical content.
  */
 class PublicContentController extends Controller
 {
@@ -23,8 +25,8 @@ class PublicContentController extends Controller
         private PostService $posts,
         private InstituteSettingsService $institute,
         private GalleryService $galleries,
-    ) {
-    }
+        private StaffService $staff,
+    ) {}
 
     public function school()
     {
@@ -92,6 +94,31 @@ class PublicContentController extends Controller
     public function galleriesShow(string $slug)
     {
         return (new GalleryResource($this->galleries->findPublishedBySlug($slug)))->withItems();
+    }
+
+    public function staff(Request $request)
+    {
+        $filters = [
+            'position' => $request->query('position'),
+            'shift' => $request->query('shift'),
+        ];
+
+        if ($request->has('former')) {
+            $filters['former'] = $request->boolean('former');
+        }
+
+        // StaffResource::collection() has no hook to flag every item public(), so the
+        // "data" wrapper (see docs/api-response-guidelines.md) is built explicitly here.
+        return response()->json([
+            'data' => $this->staff->publicList($filters)
+                ->map(fn ($member) => (new StaffResource($member))->public())
+                ->values(),
+        ]);
+    }
+
+    public function staffShow(int $staff)
+    {
+        return (new StaffResource($this->staff->publicFind($staff)))->public();
     }
 
     public function contact(Request $request, ContactService $contact)

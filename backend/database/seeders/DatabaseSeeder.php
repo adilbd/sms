@@ -19,6 +19,8 @@ class DatabaseSeeder extends Seeder
             PublicContentSeeder::class,
             PageSeeder::class,
             GallerySeeder::class,
+            ShiftSeeder::class,
+            StaffSeeder::class,
             MenuSeeder::class,
         ]);
     }

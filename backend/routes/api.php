@@ -16,6 +16,8 @@ Route::prefix('public')->middleware('throttle:60,1')->group(function () {
     Route::get('events/{slug}', [\App\Http\Controllers\Api\PublicContentController::class, 'eventsShow']);
     Route::get('galleries', [\App\Http\Controllers\Api\PublicContentController::class, 'galleries']);
     Route::get('galleries/{slug}', [\App\Http\Controllers\Api\PublicContentController::class, 'galleriesShow']);
+    Route::get('staff', [\App\Http\Controllers\Api\PublicContentController::class, 'staff']);
+    Route::get('staff/{staff}', [\App\Http\Controllers\Api\PublicContentController::class, 'staffShow'])->where('staff', '[0-9]+');
     Route::post('contact', [\App\Http\Controllers\Api\PublicContentController::class, 'contact'])->middleware('throttle:5,1');
 });
 
@@ -37,8 +39,13 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::apiResource('subjects', \App\Http\Controllers\Api\SubjectController::class)
         ->where(['subject' => '[0-9]+']);
 
-    // Teachers
-    Route::apiResource('teachers', \App\Http\Controllers\Api\TeacherController::class);
+    // Staff (teachers and non-teaching staff). Replaces the old teachers stub.
+    Route::apiResource('staff', \App\Http\Controllers\Api\StaffController::class)
+        ->where(['staff' => '[0-9]+']);
+
+    // Shifts
+    Route::apiResource('shifts', \App\Http\Controllers\Api\ShiftController::class)
+        ->where(['shift' => '[0-9]+']);
 
     // Parents
     Route::apiResource('parents', \App\Http\Controllers\Api\ParentController::class);

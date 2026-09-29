@@ -6,11 +6,16 @@ use App\Http\Controllers\Controller;
 use App\Models\Post;
 use App\Services\GalleryService;
 use App\Services\PageService;
+use App\Services\StaffService;
 use Illuminate\Support\Facades\Cache;
 
 class SeoController extends Controller
 {
-    public function __construct(private PageService $pages, private GalleryService $galleries) {}
+    public function __construct(
+        private PageService $pages,
+        private GalleryService $galleries,
+        private StaffService $staff,
+    ) {}
 
     public function sitemap()
     {
@@ -28,6 +33,13 @@ class SeoController extends Controller
                     'lastmod' => Post::published()->ofType(Post::TYPE_EVENT)->max('updated_at')],
                 ['loc' => route('gallery.index'), 'changefreq' => 'weekly', 'priority' => '0.7',
                     'lastmod' => $this->galleries->latestPublishedUpdatedAt()],
+                ['loc' => route('staff.head'), 'changefreq' => 'monthly', 'priority' => '0.6'],
+                ['loc' => route('staff.assistant_head'), 'changefreq' => 'monthly', 'priority' => '0.6'],
+                ['loc' => route('staff.teachers'), 'changefreq' => 'monthly', 'priority' => '0.6'],
+                ['loc' => route('staff.employees'), 'changefreq' => 'monthly', 'priority' => '0.6'],
+                ['loc' => route('staff.ex_heads'), 'changefreq' => 'yearly', 'priority' => '0.3'],
+                ['loc' => route('staff.ex_teachers'), 'changefreq' => 'yearly', 'priority' => '0.3'],
+                ['loc' => route('staff.ex_employees'), 'changefreq' => 'yearly', 'priority' => '0.3'],
             ]);
 
             Post::published()->orderByDesc('published_at')
@@ -58,6 +70,15 @@ class SeoController extends Controller
                     'lastmod' => $gallery->updated_at,
                     'changefreq' => 'monthly',
                     'priority' => '0.5',
+                ]);
+            }
+
+            foreach ($this->staff->publishedForSitemap() as $member) {
+                $urls->push([
+                    'loc' => $member->url(),
+                    'lastmod' => $member->updated_at,
+                    'changefreq' => 'yearly',
+                    'priority' => '0.4',
                 ]);
             }
 

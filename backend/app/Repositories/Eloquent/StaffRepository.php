@@ -1,0 +1,150 @@
+<?php
+
+namespace App\Repositories\Eloquent;
+
+use App\Models\Staff;
+use App\Repositories\Contracts\StaffRepositoryInterface;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection;
+
+class StaffRepository extends EloquentRepository implements StaffRepositoryInterface
+{
+    protected string $model = Staff::class;
+
+    public function hasActiveInPosition(int $shiftId, string $position, ?int $exceptId): bool
+    {
+        return Staff::query()
+            ->where('position', $position)
+            ->where('status', Staff::STATUS_ACTIVE)
+            ->whereHas('shifts', fn (Builder $q) => $q->where('shifts.id', $shiftId))
+            ->when($exceptId, fn (Builder $q) => $q->whereKeyNot($exceptId))
+            ->exists();
+    }
+
+    public function syncShifts(Staff $staff, array $shiftIds): void
+    {
+        $staff->shifts()->sync($shiftIds);
+    }
+
+    public function syncEducations(Staff $staff, array $rows): void
+    {
+        $this->syncChildRows($staff, 'educations', $rows, [
+            'degree', 'institution', 'board_university', 'passing_year', 'result',
+        ]);
+    }
+
+    public function syncTrainings(Staff $staff, array $rows): void
+    {
+        $this->syncChildRows($staff, 'trainings', $rows, [
+            'title', 'organizer', 'duration', 'year',
+        ]);
+    }
+
+    public function publicList(array $filters): Collection
+    {
+        $query = Staff::published()->with('shifts')
+            ->orderBy('sort_order')->orderBy('id');
+
+        if (filled($filters['position'] ?? null)) {
+            $query->where('position', $filters['position']);
+        }
+
+        if (array_key_exists('former', $filters) && $filters['former'] !== null) {
+            $filters['former'] ? $query->former() : $query->active();
+        }
+
+        if (filled($filters['shift_id'] ?? null)) {
+            $query->whereHas('shifts', fn (Builder $q) => $q->where('shifts.id', $filters['shift_id']));
+        }
+
+        return $query->get();
+    }
+
+    public function findPublished(int $id): Staff
+    {
+        return Staff::published()->with(['shifts', 'educations', 'trainings'])->findOrFail($id);
+    }
+
+    public function publishedForSitemap(): Collection
+    {
+        return Staff::published()->select(['id', 'updated_at'])->orderBy('id')->get();
+    }
+
+    protected function query(): Builder
+    {
+        return parent::query()
+            ->with(['shifts', 'educations', 'trainings'])
+            ->orderBy('sort_order')->orderBy('id');
+    }
+
+    protected function applyFilters(Builder $query, array $filters): Builder
+    {
+        if (filled($filters['search'] ?? null)) {
+            $search = $filters['search'];
+
+            $query->where(fn (Builder $q) => $q
+                ->where('name_en', 'like', "%{$search}%")
+                ->orWhere('name_bn', 'like', "%{$search}%")
+                ->orWhere('designation', 'like', "%{$search}%")
+                ->orWhere('employee_id', 'like', "%{$search}%"));
+        }
+
+        if (filled($filters['category'] ?? null)) {
+            $query->where('category', $filters['category']);
+        }
+
+        if (filled($filters['position'] ?? null)) {
+            $query->where('position', $filters['position']);
+        }
+
+        if (filled($filters['is_active'] ?? null)) {
+            filter_var($filters['is_active'], FILTER_VALIDATE_BOOLEAN)
+                ? $query->active()
+                : $query->former();
+        }
+
+        if (filled($filters['shift'] ?? null)) {
+            $query->whereHas('shifts', fn (Builder $q) => $q->where('shifts.id', $filters['shift']));
+        }
+
+        return $query;
+    }
+
+    /**
+     * Sync a staff member's child rows (educations/trainings) from a validated array,
+     * mirroring GalleryRepository::syncItems(): update/create rows that were sent (in
+     * their new order), delete rows that were not.
+     *
+     * Re-calls $staff->{$relation}() for every query rather than reusing one builder:
+     * HasMany forwards where()/whereKey() etc. to the same underlying query instance,
+     * so reusing it would make each loop iteration's whereKey() stack onto the last,
+     * narrowing every subsequent call (including the final delete) instead of running
+     * independently.
+     *
+     * @param  list<array<string, mixed>>  $rows
+     * @param  list<string>  $columns
+     */
+    private function syncChildRows(Staff $staff, string $relation, array $rows, array $columns): void
+    {
+        $existingIds = $staff->{$relation}()->pluck('id')->all();
+        $keepIds = [];
+
+        foreach ($rows as $position => $row) {
+            $attributes = collect($columns)->mapWithKeys(fn ($column) => [$column => $row[$column] ?? null])->all();
+            $attributes['sort_order'] = $position;
+
+            $id = $row['id'] ?? null;
+
+            if ($id && in_array($id, $existingIds, true)) {
+                $staff->{$relation}()->whereKey($id)->update($attributes);
+                $keepIds[] = $id;
+            } else {
+                $keepIds[] = $staff->{$relation}()->create($attributes)->id;
+            }
+        }
+
+        // Anything not present in this batch (including every existing row, when
+        // $rows is empty) is removed.
+        $staff->{$relation}()->whereNotIn('id', $keepIds)->delete();
+    }
+}

@@ -4,6 +4,7 @@ namespace App\Support;
 
 use App\Models\Page;
 use App\Models\Post;
+use App\Models\Staff;
 use App\Services\InstituteSettingsService;
 
 /**
@@ -160,6 +161,30 @@ class SchemaOrg
                 'url' => url('/'),
             ],
             'publisher' => ['@id' => url('/').'#organization'],
+        ]);
+    }
+
+    /**
+     * @param  array<string, mixed>|null  $institute  Pass the already-resolved profile()
+     *                                                to avoid resolving the service again; resolved lazily otherwise.
+     */
+    public static function person(Staff $staff, ?array $institute = null): array
+    {
+        $institute ??= app(InstituteSettingsService::class)->profile();
+
+        return array_filter([
+            '@context' => 'https://schema.org',
+            '@type' => 'Person',
+            'name' => $staff->name(),
+            'alternateName' => $staff->name_bn && $staff->name_en ? $staff->name_bn : null,
+            'jobTitle' => $staff->designation,
+            'image' => $staff->photoUrl(),
+            'url' => $staff->url(),
+            'worksFor' => [
+                '@type' => 'EducationalOrganization',
+                'name' => self::instituteName($institute),
+                'url' => url('/'),
+            ],
         ]);
     }
 

@@ -111,7 +111,7 @@ const menuItems = computed(() => {
   const items = [
     { name: 'Dashboard', path: '/', icon: '📊' },
     { name: 'Students', path: '/students', icon: '👨‍🎓' },
-    { name: 'Teachers', path: '/teachers', icon: '👨‍🏫' },
+    { name: 'Staff', path: '/staff', icon: '👨‍🏫' },
     { name: 'Classes', path: '/classes', icon: '🏫' },
     { name: 'Subjects', path: '/subjects', icon: '📚' },
     { name: 'Attendance', path: '/attendance', icon: '📋' },
@@ -125,6 +125,7 @@ const menuItems = computed(() => {
 
 const cmsItems = [
   { name: 'Institute', path: '/institute', icon: '🏛️' },
+  { name: 'Shifts', path: '/shifts', icon: '⏰' },
   { name: 'News', path: '/news', icon: '📰' },
   { name: 'Events', path: '/events', icon: '📅' },
   { name: 'Pages', path: '/pages', icon: '📄' },
