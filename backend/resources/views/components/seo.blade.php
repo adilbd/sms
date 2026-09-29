@@ -10,7 +10,7 @@
 ])
 
 @php
-    $siteName = config('seo.site_name');
+    $siteName = $institute['name_en'];
     $fullTitle = $title ? $title.' | '.$siteName : $siteName;
     $description = \Illuminate\Support\Str::limit(trim($description ?: config('seo.default_description')), 160, '…');
     $canonical = \App\Support\Seo::canonical();

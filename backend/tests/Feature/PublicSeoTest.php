@@ -226,10 +226,16 @@ class PublicSeoTest extends TestCase
 
     public function test_home_has_organization_schema(): void
     {
-        $types = $this->jsonLdTypes($this->get('/')->getContent());
+        $blocks = $this->jsonLd($this->get('/')->getContent());
+        $types = array_column($blocks, '@type');
 
         $this->assertContains('EducationalOrganization', $types);
         $this->assertContains('WebSite', $types);
+
+        // An empty institute settings table still yields the legalName from
+        // config('seo.organization.legal_name'), same as before that module existed.
+        $organization = $blocks[array_search('EducationalOrganization', $types, true)];
+        $this->assertSame(config('seo.organization.legal_name'), $organization['legalName']);
     }
 
     public function test_unknown_and_draft_posts_return_404_with_noindex(): void

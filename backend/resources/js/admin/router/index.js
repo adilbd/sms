@@ -69,6 +69,11 @@ const routes = [
         component: () => import('@/views/fees/FeeList.vue'),
       },
       {
+        path: 'institute',
+        name: 'Institute',
+        component: () => import('@/views/settings/InstituteSettings.vue'),
+      },
+      {
         path: 'news',
         name: 'News',
         component: () => import('@/views/posts/PostList.vue'),

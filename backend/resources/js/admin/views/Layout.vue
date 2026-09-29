@@ -124,6 +124,7 @@ const menuItems = computed(() => {
 })
 
 const cmsItems = [
+  { name: 'Institute', path: '/institute', icon: '🏛️' },
   { name: 'News', path: '/news', icon: '📰' },
   { name: 'Events', path: '/events', icon: '📅' },
   { name: 'Pages', path: '/pages', icon: '📄' },

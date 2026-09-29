@@ -85,6 +85,11 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::apiResource('menu-items', \App\Http\Controllers\Api\MenuItemController::class)
         ->where(['menu_item' => '[0-9]+']);
 
+    // Institute settings (name, logo, contact, address...). The SPA sends a
+    // multipart POST with _method=PUT so the file upload survives.
+    Route::get('settings/institute', [\App\Http\Controllers\Api\InstituteSettingsController::class, 'show']);
+    Route::put('settings/institute', [\App\Http\Controllers\Api\InstituteSettingsController::class, 'update']);
+
     // Dashboard
     Route::get('dashboard/stats', [\App\Http\Controllers\Api\DashboardController::class, 'stats']);
     Route::get('dashboard/recent-activities', [\App\Http\Controllers\Api\DashboardController::class, 'recentActivities']);

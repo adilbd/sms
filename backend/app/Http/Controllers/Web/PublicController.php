@@ -3,21 +3,24 @@
 namespace App\Http\Controllers\Web;
 
 use App\Http\Controllers\Controller;
+use App\Services\InstituteSettingsService;
 use App\Services\PostService;
 use App\Support\SchemaOrg;
 
 class PublicController extends Controller
 {
-    public function __construct(private PostService $posts)
+    public function __construct(private PostService $posts, private InstituteSettingsService $institute)
     {
     }
 
     public function home()
     {
+        $institute = $this->institute->profile();
+
         return view('public.home', [
             'latestNews' => $this->posts->latestNews(),
             'upcomingEvents' => $this->posts->upcomingEvents(),
-            'jsonLd' => [SchemaOrg::organization(), SchemaOrg::website()],
+            'jsonLd' => [SchemaOrg::organization($institute), SchemaOrg::website($institute)],
         ]);
     }
 
