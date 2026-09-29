@@ -4,6 +4,7 @@ namespace App\Support;
 
 use App\Models\Page;
 use App\Models\Post;
+use App\Services\InstituteSettingsService;
 
 /**
  * Builds schema.org JSON-LD structures for the public site.
@@ -12,36 +13,63 @@ class SchemaOrg
 {
     public static function organization(): array
     {
-        $org = config('seo.organization');
+        $institute = app(InstituteSettingsService::class)->profile();
 
         return array_filter([
             '@context' => 'https://schema.org',
             '@type' => 'EducationalOrganization',
             '@id' => url('/').'#organization',
-            'name' => config('seo.site_name'),
-            'legalName' => $org['legal_name'],
+            'name' => $institute['name_en'],
+            'alternateName' => $institute['name_bn'],
             'url' => url('/'),
-            'logo' => Seo::absoluteUrl(config('seo.default_image')),
-            'email' => $org['email'],
-            'telephone' => $org['phone'],
-            'foundingDate' => $org['founding_year'],
-            'address' => self::address(),
-            'sameAs' => $org['social'] ?: null,
+            'logo' => $institute['logo_url'] ?: Seo::absoluteUrl(config('seo.default_image')),
+            'email' => $institute['email'],
+            'telephone' => $institute['phone'],
+            'foundingDate' => $institute['established_year'],
+            'address' => self::address($institute),
+            'geo' => self::geo($institute),
+            'sameAs' => $institute['social'] ?: null,
         ]);
     }
 
-    public static function address(): array
+    /**
+     * @param  array<string, mixed>|null  $institute  Pass the already-resolved profile()
+     *                                                to avoid resolving the service again; resolved lazily otherwise.
+     */
+    public static function address(?array $institute = null): array
     {
-        $org = config('seo.organization');
+        $institute ??= app(InstituteSettingsService::class)->profile();
 
         return array_filter([
             '@type' => 'PostalAddress',
-            'streetAddress' => $org['street'],
-            'addressLocality' => $org['city'],
-            'addressRegion' => $org['region'],
-            'postalCode' => $org['postal_code'],
-            'addressCountry' => $org['country'],
+            'streetAddress' => $institute['street'],
+            'addressLocality' => $institute['upazila'],
+            'addressRegion' => $institute['district'],
+            'postalCode' => $institute['post_code'],
+            // The school this app serves is always in Bangladesh (see CLAUDE.md).
+            'addressCountry' => 'BD',
         ]);
+    }
+
+    private static function instituteName(): string
+    {
+        return app(InstituteSettingsService::class)->profile()['name_en'];
+    }
+
+    /**
+     * @param  array<string, mixed>  $institute
+     */
+    private static function geo(array $institute): ?array
+    {
+        if ($institute['latitude'] === null || $institute['longitude'] === null) {
+            return null;
+        }
+
+        return [
+            '@type' => 'GeoCoordinates',
+            'latitude' => $institute['latitude'],
+            'longitude' => $institute['longitude'],
+        ];
     }
 
     public static function website(): array
@@ -49,7 +77,7 @@ class SchemaOrg
         return [
             '@context' => 'https://schema.org',
             '@type' => 'WebSite',
-            'name' => config('seo.site_name'),
+            'name' => self::instituteName(),
             'url' => url('/'),
             'publisher' => ['@id' => url('/').'#organization'],
         ];
@@ -90,12 +118,12 @@ class SchemaOrg
                 'eventAttendanceMode' => 'https://schema.org/OfflineEventAttendanceMode',
                 'location' => [
                     '@type' => 'Place',
-                    'name' => $post->location ?: config('seo.site_name'),
+                    'name' => $post->location ?: self::instituteName(),
                     'address' => self::address(),
                 ],
                 'organizer' => [
                     '@type' => 'EducationalOrganization',
-                    'name' => config('seo.site_name'),
+                    'name' => self::instituteName(),
                     'url' => url('/'),
                 ],
             ]);
@@ -112,7 +140,7 @@ class SchemaOrg
             'dateModified' => $post->updated_at?->toIso8601String(),
             'author' => [
                 '@type' => 'Organization',
-                'name' => config('seo.site_name'),
+                'name' => self::instituteName(),
                 'url' => url('/'),
             ],
             'publisher' => ['@id' => url('/').'#organization'],

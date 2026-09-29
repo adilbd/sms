@@ -33,7 +33,7 @@
                         @endif
                         <div>
                             <dt class="text-sm text-gray-500">Where</dt>
-                            <dd>{{ $post->location ?: config('seo.site_name') }}</dd>
+                            <dd>{{ $post->location ?: $institute['name_en'] }}</dd>
                         </div>
                     </dl>
                 @elseif ($post->published_at)

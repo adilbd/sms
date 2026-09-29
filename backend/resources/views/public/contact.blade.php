@@ -7,7 +7,6 @@
 @endsection
 
 @section('content')
-    @php($org = config('seo.organization'))
     <div class="container-page py-12">
         <x-breadcrumbs :items="['Home' => route('home'), 'Contact' => null]" />
 
@@ -18,17 +17,24 @@
                 <div>
                     <h2 class="font-semibold text-gray-900">Address</h2>
                     <address class="not-italic">
-                        {{ $org['street'] }}<br>
-                        {{ $org['city'] }}{{ $org['region'] ? ', '.$org['region'] : '' }} {{ $org['postal_code'] }}
+                        {{ $institute['street'] }}<br>
+                        {{ $institute['upazila'] }}{{ $institute['district'] ? ', '.$institute['district'] : '' }} {{ $institute['post_code'] }}
                     </address>
+                    @if ($institute['latitude'] !== null && $institute['longitude'] !== null)
+                        <a class="mt-1 inline-block text-sm font-medium text-primary-700 hover:underline"
+                           href="https://www.google.com/maps?q={{ $institute['latitude'] }},{{ $institute['longitude'] }}"
+                           target="_blank" rel="noopener">
+                            View on map →
+                        </a>
+                    @endif
                 </div>
                 <div>
                     <h2 class="font-semibold text-gray-900">Phone</h2>
-                    <a class="hover:text-primary-700" href="tel:{{ preg_replace('/[^\d+]/', '', $org['phone']) }}">{{ $org['phone'] }}</a>
+                    <a class="hover:text-primary-700" href="tel:{{ preg_replace('/[^\d+]/', '', $institute['phone']) }}">{{ $institute['phone'] }}</a>
                 </div>
                 <div>
                     <h2 class="font-semibold text-gray-900">Email</h2>
-                    <a class="hover:text-primary-700" href="mailto:{{ $org['email'] }}">{{ $org['email'] }}</a>
+                    <a class="hover:text-primary-700" href="mailto:{{ $institute['email'] }}">{{ $institute['email'] }}</a>
                 </div>
             </div>
 

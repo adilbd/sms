@@ -8,7 +8,7 @@
     <section class="bg-gradient-to-b from-primary-50 to-white">
         <div class="container-page py-20 text-center">
             <h1 class="text-4xl sm:text-5xl font-bold tracking-tight text-gray-900">
-                Welcome to {{ config('seo.site_name') }}
+                Welcome to {{ $institute['name_en'] }}
             </h1>
             <p class="mx-auto mt-5 max-w-2xl text-lg text-gray-600">
                 A caring, future-focused school where every student is known, challenged and supported

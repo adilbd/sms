@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Resources\PostResource;
 use App\Models\Post;
 use App\Services\ContactService;
+use App\Services\InstituteSettingsService;
 use App\Services\PostService;
 use Illuminate\Http\Request;
 
@@ -15,27 +16,44 @@ use Illuminate\Http\Request;
  */
 class PublicContentController extends Controller
 {
-    public function __construct(private PostService $posts)
+    public function __construct(private PostService $posts, private InstituteSettingsService $institute)
     {
     }
 
     public function school()
     {
-        $org = config('seo.organization');
+        $institute = $this->institute->profile();
 
         return response()->json(['data' => [
-            'name' => config('seo.site_name'),
+            'name' => $institute['name_en'],
+            'name_bn' => $institute['name_bn'],
             'description' => config('seo.default_description'),
-            'email' => $org['email'],
-            'phone' => $org['phone'],
+            'email' => $institute['email'],
+            'phone' => $institute['phone'],
+            'telephone' => $institute['telephone'],
+            'eiin' => $institute['eiin'],
+            'institute_code' => $institute['institute_code'],
+            'logo_url' => $institute['logo_url'],
+            'favicon_url' => $institute['favicon_url'],
             'address' => [
-                'street' => $org['street'],
-                'city' => $org['city'],
-                'region' => $org['region'],
-                'postal_code' => $org['postal_code'],
-                'country' => $org['country'],
+                'street' => $institute['street'],
+                'village' => $institute['village'],
+                'ward' => $institute['ward'],
+                'union' => $institute['union'],
+                'post_office' => $institute['post_office'],
+                'upazila' => $institute['upazila'],
+                'city' => $institute['upazila'],
+                'district' => $institute['district'],
+                'region' => $institute['district'],
+                'division' => $institute['division'],
+                'postal_code' => $institute['post_code'],
+                'country' => 'BD',
             ],
-            'social' => $org['social'],
+            'geo' => ($institute['latitude'] !== null && $institute['longitude'] !== null) ? [
+                'latitude' => $institute['latitude'],
+                'longitude' => $institute['longitude'],
+            ] : null,
+            'social' => $institute['social'],
             'web_url' => url('/'),
         ]]);
     }

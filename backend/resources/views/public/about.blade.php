@@ -11,7 +11,7 @@
         <x-breadcrumbs :items="['Home' => route('home'), 'About Us' => null]" />
 
         <article class="prose-public mt-6 max-w-3xl">
-            <h1 class="text-4xl font-bold text-gray-900">About {{ config('seo.site_name') }}</h1>
+            <h1 class="text-4xl font-bold text-gray-900">About {{ $institute['name_en'] }}</h1>
 
             <p class="text-lg text-gray-600">
                 We are a community of learners, teachers and families committed to helping every child

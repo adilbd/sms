@@ -60,7 +60,16 @@ class PublicApiTest extends TestCase
 
     public function test_school_info(): void
     {
-        $this->getJson('/api/public/school')->assertOk()->assertJsonStructure(['data' => ['name', 'email', 'phone', 'address', 'web_url']]);
+        $this->getJson('/api/public/school')
+            ->assertOk()
+            ->assertJsonStructure([
+                'data' => [
+                    'name', 'name_bn', 'email', 'phone', 'telephone', 'eiin', 'institute_code',
+                    'logo_url', 'favicon_url', 'geo', 'social', 'web_url',
+                    'address' => ['street', 'village', 'ward', 'union', 'post_office', 'upazila', 'city', 'district', 'region', 'division', 'postal_code', 'country'],
+                ],
+            ])
+            ->assertJsonPath('data.address.country', 'BD');
     }
 
     public function test_contact_via_api_without_csrf(): void

@@ -7,7 +7,7 @@
 
     @yield('seo')
 
-    <link rel="icon" href="{{ asset('favicon.ico') }}">
+    <link rel="icon" href="{{ $institute['favicon_url'] ?? asset('favicon.ico') }}">
     <link rel="alternate" type="application/xml" title="Sitemap" href="{{ route('sitemap') }}">
     @vite('resources/css/public.css')
 </head>
@@ -16,7 +16,12 @@
 
     <header class="border-b border-gray-100 bg-white">
         <div class="container-page flex items-center justify-between h-16">
-            <a href="{{ route('home') }}" class="text-lg font-bold text-primary-700">{{ config('seo.site_name') }}</a>
+            <a href="{{ route('home') }}" class="flex items-center gap-2 text-lg font-bold text-primary-700">
+                @if ($institute['logo_url'])
+                    <img src="{{ $institute['logo_url'] }}" alt="{{ $institute['name_en'] }}" class="h-8 w-8 rounded object-contain">
+                @endif
+                {{ $institute['name_en'] }}
+            </a>
 
             <x-header-menu :items="$headerMenu ?? []" />
         </div>
@@ -27,19 +32,18 @@
     </main>
 
     <footer class="border-t border-gray-100 bg-gray-50 text-sm text-gray-600">
-        @php($org = config('seo.organization'))
         <div class="container-page py-10 grid gap-8 sm:grid-cols-3">
             <div>
-                <p class="font-semibold text-gray-900">{{ config('seo.site_name') }}</p>
+                <p class="font-semibold text-gray-900">{{ $institute['name_en'] }}</p>
                 <address class="not-italic mt-2 leading-relaxed">
-                    {{ $org['street'] }}<br>
-                    {{ $org['city'] }}{{ $org['region'] ? ', '.$org['region'] : '' }} {{ $org['postal_code'] }}
+                    {{ $institute['street'] }}<br>
+                    {{ $institute['upazila'] }}{{ $institute['district'] ? ', '.$institute['district'] : '' }} {{ $institute['post_code'] }}
                 </address>
             </div>
             <div>
                 <p class="font-semibold text-gray-900">Contact</p>
-                <p class="mt-2"><a class="hover:text-primary-700" href="mailto:{{ $org['email'] }}">{{ $org['email'] }}</a></p>
-                <p><a class="hover:text-primary-700" href="tel:{{ preg_replace('/[^\d+]/', '', $org['phone']) }}">{{ $org['phone'] }}</a></p>
+                <p class="mt-2"><a class="hover:text-primary-700" href="mailto:{{ $institute['email'] }}">{{ $institute['email'] }}</a></p>
+                <p><a class="hover:text-primary-700" href="tel:{{ preg_replace('/[^\d+]/', '', $institute['phone']) }}">{{ $institute['phone'] }}</a></p>
             </div>
             <div>
                 <p class="font-semibold text-gray-900">Explore</p>
@@ -51,7 +55,7 @@
                 </ul>
             </div>
         </div>
-        <p class="container-page pb-8 text-xs text-gray-500">&copy; {{ now()->year }} {{ config('seo.site_name') }}. All rights reserved.</p>
+        <p class="container-page pb-8 text-xs text-gray-500">&copy; {{ now()->year }} {{ $institute['name_en'] }}. All rights reserved.</p>
     </footer>
 </body>
 </html>
