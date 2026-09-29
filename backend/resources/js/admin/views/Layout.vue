@@ -128,6 +128,8 @@ const cmsItems = [
   { name: 'News', path: '/news', icon: '📰' },
   { name: 'Events', path: '/events', icon: '📅' },
   { name: 'Pages', path: '/pages', icon: '📄' },
+  { name: 'Media', path: '/media', icon: '🖼️' },
+  { name: 'Galleries', path: '/galleries', icon: '📸' },
   { name: 'Menu', path: '/menu', icon: '🧭' },
 ]
 

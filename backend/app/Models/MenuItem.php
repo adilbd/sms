@@ -34,7 +34,7 @@ class MenuItem extends Model
     /**
      * Routes an item may point to. Limited to public routes that take no parameters.
      */
-    public const ROUTES = ['home', 'about', 'admissions', 'news.index', 'events.index', 'contact'];
+    public const ROUTES = ['home', 'about', 'admissions', 'news.index', 'events.index', 'gallery.index', 'contact'];
 
     /**
      * A top-level item is depth 1. Matches vhbub's deepest path (heading > heading > page).

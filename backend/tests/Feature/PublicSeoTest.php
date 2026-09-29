@@ -29,6 +29,7 @@ class PublicSeoTest extends TestCase
             'contact' => ['/contact'],
             'news index' => ['/news'],
             'events index' => ['/events'],
+            'gallery index' => ['/gallery'],
         ];
     }
 

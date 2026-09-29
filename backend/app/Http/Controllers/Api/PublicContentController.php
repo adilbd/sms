@@ -3,21 +3,27 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Resources\GalleryResource;
 use App\Http\Resources\PostResource;
 use App\Models\Post;
 use App\Services\ContactService;
+use App\Services\GalleryService;
 use App\Services\InstituteSettingsService;
 use App\Services\PostService;
 use Illuminate\Http\Request;
 
 /**
  * Unauthenticated, read-mostly endpoints for the mobile app.
- * Uses the same PostService as the Blade site, so both show identical content.
+ * Uses the same PostService/GalleryService as the Blade site, so both show identical
+ * content.
  */
 class PublicContentController extends Controller
 {
-    public function __construct(private PostService $posts, private InstituteSettingsService $institute)
-    {
+    public function __construct(
+        private PostService $posts,
+        private InstituteSettingsService $institute,
+        private GalleryService $galleries,
+    ) {
     }
 
     public function school()
@@ -76,6 +82,16 @@ class PublicContentController extends Controller
     public function eventsShow(string $slug)
     {
         return (new PostResource($this->posts->findPublishedBySlug(Post::TYPE_EVENT, $slug)))->withBody();
+    }
+
+    public function galleries(Request $request)
+    {
+        return GalleryResource::collection($this->galleries->paginatePublished($this->perPage($request)));
+    }
+
+    public function galleriesShow(string $slug)
+    {
+        return (new GalleryResource($this->galleries->findPublishedBySlug($slug)))->withItems();
     }
 
     public function contact(Request $request, ContactService $contact)
