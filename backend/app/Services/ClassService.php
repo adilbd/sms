@@ -39,9 +39,10 @@ class ClassService
     public function update(Classes $class, array $data): Classes
     {
         return $this->withUniqueFields(fn () => DB::transaction(function () use ($class, $data) {
-            // Locked first, so a concurrent curriculum or section change for this class
-            // can't slip in between the checks below and the update.
-            $this->classes->lockForUpdate($class);
+            // Locked first, so a concurrent curriculum change for this class can't slip in
+            // between the checks below and the update. Everything below uses the freshly
+            // locked row, not the possibly stale route-bound model.
+            $class = $this->classes->lockForUpdate($class);
 
             // Checked against the model with the input applied: dropping below Class 9
             // would leave existing sections with a group the class can no longer have.

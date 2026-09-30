@@ -8,8 +8,9 @@ interface ClassRepositoryInterface extends RepositoryInterface
 {
     /**
      * Takes a row lock on $class (`select ... for update`); call inside a transaction.
+     * Returns the freshly read row, which callers use instead of a possibly stale model.
      */
-    public function lockForUpdate(Classes $class): void;
+    public function lockForUpdate(Classes $class): Classes;
 
     public function hasSections(Classes $class): bool;
 

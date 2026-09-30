@@ -168,8 +168,6 @@ const move = (type, pos, delta) => {
   rows.value = copy
 }
 
-// 422 errors are keyed `subjects.{index}.{field}`, where index is the position in the
-// array that was sent (the same order as `rows`).
 // Error indexes refer to the array that was sent, so any edit to the list makes them stale.
 const clearErrors = () => {
   errors.value = {}
@@ -190,6 +188,8 @@ const tabErrorCount = (key) =>
 // Errors on the list as a whole, such as `subjects` (too many rows).
 const topLevelErrors = computed(() => errors.value.subjects ?? [])
 
+// 422 errors are keyed `subjects.{index}.{field}`, where index is the position in the
+// array that was sent (the same order as `rows`).
 const rowErrors = (index) =>
   Object.entries(errors.value)
     .filter(([key]) => key.startsWith(`subjects.${index}.`))

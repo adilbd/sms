@@ -40,7 +40,9 @@ class CurriculumSeederTest extends TestCase
             $this->codes(9, 'science', 'compulsory', ['PHY', 'CHE', 'BIO']),
         );
         $this->assertSame(['AGR', 'HMATH'], $this->codes(9, 'science', 'optional', ['HMATH', 'AGR', 'BIO']));
-        $this->assertSame(['BGS'], $this->codes(10, 'business_studies', 'compulsory', ['BGS']));
+        $this->assertSame(['BGS'], $this->codes(10, 'science', 'compulsory', ['BGS']));
+        $this->assertSame([], $this->codes(10, 'business_studies', 'compulsory', ['BGS']));
+        $this->assertSame(['SCI'], $this->codes(10, 'business_studies', 'compulsory', ['SCI']));
         $this->assertSame(['SCI'], $this->codes(10, 'humanities', 'compulsory', ['SCI']));
         $this->assertSame([], $this->codes(10, 'science', 'compulsory', ['SCI']));
 

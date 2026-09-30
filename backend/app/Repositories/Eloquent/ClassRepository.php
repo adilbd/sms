@@ -11,9 +11,9 @@ class ClassRepository extends EloquentRepository implements ClassRepositoryInter
 {
     protected string $model = Classes::class;
 
-    public function lockForUpdate(Classes $class): void
+    public function lockForUpdate(Classes $class): Classes
     {
-        Classes::query()->whereKey($class->getKey())->lockForUpdate()->first();
+        return Classes::query()->whereKey($class->getKey())->lockForUpdate()->firstOrFail();
     }
 
     public function hasSections(Classes $class): bool

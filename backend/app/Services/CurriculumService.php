@@ -46,9 +46,9 @@ class CurriculumService
         // The class row is locked first, so two concurrent replacements for it queue up
         // and each validates against (and writes over) the other's committed result.
         DB::transaction(function () use ($class, $rows) {
-            $this->curriculum->lockClass($class);
-            $this->ensureValid($class, $rows);
-            $this->curriculum->sync($class, $rows);
+            $locked = $this->curriculum->lockClass($class);
+            $this->ensureValid($locked, $rows);
+            $this->curriculum->sync($locked, $rows);
         });
 
         return $this->curriculum->forClass($class);

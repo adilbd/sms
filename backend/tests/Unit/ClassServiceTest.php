@@ -127,7 +127,7 @@ class ClassServiceTest extends TestCase
         $class = new Classes(['number' => 9]);
 
         $this->mock(ClassRepositoryInterface::class, function (MockInterface $mock) use ($class) {
-            $mock->shouldReceive('lockForUpdate')->once()->with($class);
+            $mock->shouldReceive('lockForUpdate')->once()->with($class)->andReturn($class);
             $mock->shouldReceive('hasGroupedSections')->once()->with($class)->andReturn(false);
             $mock->shouldReceive('hasGroupedCurriculum')->once()->with($class)->andReturn(true);
             $mock->shouldNotReceive('update');
@@ -146,7 +146,7 @@ class ClassServiceTest extends TestCase
         $class = new Classes(['number' => 9]);
 
         $this->mock(ClassRepositoryInterface::class, function (MockInterface $mock) use ($class) {
-            $mock->shouldReceive('lockForUpdate')->once();
+            $mock->shouldReceive('lockForUpdate')->once()->andReturn($class);
             $mock->shouldReceive('hasGroupedSections')->once()->andReturn(false);
             $mock->shouldReceive('hasGroupedCurriculum')->once()->andReturn(false);
             $mock->shouldReceive('update')->once()->with($class, ['number' => 8])->andReturn($class);
@@ -160,7 +160,7 @@ class ClassServiceTest extends TestCase
         $class = new Classes(['number' => 9]);
 
         $this->mock(ClassRepositoryInterface::class, function (MockInterface $mock) use ($class) {
-            $mock->shouldReceive('lockForUpdate')->once();
+            $mock->shouldReceive('lockForUpdate')->once()->andReturn($class);
             $mock->shouldNotReceive('hasGroupedCurriculum');
             $mock->shouldReceive('update')->once()->andReturn($class);
         });
@@ -199,12 +199,33 @@ class ClassServiceTest extends TestCase
         $class = new Classes(['number' => 9]);
 
         $this->mock(ClassRepositoryInterface::class, function (MockInterface $mock) use ($class) {
-            $mock->shouldReceive('lockForUpdate')->once()->with($class)->ordered();
+            $mock->shouldReceive('lockForUpdate')->once()->with($class)->ordered()->andReturn($class);
             $mock->shouldReceive('hasGroupedSections')->once()->with($class)->ordered()->andReturn(false);
             $mock->shouldReceive('hasGroupedCurriculum')->once()->with($class)->ordered()->andReturn(false);
             $mock->shouldReceive('update')->once()->ordered()->andReturn($class);
         });
 
         app(ClassService::class)->update($class, ['number' => 5]);
+    }
+
+    public function test_update_checks_against_the_freshly_locked_row_not_the_stale_one(): void
+    {
+        // The route-bound model still says Class 8 (no groups), but a concurrent change
+        // committed Class 9, so lowering to 8 drops groups and must be checked.
+        $stale = new Classes(['number' => 8]);
+        $fresh = new Classes(['number' => 9]);
+
+        $this->mock(ClassRepositoryInterface::class, function (MockInterface $mock) use ($stale, $fresh) {
+            $mock->shouldReceive('lockForUpdate')->once()->with($stale)->andReturn($fresh);
+            $mock->shouldReceive('hasGroupedSections')->once()->with($fresh)->andReturn(true);
+            $mock->shouldNotReceive('update');
+        });
+
+        try {
+            app(ClassService::class)->update($stale, ['number' => 8]);
+            $this->fail('Expected a ValidationException.');
+        } catch (ValidationException $e) {
+            $this->assertArrayHasKey('number', $e->errors());
+        }
     }
 }

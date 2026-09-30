@@ -112,6 +112,10 @@ const deleteSubject = async (subject) => {
   try {
     await api.delete(`/subjects/${subject.id}`)
     await fetchSubjects(pagination.current_page)
+    // Deleting the last row of the last page leaves that page empty, so step back one.
+    if (subjects.value.length === 0 && pagination.current_page > 1) {
+      await fetchSubjects(pagination.current_page - 1)
+    }
   } catch (error) {
     // 409: the subject is used in exam schedules, teacher assignments or a curriculum.
     alert(error.response?.data?.message || 'Failed to delete subject')

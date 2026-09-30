@@ -51,9 +51,9 @@ class ClassSubjectRepository implements ClassSubjectRepositoryInterface
         $class->curriculum()->whereNotIn('id', $keep)->delete();
     }
 
-    public function lockClass(Classes $class): void
+    public function lockClass(Classes $class): Classes
     {
-        Classes::query()->whereKey($class->getKey())->lockForUpdate()->first();
+        return Classes::query()->whereKey($class->getKey())->lockForUpdate()->firstOrFail();
     }
 
     public function unusableRowIndexes(Classes $class, array $rows): array

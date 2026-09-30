@@ -35,8 +35,10 @@ interface ClassSubjectRepositoryInterface
     /**
      * Takes a row lock on $class (`select ... for update`), so concurrent curriculum
      * replacements for the same class run one after another. Call inside a transaction.
+     * Returns the freshly read row, so callers validate against its committed state
+     * rather than a stale route-bound model.
      */
-    public function lockClass(Classes $class): void;
+    public function lockClass(Classes $class): Classes;
 
     /**
      * The indexes of the $rows whose subject is inactive or soft-deleted and that are not
