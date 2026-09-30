@@ -13,11 +13,19 @@ class StaffRepository extends EloquentRepository implements StaffRepositoryInter
 
     public function hasActiveInPosition(int $shiftId, string $position, ?int $exceptId): bool
     {
+        // A locking read: under InnoDB's default REPEATABLE READ isolation, a plain
+        // read inside a transaction is answered from that transaction's snapshot (taken
+        // at its first read), which could predate another transaction's concurrent
+        // commit of a new active head for this shift. lockForUpdate() always reads the
+        // latest committed row version instead, so this still catches that commit even
+        // when this transaction's snapshot was already fixed by an earlier plain read
+        // (see StaffService::update()'s shiftIdsFor() call).
         return Staff::query()
             ->where('position', $position)
             ->where('status', Staff::STATUS_ACTIVE)
             ->whereHas('shifts', fn (Builder $q) => $q->where('shifts.id', $shiftId))
             ->when($exceptId, fn (Builder $q) => $q->whereKeyNot($exceptId))
+            ->lockForUpdate()
             ->exists();
     }
 
@@ -28,7 +36,10 @@ class StaffRepository extends EloquentRepository implements StaffRepositoryInter
 
     public function shiftIdsFor(Staff $staff): array
     {
-        return $staff->shifts()->pluck('shifts.id')->map(fn ($id) => (int) $id)->all();
+        // Locks the pivot rows too, so a concurrent request can't change this staff
+        // member's shifts out from under this transaction between this read and the
+        // write later in the same transaction.
+        return $staff->shifts()->lockForUpdate()->pluck('shifts.id')->map(fn ($id) => (int) $id)->all();
     }
 
     public function hasSubjectAssignments(Staff $staff): bool

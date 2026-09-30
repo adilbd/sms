@@ -9,7 +9,8 @@ interface StaffRepositoryInterface extends RepositoryInterface
 {
     /**
      * Whether an active staff member other than $exceptId already holds $position in
-     * shift $shiftId. Used to enforce "at most one active head/assistant_head per shift".
+     * shift $shiftId. Used to enforce "at most one active head/assistant_head per
+     * shift". A locking read (see the Eloquent implementation for why).
      */
     public function hasActiveInPosition(int $shiftId, string $position, ?int $exceptId): bool;
 
@@ -19,7 +20,7 @@ interface StaffRepositoryInterface extends RepositoryInterface
     public function syncShifts(Staff $staff, array $shiftIds): void;
 
     /**
-     * The ids of every shift $staff currently belongs to.
+     * The ids of every shift $staff currently belongs to. A locking read.
      *
      * @return list<int>
      */

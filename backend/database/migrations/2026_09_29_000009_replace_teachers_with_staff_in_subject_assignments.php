@@ -32,6 +32,11 @@ return new class extends Migration
 
     public function down(): void
     {
+        // This re-adds subject_assignments.teacher_id as NOT NULL with a foreign key,
+        // so it only succeeds while subject_assignments is empty (a NOT NULL column
+        // can't be added to a table that already has rows without a default). Any
+        // staff_id links that table already had are not carried over to the recreated
+        // teachers table, and are lost.
         Schema::create('teachers', function (Blueprint $table) {
             $table->id();
             $table->foreignId('user_id')->constrained()->cascadeOnDelete();

@@ -148,6 +148,43 @@ class StaffPublicSeoTest extends TestCase
         $this->assertSame('01711111111', $jsonWithContact->json('data.mobile'));
     }
 
+    /**
+     * The same private-field checks as the profile (show) test above, but for the
+     * list endpoint: StaffResource::public() has to be applied to every item, not
+     * just a single resource.
+     */
+    public function test_public_staff_list_never_leaks_private_fields_and_mobile_needs_show_contact(): void
+    {
+        $shift = Shift::factory()->create();
+        $staff = Staff::factory()->create([
+            'position' => Staff::POSITION_TEACHER,
+            'nid' => '1234567890123',
+            'date_of_birth' => '1980-01-01',
+            'present_address' => 'Secret Village Road',
+            'permanent_address' => 'Secret Village Road',
+            'mpo_index' => 'MPO-999',
+            'mobile' => '01711111111',
+            'email' => 'private@example.com',
+            'show_contact' => false,
+            'is_published' => true,
+        ]);
+        $staff->shifts()->attach($shift);
+
+        $response = $this->getJson('/api/public/staff?position=teacher')->assertOk()->assertJsonCount(1, 'data');
+
+        foreach (['nid', 'date_of_birth', 'present_address', 'permanent_address', 'mpo_index', 'is_published'] as $field) {
+            $response->assertJsonMissingPath("data.0.{$field}");
+        }
+        $this->assertNull($response->json('data.0.mobile'));
+        $this->assertNull($response->json('data.0.email'));
+
+        $staff->update(['show_contact' => true]);
+
+        $responseWithContact = $this->getJson('/api/public/staff?position=teacher')->assertOk();
+        $this->assertSame('01711111111', $responseWithContact->json('data.0.mobile'));
+        $this->assertSame('private@example.com', $responseWithContact->json('data.0.email'));
+    }
+
     public function test_shift_pills_only_appear_with_more_than_one_active_shift(): void
     {
         $shift = Shift::factory()->create(['slug' => 'morning', 'name_en' => 'Morning']);

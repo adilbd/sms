@@ -34,10 +34,11 @@
         <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">Category</label>
-            <select v-model="form.category" class="input" required>
+            <select v-model="form.category" class="input" disabled>
               <option value="teacher">Teacher</option>
               <option value="staff">Staff</option>
             </select>
+            <p class="mt-1 text-xs text-gray-500">Set automatically from the position below.</p>
             <p v-if="errors.category" class="text-sm text-red-600 mt-1">{{ errors.category[0] }}</p>
           </div>
           <div>
@@ -315,12 +316,28 @@ const form = reactive({
   shift_ids: [],
 })
 
-// A leaving date left over from a previous "archive" is meaningless once the member
-// is set back to active, and the backend rejects an active status with the leaving
-// date still before the joining date or otherwise inconsistent, so clear it here.
-watch(() => form.status, (status) => {
-  if (status === 'active') form.leaving_date = ''
+// A leaving date left over from a previous "archive" no longer means anything once
+// the member is active again (the backend only requires leaving_date for a non-active
+// status; it doesn't forbid one on an active record), so clear it for a cleaner form.
+// If the admin switches status back and forth without saving, remember what was
+// typed and restore it, rather than losing it on the second switch.
+let rememberedLeavingDate = ''
+watch(() => form.status, (status, previousStatus) => {
+  if (status === 'active') {
+    rememberedLeavingDate = form.leaving_date
+    form.leaving_date = ''
+  } else if (previousStatus === 'active' && rememberedLeavingDate) {
+    form.leaving_date = rememberedLeavingDate
+  }
 })
+
+// The backend requires category to match position (head/assistant_head/teacher =>
+// teacher, staff => staff), so it's not really a separate choice — derive it here
+// and keep the select disabled (see the template) rather than letting the two
+// disagree and surface as a 422 on save.
+watch(() => form.position, (position) => {
+  form.category = position === 'staff' ? 'staff' : 'teacher'
+}, { immediate: true })
 
 const sameAsPresent = ref(false)
 watch(sameAsPresent, (value) => {

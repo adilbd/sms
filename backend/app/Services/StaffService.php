@@ -107,10 +107,15 @@ class StaffService
 
         try {
             $staff = DB::transaction(function () use ($staff, $data, $shiftIds, $educations, $trainings, $merged, $oldPhotoPath, $newPhotoPath, $removePhoto) {
-                // Read this staff member's current shifts (when none were sent) and
-                // check the head/assistant_head rule inside the transaction, after
-                // locking the affected shifts, so a concurrent request can't race past
-                // it between the read and the write below.
+                // Read this staff member's current shifts (when none were sent).
+                // shiftIdsFor() takes a locking read of its own (see StaffRepository),
+                // but that alone wouldn't be enough: what actually guarantees
+                // correctness is that ensureUniqueHeadPerShift() below locks the
+                // affected shifts and then checks hasActiveInPosition() with a locking
+                // read too, which always sees the latest committed data regardless of
+                // when this transaction's snapshot was taken (InnoDB REPEATABLE READ
+                // fixes a plain read's snapshot at the transaction's first read, but a
+                // locking read always reads the newest committed row version instead).
                 $effectiveShiftIds = $shiftIds ?? $this->staff->shiftIdsFor($staff);
                 $this->ensureUniqueHeadPerShift($effectiveShiftIds, $merged->position, $merged->status, $staff->id);
 
