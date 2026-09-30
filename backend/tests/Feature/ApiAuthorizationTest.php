@@ -24,6 +24,8 @@ class ApiAuthorizationTest extends TestCase
         'POST api/change-password',
         'GET api/academic-years',
         'GET api/academic-years/{academic_year}',
+        'GET api/shifts',
+        'GET api/shifts/{shift}',
     ];
 
     public function test_every_authenticated_api_route_checks_a_permission_or_role(): void
@@ -61,9 +63,9 @@ class ApiAuthorizationTest extends TestCase
         $this->assertDatabaseHas('classes', ['id' => $classId, 'deleted_at' => null]);
         $this->actingAs($teacher, 'sanctum')->getJson('/api/fee-payments')->assertForbidden();
 
-        // Students can't list other students or teachers.
+        // Students can't list other students or staff.
         $this->actingAs($student, 'sanctum')->getJson('/api/students')->assertForbidden();
-        $this->actingAs($student, 'sanctum')->getJson('/api/teachers')->assertForbidden();
+        $this->actingAs($student, 'sanctum')->getJson('/api/staff')->assertForbidden();
         $this->actingAs($student, 'sanctum')->getJson('/api/exams')->assertOk();
 
         // Parents can see fees but not collect them.
@@ -83,7 +85,7 @@ class ApiAuthorizationTest extends TestCase
         $this->seed(RolePermissionSeeder::class);
         $admin = User::where('email', 'admin@sms.com')->firstOrFail();
 
-        foreach (['/api/students', '/api/classes', '/api/sections', '/api/attendances', '/api/fee-payments', '/api/teachers'] as $uri) {
+        foreach (['/api/students', '/api/classes', '/api/sections', '/api/attendances', '/api/fee-payments', '/api/staff'] as $uri) {
             $this->actingAs($admin, 'sanctum')->getJson($uri)->assertOk();
         }
 

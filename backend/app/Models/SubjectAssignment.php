@@ -11,16 +11,16 @@ class SubjectAssignment extends Model
     use HasFactory;
 
     protected $fillable = [
-        'teacher_id',
+        'staff_id',
         'subject_id',
         'class_id',
         'section_id',
         'academic_year_id',
     ];
 
-    public function teacher(): BelongsTo
+    public function staff(): BelongsTo
     {
-        return $this->belongsTo(Teacher::class);
+        return $this->belongsTo(Staff::class);
     }
 
     public function subject(): BelongsTo

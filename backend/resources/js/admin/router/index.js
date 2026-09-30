@@ -34,9 +34,39 @@ const routes = [
         component: () => import('@/views/students/StudentDetails.vue'),
       },
       {
+        path: 'staff',
+        name: 'Staff',
+        component: () => import('@/views/staff/StaffList.vue'),
+      },
+      {
+        path: 'staff/create',
+        name: 'Add Staff',
+        component: () => import('@/views/staff/StaffForm.vue'),
+      },
+      {
+        path: 'staff/:id/edit',
+        name: 'Edit Staff',
+        component: () => import('@/views/staff/StaffForm.vue'),
+      },
+      // Old link to the teachers-only page now goes to Staff.
+      {
         path: 'teachers',
-        name: 'Teachers',
-        component: () => import('@/views/teachers/TeacherList.vue'),
+        redirect: '/staff',
+      },
+      {
+        path: 'shifts',
+        name: 'Shifts',
+        component: () => import('@/views/shifts/ShiftList.vue'),
+      },
+      {
+        path: 'shifts/create',
+        name: 'Add Shift',
+        component: () => import('@/views/shifts/ShiftForm.vue'),
+      },
+      {
+        path: 'shifts/:id/edit',
+        name: 'Edit Shift',
+        component: () => import('@/views/shifts/ShiftForm.vue'),
       },
       {
         path: 'classes',

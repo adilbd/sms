@@ -5,17 +5,21 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\GalleryResource;
 use App\Http\Resources\PostResource;
+use App\Http\Resources\StaffResource;
 use App\Models\Post;
+use App\Models\Staff;
 use App\Services\ContactService;
 use App\Services\GalleryService;
 use App\Services\InstituteSettingsService;
 use App\Services\PostService;
+use App\Services\StaffService;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 
 /**
  * Unauthenticated, read-mostly endpoints for the mobile app.
- * Uses the same PostService/GalleryService as the Blade site, so both show identical
- * content.
+ * Uses the same PostService/GalleryService/StaffService as the Blade site, so both
+ * show identical content.
  */
 class PublicContentController extends Controller
 {
@@ -23,8 +27,8 @@ class PublicContentController extends Controller
         private PostService $posts,
         private InstituteSettingsService $institute,
         private GalleryService $galleries,
-    ) {
-    }
+        private StaffService $staff,
+    ) {}
 
     public function school()
     {
@@ -92,6 +96,40 @@ class PublicContentController extends Controller
     public function galleriesShow(string $slug)
     {
         return (new GalleryResource($this->galleries->findPublishedBySlug($slug)))->withItems();
+    }
+
+    public function staff(Request $request)
+    {
+        $validated = $request->validate([
+            // An array query value (?shift[]=x) would otherwise reach
+            // StaffService::resolveActiveShift(), which type-hints string, as a 500.
+            'position' => ['sometimes', 'nullable', 'string', Rule::in(Staff::POSITIONS)],
+            'former' => ['sometimes', 'nullable', 'boolean'],
+            'shift' => ['sometimes', 'nullable', 'string', 'max:255'],
+        ]);
+
+        $filters = [
+            'position' => $validated['position'] ?? null,
+            'shift' => $validated['shift'] ?? null,
+        ];
+
+        if ($request->has('former')) {
+            $filters['former'] = $request->boolean('former');
+        }
+
+        // StaffResource::collection() has no hook to flag every item public() up front,
+        // but ResourceCollection::collectResource() already maps every item into a
+        // StaffResource before this method returns, so mutating each one in place still
+        // produces the normal, auto-wrapped {"data": [...]} response.
+        return tap(
+            StaffResource::collection($this->staff->publicList($filters)),
+            fn ($collection) => $collection->collection->each->public(),
+        );
+    }
+
+    public function staffShow(int $staff)
+    {
+        return (new StaffResource($this->staff->publicFind($staff)))->public();
     }
 
     public function contact(Request $request, ContactService $contact)

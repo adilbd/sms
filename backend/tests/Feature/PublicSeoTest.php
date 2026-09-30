@@ -278,7 +278,9 @@ class PublicSeoTest extends TestCase
         }
 
         $this->assertNotContains(url('/news/draft-upcoming-announcement'), $locs);
-        $this->assertFalse($locs->contains(fn ($l) => str_contains($l, '/admin')));
+        // Loose str_contains('/admin') would also match the public '/administration/...'
+        // staff pages, so check for the admin SPA path specifically.
+        $this->assertFalse($locs->contains(fn ($l) => str_contains($l, '/admin/') || str_ends_with($l, '/admin')));
     }
 
     public function test_sitemap_refreshes_when_a_post_is_published(): void

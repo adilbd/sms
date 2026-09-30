@@ -154,7 +154,7 @@ These endpoints were written before this guideline and don't follow it yet:
 | `students` store/update/destroy, `classes` destroy | Catch exceptions and return `error: $e->getMessage()` with a 500 |
 | `attendances/report/{student}` | `{stats, attendances}` without the `data` wrapper |
 | `login` / `me` | `{user, token}` and a bare user |
-| Stub controllers (teachers, parents, exams, fees, dashboard) | `index` returns `{data: []}`. Other actions return a custom 501 body, and some routes have no method at all. |
+| Stub controllers (parents, exams, fees, dashboard) | `index` returns `{data: []}`. Other actions return a custom 501 body, and some routes have no method at all. `/api/staff` (formerly the teachers stub) now follows this guideline in full; see the Staff and Shifts modules note in `CLAUDE.md`. |
 
 **How to migrate:** when you change a legacy endpoint, convert it completely **in the same change**:
 1. Update the controller.

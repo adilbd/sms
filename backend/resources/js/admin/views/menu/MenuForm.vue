@@ -125,6 +125,13 @@ const routeOptions = [
   { value: 'events.index', label: 'ইভেন্ট (Events)' },
   { value: 'gallery.index', label: 'গ্যালারি (Gallery)' },
   { value: 'contact', label: 'যোগাযোগ (Contact)' },
+  { value: 'staff.head', label: 'প্রধান শিক্ষক (Head Teacher)' },
+  { value: 'staff.assistant_head', label: 'সহকারী প্রধান শিক্ষক (Assistant Head)' },
+  { value: 'staff.teachers', label: 'শিক্ষকমণ্ডলী (Teachers)' },
+  { value: 'staff.employees', label: 'কর্মচারী (Staff)' },
+  { value: 'staff.ex_heads', label: 'সাবেক প্রধান শিক্ষক (Ex-Heads)' },
+  { value: 'staff.ex_teachers', label: 'সাবেক শিক্ষক (Ex-Teachers)' },
+  { value: 'staff.ex_employees', label: 'সাবেক কর্মচারী (Ex-Staff)' },
 ]
 
 // Depth of every item, computed from the flat list, so the parent select can hide
