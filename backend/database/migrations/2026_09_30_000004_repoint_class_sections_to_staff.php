@@ -30,6 +30,17 @@ return new class extends Migration
             $table->unique(['section_id', 'academic_year_id']);
             $table->unique(['academic_year_id', 'staff_id']);
         });
+
+        // Symmetric with down(), which restores these single-column FK-backing indexes:
+        // drop them if a previous rollback left them behind (the new compound uniques
+        // now back those foreign keys), so re-applying never accumulates them.
+        Schema::table('class_sections', function (Blueprint $table) {
+            foreach (['section_id', 'academic_year_id'] as $column) {
+                if (Schema::hasIndex('class_sections', "class_sections_{$column}_index")) {
+                    $table->dropIndex("class_sections_{$column}_index");
+                }
+            }
+        });
     }
 
     public function down(): void
@@ -40,8 +51,11 @@ return new class extends Migration
             // academic_years) redundant, and MySQL silently dropped them in favor of the
             // new compound uniques. Restore dedicated indexes before dropping those
             // uniques, so those two (unrelated) foreign keys stay satisfied.
-            $table->index('section_id');
-            $table->index('academic_year_id');
+            foreach (['section_id', 'academic_year_id'] as $column) {
+                if (! Schema::hasIndex('class_sections', "class_sections_{$column}_index")) {
+                    $table->index($column, "class_sections_{$column}_index");
+                }
+            }
             $table->dropUnique(['section_id', 'academic_year_id']);
             $table->dropUnique(['academic_year_id', 'staff_id']);
             $table->dropForeign(['staff_id']);

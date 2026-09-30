@@ -3,8 +3,10 @@
 namespace Tests\Feature;
 
 use App\Models\Classes;
+use App\Models\ClassSection;
 use App\Models\Section;
 use App\Models\Shift;
+use App\Models\Staff;
 use App\Models\User;
 use Database\Seeders\RolePermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -220,5 +222,63 @@ class SectionApiTest extends TestCase
             ->getJson('/api/sections?search[]=x&group=invalid')
             ->assertUnprocessable()
             ->assertJsonValidationErrors(['search', 'group']);
+    }
+
+    public function test_lowercase_code_collides_with_uppercase(): void
+    {
+        $class = Classes::factory()->create();
+        $shift = Shift::factory()->create();
+        Section::factory()->create(['class_id' => $class->id, 'shift_id' => $shift->id, 'code' => 'A']);
+
+        $this->actingAs($this->admin, 'sanctum')
+            ->postJson('/api/sections', [
+                'class_id' => $class->id, 'shift_id' => $shift->id, 'name' => 'a', 'code' => 'a',
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('code');
+    }
+
+    public function test_update_of_a_section_on_a_deactivated_shift_works_when_shift_is_unchanged(): void
+    {
+        $shift = Shift::factory()->create();
+        $section = Section::factory()->create(['shift_id' => $shift->id]);
+        $shift->update(['is_active' => false]);
+
+        $this->actingAs($this->admin, 'sanctum')
+            ->putJson("/api/sections/{$section->id}", ['shift_id' => $shift->id, 'name' => 'Renamed'])
+            ->assertOk()
+            ->assertJsonPath('data.name', 'Renamed');
+    }
+
+    public function test_update_to_a_different_inactive_shift_is_rejected(): void
+    {
+        $section = Section::factory()->create();
+        $inactive = Shift::factory()->create(['is_active' => false]);
+
+        $this->actingAs($this->admin, 'sanctum')
+            ->putJson("/api/sections/{$section->id}", ['shift_id' => $inactive->id])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('shift_id');
+    }
+
+    public function test_changing_shift_is_rejected_when_a_class_teacher_is_not_in_the_new_shift(): void
+    {
+        $oldShift = Shift::factory()->create();
+        $newShift = Shift::factory()->create();
+        $section = Section::factory()->create(['shift_id' => $oldShift->id]);
+        $staff = Staff::factory()->create(['status' => Staff::STATUS_ACTIVE, 'category' => Staff::CATEGORY_TEACHER]);
+        $staff->shifts()->attach($oldShift);
+        ClassSection::factory()->create(['section_id' => $section->id, 'class_id' => $section->class_id, 'staff_id' => $staff->id]);
+
+        $this->actingAs($this->admin, 'sanctum')
+            ->putJson("/api/sections/{$section->id}", ['shift_id' => $newShift->id])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('shift_id');
+
+        $staff->shifts()->attach($newShift);
+
+        $this->actingAs($this->admin, 'sanctum')
+            ->putJson("/api/sections/{$section->id}", ['shift_id' => $newShift->id])
+            ->assertOk();
     }
 }

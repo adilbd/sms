@@ -157,4 +157,26 @@ class AcademicYearApiTest extends TestCase
             ->getJson('/api/academic-years/1abc')
             ->assertNotFound();
     }
+
+    public function test_update_rejects_explicit_null_for_not_null_columns(): void
+    {
+        $year = AcademicYear::factory()->create();
+
+        $this->actingAs($this->admin, 'sanctum')
+            ->putJson("/api/academic-years/{$year->id}", ['code' => null, 'start_date' => null, 'end_date' => null])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['code', 'start_date', 'end_date']);
+    }
+
+    public function test_seeder_does_not_leave_two_active_years_and_is_idempotent(): void
+    {
+        $other = AcademicYear::factory()->create(['year' => 2025, 'is_active' => true]);
+
+        $this->seed(\Database\Seeders\AcademicYearSeeder::class);
+        $this->seed(\Database\Seeders\AcademicYearSeeder::class);
+
+        $this->assertSame(1, AcademicYear::where('year', 2026)->count());
+        $this->assertFalse(AcademicYear::where('year', 2026)->first()->is_active);
+        $this->assertTrue($other->fresh()->is_active);
+    }
 }

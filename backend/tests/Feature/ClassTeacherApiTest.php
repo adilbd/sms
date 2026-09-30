@@ -178,4 +178,53 @@ class ClassTeacherApiTest extends TestCase
             ->getJson('/api/sections/1abc/class-teachers')
             ->assertNotFound();
     }
+
+    public function test_response_carries_only_a_narrow_staff_shape_for_a_teacher_role_user(): void
+    {
+        $teacher = User::factory()->create();
+        $teacher->assignRole('teacher');
+        $section = Section::factory()->create();
+        $staff = Staff::factory()->create([
+            'nid' => '1234567890123', 'mpo_index' => 'MPO-1', 'mobile' => '01700000000',
+            'present_address' => 'Somewhere', 'permanent_address' => 'Elsewhere', 'date_of_birth' => '1985-01-01',
+        ]);
+        ClassSection::factory()->create(['section_id' => $section->id, 'class_id' => $section->class_id, 'staff_id' => $staff->id]);
+
+        $response = $this->actingAs($teacher, 'sanctum')
+            ->getJson("/api/sections/{$section->id}/class-teachers")
+            ->assertOk()
+            ->assertJsonPath('data.0.staff.id', $staff->id);
+
+        $this->assertEqualsCanonicalizing(
+            ['id', 'name_en', 'name_bn', 'designation', 'photo_url'],
+            array_keys($response->json('data.0.staff'))
+        );
+        $this->assertStringNotContainsString('1234567890123', $response->getContent());
+        $this->assertStringNotContainsString('MPO-1', $response->getContent());
+    }
+
+    public function test_assign_rejects_a_soft_deleted_academic_year(): void
+    {
+        $section = Section::factory()->create();
+        $year = AcademicYear::factory()->create();
+        $year->delete();
+
+        $this->actingAs($this->admin, 'sanctum')
+            ->putJson("/api/sections/{$section->id}/class-teacher", ['academic_year_id' => $year->id, 'staff_id' => null])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('academic_year_id');
+    }
+
+    public function test_assign_rejects_a_soft_deleted_staff_member(): void
+    {
+        $section = Section::factory()->create();
+        $year = AcademicYear::factory()->create();
+        $staff = Staff::factory()->create();
+        $staff->delete();
+
+        $this->actingAs($this->admin, 'sanctum')
+            ->putJson("/api/sections/{$section->id}/class-teacher", ['academic_year_id' => $year->id, 'staff_id' => $staff->id])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('staff_id');
+    }
 }

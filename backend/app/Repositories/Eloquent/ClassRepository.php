@@ -15,6 +15,11 @@ class ClassRepository extends EloquentRepository implements ClassRepositoryInter
         return $class->sections()->exists();
     }
 
+    public function hasGroupedSections(Classes $class): bool
+    {
+        return $class->sections()->whereNotNull('group')->exists();
+    }
+
     public function hasStudents(Classes $class): bool
     {
         return $class->students()->exists();

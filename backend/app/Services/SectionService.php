@@ -60,6 +60,15 @@ class SectionService
         $class = $this->classes->findOrFail($section->class_id);
         $this->ensureGroupAllowed($class, (clone $section)->fill($data));
 
+        // Existing class teachers must belong to the section's new shift.
+        if (isset($data['shift_id'])
+            && (int) $data['shift_id'] !== (int) $section->shift_id
+            && $this->classTeachers->hasTeacherOutsideShift($section, (int) $data['shift_id'])) {
+            throw ValidationException::withMessages([
+                'shift_id' => ["A class teacher of this section doesn't belong to the new shift. Reassign or unassign them first."],
+            ]);
+        }
+
         $section = $this->withUniqueCode(fn () => $this->sections->update($section, $data));
 
         return $section->load(['class', 'shift']);

@@ -8,6 +8,11 @@ interface ClassRepositoryInterface extends RepositoryInterface
 {
     public function hasSections(Classes $class): bool;
 
+    /**
+     * Whether any (non-deleted) section of $class carries a group.
+     */
+    public function hasGroupedSections(Classes $class): bool;
+
     public function hasStudents(Classes $class): bool;
 
     public function hasAttendances(Classes $class): bool;

@@ -18,7 +18,8 @@ class ShiftRepository extends EloquentRepository implements ShiftRepositoryInter
 
     public function isUsedBySections(Shift $shift): bool
     {
-        return $shift->sections()->exists();
+        // Soft-deleted sections still hold the restrictOnDelete foreign key.
+        return $shift->sections()->withTrashed()->exists();
     }
 
     public function activeOrdered(): Collection

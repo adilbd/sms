@@ -37,6 +37,16 @@ class ClassService
 
     public function update(Classes $class, array $data): Classes
     {
+        // Checked against the model with the input applied: dropping below Class 9
+        // would leave existing sections with a group the class can no longer have.
+        if (array_key_exists('number', $data)
+            && ! (clone $class)->fill($data)->hasGroups()
+            && $this->classes->hasGroupedSections($class)) {
+            throw ValidationException::withMessages([
+                'number' => ['Sections of this class have a group; remove it first, since groups are only allowed for Class 9 and above.'],
+            ]);
+        }
+
         return $this->withUniqueFields(fn () => $this->classes->update($class, $data));
     }
 

@@ -2,12 +2,15 @@
 
 namespace App\Http\Requests\Section;
 
+use App\Http\Requests\Section\Concerns\NormalizesSectionCode;
 use App\Support\AcademicGroup;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
 class UpdateSectionRequest extends FormRequest
 {
+    use NormalizesSectionCode;
+
     // Access is enforced by the permission middleware in SectionController.
     public function authorize(): bool
     {
@@ -22,9 +25,15 @@ class UpdateSectionRequest extends FormRequest
         return [
             // A section's class can't change once created (see CLAUDE.md).
             'class_id' => 'prohibited',
+            // Only a shift change needs an active target: a section on a since-deactivated
+            // shift must stay editable when the SPA re-sends its unchanged shift_id.
             'shift_id' => [
                 'sometimes', 'integer',
-                Rule::exists('shifts', 'id')->where(fn ($query) => $query->where('is_active', true)),
+                Rule::exists('shifts', 'id')->where(function ($query) use ($section) {
+                    if ((int) $this->input('shift_id') !== (int) $section?->shift_id) {
+                        $query->where('is_active', true);
+                    }
+                }),
             ],
             'name' => 'sometimes|string|max:255',
             'code' => [

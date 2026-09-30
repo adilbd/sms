@@ -104,8 +104,9 @@ class ClassTeacherService
         try {
             return $write();
         } catch (UniqueConstraintViolationException) {
+            // Two unique keys can trip: (section, year) and (year, staff).
             throw ValidationException::withMessages([
-                'staff_id' => ['This teacher already leads another section this academic year.'],
+                'staff_id' => ['This section or teacher already has a class-teacher assignment for this academic year.'],
             ]);
         }
     }

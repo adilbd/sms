@@ -91,4 +91,16 @@ class ShiftApiTest extends TestCase
 
         $this->assertDatabaseHas('shifts', ['id' => $shift->id]);
     }
+
+    public function test_deleting_a_shift_whose_sections_are_all_soft_deleted_is_still_a_conflict(): void
+    {
+        $shift = Shift::factory()->create();
+        Section::factory()->create(['shift_id' => $shift->id])->delete();
+
+        $this->actingAs($this->admin, 'sanctum')
+            ->deleteJson("/api/shifts/{$shift->id}")
+            ->assertStatus(409);
+
+        $this->assertDatabaseHas('shifts', ['id' => $shift->id]);
+    }
 }

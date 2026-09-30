@@ -39,6 +39,14 @@ class ClassTeacherRepository implements ClassTeacherRepositoryInterface
         ClassSection::where('section_id', $section->id)->delete();
     }
 
+    public function hasTeacherOutsideShift(Section $section, int $shiftId): bool
+    {
+        return ClassSection::where('section_id', $section->id)
+            ->whereNotNull('staff_id')
+            ->whereDoesntHave('staff', fn ($q) => $q->whereHas('shifts', fn ($s) => $s->where('shifts.id', $shiftId)))
+            ->exists();
+    }
+
     public function teacherLeadsAnotherSection(int $academicYearId, int $staffId, ?int $exceptSectionId): bool
     {
         return ClassSection::where('academic_year_id', $academicYearId)

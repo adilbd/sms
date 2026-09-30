@@ -21,10 +21,20 @@ return new class extends Migration
         });
 
         // Best-effort backfill for any rows that predate this column: a name like
-        // "Class 5" or "Five" unambiguously contains a single 1-12 number.
-        foreach (DB::table('classes')->whereNull('number')->get(['id', 'name']) as $class) {
+        // "Class 5" unambiguously contains a single 1-12 number. Only the first row per
+        // number gets it; a colliding row stays null so the unique index below can't fail.
+        $taken = DB::table('classes')->whereNotNull('number')->pluck('number')->map(fn ($n) => (int) $n)->all();
+
+        foreach (DB::table('classes')->whereNull('number')->orderBy('id')->get(['id', 'name']) as $class) {
             if (preg_match('/\b(1[0-2]|[1-9])\b/', (string) $class->name, $matches) === 1) {
-                DB::table('classes')->where('id', $class->id)->update(['number' => (int) $matches[1]]);
+                $number = (int) $matches[1];
+
+                if (in_array($number, $taken, true)) {
+                    continue;
+                }
+
+                $taken[] = $number;
+                DB::table('classes')->where('id', $class->id)->update(['number' => $number]);
             }
         }
 

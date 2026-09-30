@@ -29,7 +29,7 @@ class UpdateClassRequest extends FormRequest
             'name_bn' => 'sometimes|nullable|string|max:255',
             'code' => ['sometimes', 'string', 'max:255', Rule::unique('classes', 'code')->ignore($this->route('class'))],
             'description' => 'nullable|string',
-            'display_order' => 'sometimes|integer',
+            'display_order' => 'sometimes|integer|min:0|max:1000',
             'is_active' => 'sometimes|boolean',
         ];
     }

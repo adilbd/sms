@@ -28,7 +28,7 @@ class StoreClassRequest extends FormRequest
             'name_bn' => 'nullable|string|max:255',
             'code' => 'required|string|max:255|unique:classes,code',
             'description' => 'nullable|string',
-            'display_order' => 'sometimes|integer',
+            'display_order' => 'sometimes|integer|min:0|max:1000',
             'is_active' => 'sometimes|boolean',
         ];
     }

@@ -37,6 +37,12 @@ interface ClassTeacherRepositoryInterface
     public function deleteForSection(Section $section): void;
 
     /**
+     * Whether any class-teacher row of $section points at a staff member who doesn't
+     * belong to shift $shiftId.
+     */
+    public function hasTeacherOutsideShift(Section $section, int $shiftId): bool;
+
+    /**
      * Whether $staffId already leads a section other than $exceptSectionId in
      * $academicYearId (a teacher leads at most one section per year).
      */

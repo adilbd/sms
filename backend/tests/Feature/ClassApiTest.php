@@ -195,4 +195,35 @@ class ClassApiTest extends TestCase
             ->assertUnauthorized()
             ->assertExactJson(['message' => 'Unauthenticated.']);
     }
+
+    public function test_display_order_is_bounded(): void
+    {
+        $this->actingAs($this->admin, 'sanctum')
+            ->postJson('/api/classes', ['number' => 3, 'name' => 'Class 3', 'code' => 'C3', 'display_order' => 1001])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('display_order');
+    }
+
+    public function test_lowering_number_below_9_is_rejected_while_a_section_has_a_group(): void
+    {
+        $class = Classes::factory()->create(['number' => 9]);
+        Section::factory()->create(['class_id' => $class->id, 'group' => 'science']);
+
+        $this->actingAs($this->admin, 'sanctum')
+            ->putJson("/api/classes/{$class->id}", ['number' => 8])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('number');
+
+        $this->assertSame(9, $class->fresh()->number);
+    }
+
+    public function test_lowering_number_below_9_is_allowed_without_grouped_sections(): void
+    {
+        $class = Classes::factory()->create(['number' => 9]);
+        Section::factory()->create(['class_id' => $class->id, 'group' => null]);
+
+        $this->actingAs($this->admin, 'sanctum')
+            ->putJson("/api/classes/{$class->id}", ['number' => 8])
+            ->assertOk();
+    }
 }

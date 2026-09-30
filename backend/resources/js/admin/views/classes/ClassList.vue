@@ -10,7 +10,7 @@
     </div>
 
     <div v-else class="space-y-6">
-      <div v-for="level in LEVELS" :key="level.value" class="card" v-show="grouped[level.value]?.length">
+      <div v-for="level in levelGroups" :key="level.value" class="card" v-show="grouped[level.value]?.length">
         <h2 class="text-lg font-semibold text-gray-800 mb-3">{{ level.label }}</h2>
         <div class="space-y-3">
           <div v-for="cls in grouped[level.value]" :key="cls.id" class="border rounded-lg p-4">
@@ -53,13 +53,16 @@ import { computed, onMounted, ref } from 'vue'
 import api from '@/services/api'
 import { LEVELS, GROUP_LABELS } from '@/constants/academic'
 
+const UNASSIGNED = 'unassigned'
+const levelGroups = [...LEVELS, { value: UNASSIGNED, label: 'Unassigned' }]
+
 const classes = ref([])
 const loading = ref(false)
 
 const grouped = computed(() => {
   const byLevel = {}
   for (const cls of classes.value) {
-    const level = cls.level || 'primary'
+    const level = cls.number && cls.level ? cls.level : UNASSIGNED
     if (!byLevel[level]) byLevel[level] = []
     byLevel[level].push(cls)
   }

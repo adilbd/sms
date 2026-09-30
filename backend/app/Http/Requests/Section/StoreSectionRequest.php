@@ -2,12 +2,15 @@
 
 namespace App\Http\Requests\Section;
 
+use App\Http\Requests\Section\Concerns\NormalizesSectionCode;
 use App\Support\AcademicGroup;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
 class StoreSectionRequest extends FormRequest
 {
+    use NormalizesSectionCode;
+
     // Access is enforced by the permission middleware in SectionController.
     public function authorize(): bool
     {

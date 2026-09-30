@@ -91,11 +91,13 @@ const save = async () => {
   const payload = {
     year: form.year,
     name: form.name,
-    code: form.code || null,
-    start_date: form.start_date || null,
-    end_date: form.end_date || null,
     description: form.description || null,
   }
+  // Omitted when blank: the server defaults them on create and keeps the saved
+  // values on update (they're NOT NULL, so an explicit null is rejected).
+  if (form.code) payload.code = form.code
+  if (form.start_date) payload.start_date = form.start_date
+  if (form.end_date) payload.end_date = form.end_date
 
   try {
     if (isEdit.value) {

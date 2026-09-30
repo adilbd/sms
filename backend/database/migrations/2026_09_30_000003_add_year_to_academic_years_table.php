@@ -18,10 +18,20 @@ return new class extends Migration
             $table->unsignedSmallInteger('year')->nullable()->after('id');
         });
 
-        foreach (DB::table('academic_years')->whereNull('year')->get(['id', 'start_date']) as $academicYear) {
-            DB::table('academic_years')
-                ->where('id', $academicYear->id)
-                ->update(['year' => (int) date('Y', strtotime($academicYear->start_date))]);
+        // First row per year wins; a colliding row stays null so the unique index below
+        // can't fail (MySQL DDL isn't transactional, so a failure would leave the column
+        // added and the migration half-applied).
+        $taken = [];
+
+        foreach (DB::table('academic_years')->whereNull('year')->orderBy('id')->get(['id', 'start_date']) as $academicYear) {
+            $year = (int) date('Y', strtotime((string) $academicYear->start_date));
+
+            if ($year < 1 || in_array($year, $taken, true)) {
+                continue;
+            }
+
+            $taken[] = $year;
+            DB::table('academic_years')->where('id', $academicYear->id)->update(['year' => $year]);
         }
 
         Schema::table('academic_years', function (Blueprint $table) {
