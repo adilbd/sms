@@ -6,6 +6,11 @@ use App\Models\Classes;
 
 interface ClassRepositoryInterface extends RepositoryInterface
 {
+    /**
+     * Takes a row lock on $class (`select ... for update`); call inside a transaction.
+     */
+    public function lockForUpdate(Classes $class): void;
+
     public function hasSections(Classes $class): bool;
 
     /**

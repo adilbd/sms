@@ -127,6 +127,7 @@ class ClassServiceTest extends TestCase
         $class = new Classes(['number' => 9]);
 
         $this->mock(ClassRepositoryInterface::class, function (MockInterface $mock) use ($class) {
+            $mock->shouldReceive('lockForUpdate')->once()->with($class);
             $mock->shouldReceive('hasGroupedSections')->once()->with($class)->andReturn(false);
             $mock->shouldReceive('hasGroupedCurriculum')->once()->with($class)->andReturn(true);
             $mock->shouldNotReceive('update');
@@ -145,6 +146,7 @@ class ClassServiceTest extends TestCase
         $class = new Classes(['number' => 9]);
 
         $this->mock(ClassRepositoryInterface::class, function (MockInterface $mock) use ($class) {
+            $mock->shouldReceive('lockForUpdate')->once();
             $mock->shouldReceive('hasGroupedSections')->once()->andReturn(false);
             $mock->shouldReceive('hasGroupedCurriculum')->once()->andReturn(false);
             $mock->shouldReceive('update')->once()->with($class, ['number' => 8])->andReturn($class);
@@ -158,6 +160,7 @@ class ClassServiceTest extends TestCase
         $class = new Classes(['number' => 9]);
 
         $this->mock(ClassRepositoryInterface::class, function (MockInterface $mock) use ($class) {
+            $mock->shouldReceive('lockForUpdate')->once();
             $mock->shouldNotReceive('hasGroupedCurriculum');
             $mock->shouldReceive('update')->once()->andReturn($class);
         });
@@ -189,5 +192,19 @@ class ClassServiceTest extends TestCase
         } catch (HttpException $e) {
             $this->assertSame(409, $e->getStatusCode());
         }
+    }
+
+    public function test_update_locks_the_class_before_checking_and_writing(): void
+    {
+        $class = new Classes(['number' => 9]);
+
+        $this->mock(ClassRepositoryInterface::class, function (MockInterface $mock) use ($class) {
+            $mock->shouldReceive('lockForUpdate')->once()->with($class)->ordered();
+            $mock->shouldReceive('hasGroupedSections')->once()->with($class)->ordered()->andReturn(false);
+            $mock->shouldReceive('hasGroupedCurriculum')->once()->with($class)->ordered()->andReturn(false);
+            $mock->shouldReceive('update')->once()->ordered()->andReturn($class);
+        });
+
+        app(ClassService::class)->update($class, ['number' => 5]);
     }
 }

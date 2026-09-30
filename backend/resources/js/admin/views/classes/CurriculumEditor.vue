@@ -16,6 +16,11 @@
     <div v-if="loading" class="card"><p class="text-gray-500 text-center py-8">Loading curriculum...</p></div>
 
     <template v-else>
+      <div v-if="errorSummary" class="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+        <p>{{ errorSummary }}</p>
+        <p v-for="message in topLevelErrors" :key="message" class="mt-1">{{ message }}</p>
+      </div>
+
       <div v-if="hasGroups" class="flex flex-wrap gap-2">
         <button
           v-for="tab in tabs"
@@ -25,6 +30,7 @@
           @click="activeTab = tab.key"
         >
           {{ tab.label }}
+          <span v-if="tabErrorCount(tab.key)" class="ml-1 inline-block rounded-full bg-red-600 px-1.5 text-xs text-white" :title="`${tabErrorCount(tab.key)} row(s) with errors`">{{ tabErrorCount(tab.key) }}</span>
         </button>
       </div>
 
@@ -100,6 +106,7 @@ const allSubjects = ref([])
 const loading = ref(false)
 const saving = ref(false)
 const errors = ref({})
+const errorSummary = ref('')
 const activeTab = ref('common')
 const picks = reactive({ compulsory: '', optional: '' })
 
@@ -139,17 +146,20 @@ const addableSubjects = computed(() => {
 const add = (type) => {
   const subject = allSubjects.value.find((s) => s.id === Number(picks[type]))
   if (!subject) return
+  clearErrors()
   rows.value.push(makeRow({ subject_id: subject.id, group: currentGroup.value, type, subject }))
   picks[type] = ''
 }
 
 const remove = (row) => {
+  clearErrors()
   rows.value = rows.value.filter((r) => r !== row)
 }
 
 // Swap two neighbours within a bucket by swapping their positions in the full list, so
 // the array order (which becomes sort_order) follows what the admin sees.
 const move = (type, pos, delta) => {
+  clearErrors()
   const items = bucket(type)
   const a = rows.value.indexOf(items[pos])
   const b = rows.value.indexOf(items[pos + delta])
@@ -160,6 +170,26 @@ const move = (type, pos, delta) => {
 
 // 422 errors are keyed `subjects.{index}.{field}`, where index is the position in the
 // array that was sent (the same order as `rows`).
+// Error indexes refer to the array that was sent, so any edit to the list makes them stale.
+const clearErrors = () => {
+  errors.value = {}
+  errorSummary.value = ''
+}
+
+const tabKeyOf = (row) => (row?.group ?? 'common')
+
+const errorRowIndexes = () =>
+  Object.keys(errors.value)
+    .map((key) => /^subjects\.(\d+)\./.exec(key)?.[1])
+    .filter((i) => i !== undefined)
+    .map(Number)
+
+const tabErrorCount = (key) =>
+  new Set(errorRowIndexes().filter((i) => tabKeyOf(rows.value[i]) === key)).size
+
+// Errors on the list as a whole, such as `subjects` (too many rows).
+const topLevelErrors = computed(() => errors.value.subjects ?? [])
+
 const rowErrors = (index) =>
   Object.entries(errors.value)
     .filter(([key]) => key.startsWith(`subjects.${index}.`))
@@ -172,6 +202,8 @@ const load = async () => {
     const [classRes, curriculumRes, subjectsRes] = await Promise.all([
       api.get(`/classes/${id}`),
       api.get(`/classes/${id}/subjects`),
+      // The API caps per_page at 100 and only the first page is used here, so a school with
+      // more than 100 active subjects would need this to page through `meta`.
       api.get('/subjects', { params: { per_page: 100, is_active: 1 } }),
     ])
     cls.value = classRes.data.data
@@ -186,7 +218,7 @@ const load = async () => {
 }
 
 const save = async () => {
-  errors.value = {}
+  clearErrors()
   saving.value = true
   try {
     const payload = rows.value.map((r) => ({ subject_id: r.subject_id, group: r.group, type: r.type }))
@@ -195,7 +227,11 @@ const save = async () => {
     alert(data.message || 'Curriculum updated successfully')
   } catch (error) {
     if (error.response?.status === 422) {
-      errors.value = error.response.data.errors
+      errors.value = error.response.data.errors ?? {}
+      errorSummary.value = error.response.data.message || 'The curriculum has errors.'
+      // Errors can sit on a tab that isn't showing: jump to the first one that has any.
+      const firstTab = tabs.find((t) => tabErrorCount(t.key) > 0)
+      if (firstTab && hasGroups.value) activeTab.value = firstTab.key
     } else {
       console.error('Failed to save curriculum:', error)
       alert(error.response?.data?.message || 'Failed to save curriculum')

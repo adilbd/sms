@@ -34,10 +34,36 @@ class CurriculumSeederTest extends TestCase
             ->where(fn ($q) => $q->whereNotNull('group')->orWhere('type', 'optional'))->exists());
         $this->assertTrue(ClassSubject::where('type', 'optional')->where('group', 'science')->exists());
 
+        $this->assertSame('Geography & Environment', Subject::where('code', 'GEO')->value('name'));
+        $this->assertSame(
+            ['BIO', 'CHE', 'PHY'],
+            $this->codes(9, 'science', 'compulsory', ['PHY', 'CHE', 'BIO']),
+        );
+        $this->assertSame(['AGR', 'HMATH'], $this->codes(9, 'science', 'optional', ['HMATH', 'AGR', 'BIO']));
+        $this->assertSame(['BGS'], $this->codes(10, 'business_studies', 'compulsory', ['BGS']));
+        $this->assertSame(['SCI'], $this->codes(10, 'humanities', 'compulsory', ['SCI']));
+        $this->assertSame([], $this->codes(10, 'science', 'compulsory', ['SCI']));
+
+        // A re-run updates a renamed subject, matched on its code, and keeps the rows.
+        Subject::where('code', 'GEO')->update(['name' => 'Geography']);
+
         $this->seed([SubjectSeeder::class, CurriculumSeeder::class]);
+
+        $this->assertSame('Geography & Environment', Subject::where('code', 'GEO')->value('name'));
 
         $this->assertSame($subjects, Subject::count());
         $this->assertSame($rows, ClassSubject::count());
+    }
+
+    /** @return list<string> sorted codes of $codes present in the class's group/type */
+    private function codes(int $number, string $group, string $type, array $codes): array
+    {
+        $found = Classes::where('number', $number)->firstOrFail()->curriculum()
+            ->where('group', $group)->where('type', $type)
+            ->whereIn('subject_id', Subject::whereIn('code', $codes)->pluck('id'))
+            ->with('subject')->get()->pluck('subject.code')->sort()->values()->all();
+
+        return $found;
     }
 
     public function test_never_overwrites_a_class_that_already_has_a_curriculum(): void

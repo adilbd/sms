@@ -59,6 +59,14 @@
           </tbody>
         </table>
       </div>
+
+      <div v-if="pagination.total > 0" class="mt-4 flex justify-between items-center">
+        <p class="text-sm text-gray-700">Showing {{ pagination.from }} to {{ pagination.to }} of {{ pagination.total }} results</p>
+        <div class="flex space-x-2">
+          <button @click="fetchSubjects(pagination.current_page - 1)" :disabled="pagination.current_page === 1" class="btn btn-secondary disabled:opacity-50">Previous</button>
+          <button @click="fetchSubjects(pagination.current_page + 1)" :disabled="pagination.current_page === pagination.last_page" class="btn btn-secondary disabled:opacity-50">Next</button>
+        </div>
+      </div>
     </div>
   </div>
 </template>
@@ -71,6 +79,7 @@ const subjects = ref([])
 const loading = ref(false)
 
 const filters = reactive({ search: '', is_active: '' })
+const pagination = reactive({ current_page: 1, last_page: 1, per_page: 15, total: 0, from: 0, to: 0 })
 
 let searchTimeout = null
 const onSearch = () => {
@@ -78,11 +87,18 @@ const onSearch = () => {
   searchTimeout = setTimeout(() => fetchSubjects(), 300)
 }
 
-const fetchSubjects = async () => {
+const fetchSubjects = async (page = 1) => {
   loading.value = true
   try {
-    const { data } = await api.get('/subjects', { params: { per_page: 100, ...filters } })
+    const { data } = await api.get('/subjects', { params: { page, per_page: pagination.per_page, ...filters } })
     subjects.value = data.data
+    Object.assign(pagination, {
+      current_page: data.meta.current_page,
+      last_page: data.meta.last_page,
+      total: data.meta.total,
+      from: data.meta.from,
+      to: data.meta.to,
+    })
   } catch (error) {
     console.error('Failed to fetch subjects:', error)
   } finally {
@@ -95,7 +111,7 @@ const deleteSubject = async (subject) => {
 
   try {
     await api.delete(`/subjects/${subject.id}`)
-    await fetchSubjects()
+    await fetchSubjects(pagination.current_page)
   } catch (error) {
     // 409: the subject is used in exam schedules, teacher assignments or a curriculum.
     alert(error.response?.data?.message || 'Failed to delete subject')

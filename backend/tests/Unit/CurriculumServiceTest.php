@@ -18,7 +18,8 @@ class CurriculumServiceTest extends TestCase
     private function mockRepo(callable $expect): void
     {
         $this->mock(ClassSubjectRepositoryInterface::class, function (MockInterface $mock) use ($expect) {
-            $mock->shouldReceive('unusableSubjectIds')->andReturn([])->byDefault();
+            $mock->shouldReceive('lockClass')->byDefault();
+            $mock->shouldReceive('unusableRowIndexes')->andReturn([])->byDefault();
             $expect($mock);
         });
     }
@@ -131,8 +132,8 @@ class CurriculumServiceTest extends TestCase
     public function test_a_subject_that_is_not_usable_is_refused(): void
     {
         $class = new Classes(['number' => 9]);
-        $this->mockRepo(function (MockInterface $mock) use ($class) {
-            $mock->shouldReceive('unusableSubjectIds')->once()->with($class, [1, 2])->andReturn([2]);
+        $this->mockRepo(function (MockInterface $mock) {
+            $mock->shouldReceive('unusableRowIndexes')->once()->andReturn([1]);
             $mock->shouldNotReceive('sync');
         });
 
@@ -164,5 +165,33 @@ class CurriculumServiceTest extends TestCase
         });
 
         app(CurriculumService::class)->sync($class, []);
+    }
+
+    public function test_the_class_is_locked_before_validating_and_syncing(): void
+    {
+        $class = new Classes(['number' => 9]);
+        $rows = [['subject_id' => 1, 'group' => null, 'type' => 'compulsory']];
+
+        $this->mock(ClassSubjectRepositoryInterface::class, function (MockInterface $mock) use ($class, $rows) {
+            $mock->shouldReceive('lockClass')->once()->with($class)->ordered();
+            $mock->shouldReceive('unusableRowIndexes')->once()->ordered()->andReturn([]);
+            $mock->shouldReceive('sync')->once()->with($class, $rows)->ordered();
+            $mock->shouldReceive('forClass')->once()->andReturn(new Collection);
+        });
+
+        app(CurriculumService::class)->sync($class, $rows);
+    }
+
+    public function test_validation_failures_happen_after_the_lock_and_before_any_write(): void
+    {
+        $class = new Classes(['number' => 5]);
+
+        $this->mock(ClassSubjectRepositoryInterface::class, function (MockInterface $mock) use ($class) {
+            $mock->shouldReceive('lockClass')->once()->with($class);
+            $mock->shouldReceive('unusableRowIndexes')->andReturn([]);
+            $mock->shouldNotReceive('sync');
+        });
+
+        $this->errorsFor($class, [['subject_id' => 1, 'group' => 'science', 'type' => 'compulsory']]);
     }
 }

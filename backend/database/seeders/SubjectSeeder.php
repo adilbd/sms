@@ -32,7 +32,7 @@ class SubjectSeeder extends Seeder
         'FBK' => ['Finance & Banking', 'ফিন্যান্স ও ব্যাংকিং', 'theory'],
         'BEN' => ['Business Entrepreneurship', 'ব্যবসায় উদ্যোগ', 'theory'],
         'HIS' => ['History', 'ইতিহাস', 'theory'],
-        'GEO' => ['Geography', 'ভূগোল ও পরিবেশ', 'theory'],
+        'GEO' => ['Geography & Environment', 'ভূগোল ও পরিবেশ', 'theory'],
         'CIV' => ['Civics', 'পৌরনীতি ও নাগরিকতা', 'theory'],
         'ECO' => ['Economics', 'অর্থনীতি', 'theory'],
         'AGR' => ['Agriculture Studies', 'কৃষিশিক্ষা', 'both'],

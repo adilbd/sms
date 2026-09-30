@@ -51,16 +51,31 @@ class ClassSubjectRepository implements ClassSubjectRepositoryInterface
         $class->curriculum()->whereNotIn('id', $keep)->delete();
     }
 
-    public function unusableSubjectIds(Classes $class, array $subjectIds): array
+    public function lockClass(Classes $class): void
     {
-        if ($subjectIds === []) {
+        Classes::query()->whereKey($class->getKey())->lockForUpdate()->first();
+    }
+
+    public function unusableRowIndexes(Classes $class, array $rows): array
+    {
+        if ($rows === []) {
             return [];
         }
 
-        $usable = Subject::query()->whereIn('id', $subjectIds)->where('is_active', true)->pluck('id');
-        $inCurriculum = $class->curriculum()->whereIn('subject_id', $subjectIds)->pluck('subject_id');
+        $subjectIds = array_values(array_unique(array_column($rows, 'subject_id')));
+        $usable = Subject::query()->whereIn('id', $subjectIds)->where('is_active', true)->pluck('id')->all();
+        $existing = $class->curriculum()->whereIn('subject_id', $subjectIds)->get()
+            ->mapWithKeys(fn (ClassSubject $row) => [$this->key($row->subject_id, $row->group) => true]);
 
-        return array_values(array_diff($subjectIds, $usable->all(), $inCurriculum->all()));
+        $unusable = [];
+
+        foreach ($rows as $i => $row) {
+            if (! in_array($row['subject_id'], $usable, true) && ! $existing->has($this->key($row['subject_id'], $row['group'] ?? null))) {
+                $unusable[] = $i;
+            }
+        }
+
+        return $unusable;
     }
 
     private function ordered(HasMany $relation): HasMany

@@ -264,6 +264,21 @@ class CurriculumApiTest extends TestCase
         $this->replace($class, [$this->row($subject)])->assertOk();
     }
 
+    public function test_an_inactive_subject_is_only_kept_in_its_existing_group(): void
+    {
+        $class = Classes::factory()->create(['number' => 9]);
+        $subject = Subject::factory()->create();
+        ClassSubject::factory()->create(['class_id' => $class->id, 'subject_id' => $subject->id, 'group' => 'science']);
+        $subject->update(['is_active' => false]);
+
+        $this->replace($class, [$this->row($subject, 'science')])->assertOk();
+
+        $this->replace($class, [$this->row($subject, 'science'), $this->row($subject, 'humanities')])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('subjects.1.subject_id')
+            ->assertJsonMissingValidationErrors('subjects.0.subject_id');
+    }
+
     public function test_a_non_numeric_class_id_returns_404(): void
     {
         $this->actingAs($this->admin, 'sanctum')->getJson('/api/classes/1abc/subjects')->assertNotFound();

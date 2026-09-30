@@ -33,11 +33,19 @@ interface ClassSubjectRepositoryInterface
     public function sync(Classes $class, array $rows): void;
 
     /**
-     * Of $subjectIds, the ones that are inactive or soft-deleted and are not already
-     * part of $class's curriculum (existing rows stay when a subject is deactivated).
+     * Takes a row lock on $class (`select ... for update`), so concurrent curriculum
+     * replacements for the same class run one after another. Call inside a transaction.
+     */
+    public function lockClass(Classes $class): void;
+
+    /**
+     * The indexes of the $rows whose subject is inactive or soft-deleted and that are not
+     * an existing (subject_id, group) row of $class's curriculum. A row already in the
+     * curriculum stays when its subject is deactivated later; the same subject newly added
+     * under another group does not.
      *
-     * @param  list<int>  $subjectIds
+     * @param  list<array{subject_id: int, group: ?string, type: string}>  $rows
      * @return list<int>
      */
-    public function unusableSubjectIds(Classes $class, array $subjectIds): array;
+    public function unusableRowIndexes(Classes $class, array $rows): array;
 }

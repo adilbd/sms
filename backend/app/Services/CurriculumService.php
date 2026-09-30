@@ -43,9 +43,13 @@ class CurriculumService
             'type' => $row['type'],
         ], array_values($subjects));
 
-        $this->ensureValid($class, $rows);
-
-        DB::transaction(fn () => $this->curriculum->sync($class, $rows));
+        // The class row is locked first, so two concurrent replacements for it queue up
+        // and each validates against (and writes over) the other's committed result.
+        DB::transaction(function () use ($class, $rows) {
+            $this->curriculum->lockClass($class);
+            $this->ensureValid($class, $rows);
+            $this->curriculum->sync($class, $rows);
+        });
 
         return $this->curriculum->forClass($class);
     }
@@ -90,12 +94,8 @@ class CurriculumService
             }
         }
 
-        $unusable = $this->curriculum->unusableSubjectIds($class, array_values(array_unique(array_column($rows, 'subject_id'))));
-
-        foreach ($rows as $i => $row) {
-            if (in_array($row['subject_id'], $unusable, true)) {
-                $errors["subjects.{$i}.subject_id"][] = 'Only active subjects can be added to a curriculum.';
-            }
+        foreach ($this->curriculum->unusableRowIndexes($class, $rows) as $i) {
+            $errors["subjects.{$i}.subject_id"][] = 'Only active subjects can be added to a curriculum.';
         }
 
         if ($errors !== []) {

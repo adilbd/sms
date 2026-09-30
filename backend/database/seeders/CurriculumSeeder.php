@@ -60,11 +60,14 @@ class CurriculumSeeder extends Seeder
             $number <= 2 => $common(['BAN', 'ENG', 'MATH', 'REL']),
             $number <= 5 => $common(['BAN', 'ENG', 'MATH', 'SCI', 'BGS', 'REL']),
             $number <= 8 => $common(['BAN', 'ENG', 'MATH', 'SCI', 'BGS', 'ICT', 'REL', 'AGR']),
+            // SSC: Science studies Physics, Chemistry and Biology, with Higher Mathematics or
+            // Agriculture as the 4th subject; Bangladesh & Global Studies is taken by Science
+            // and Business Studies, General Science by Business Studies and Humanities.
             $number <= 10 => [
                 ...$common(['BAN1', 'BAN2', 'ENG1', 'ENG2', 'MATH', 'ICT', 'REL']),
-                ...$group(AcademicGroup::SCIENCE, ['PHY', 'CHE'], ['HMATH', 'BIO', 'AGR']),
-                ...$group(AcademicGroup::BUSINESS_STUDIES, ['ACC', 'FBK', 'BEN'], ['AGR']),
-                ...$group(AcademicGroup::HUMANITIES, ['HIS', 'GEO', 'CIV'], ['AGR', 'ECO']),
+                ...$group(AcademicGroup::SCIENCE, ['PHY', 'CHE', 'BIO', 'BGS'], ['HMATH', 'AGR']),
+                ...$group(AcademicGroup::BUSINESS_STUDIES, ['ACC', 'FBK', 'BEN', 'BGS', 'SCI'], ['AGR']),
+                ...$group(AcademicGroup::HUMANITIES, ['HIS', 'GEO', 'CIV', 'SCI'], ['AGR', 'ECO']),
             ],
             default => [
                 ...$common(['BAN1', 'BAN2', 'ENG1', 'ENG2', 'ICT']),
