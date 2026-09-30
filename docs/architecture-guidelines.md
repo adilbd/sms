@@ -187,7 +187,7 @@ These modules predate the pattern and query Eloquent directly:
 
 | Code | Current state |
 |------|---------------|
-| `StudentController`, `ClassController`, `SectionController`, `AcademicYearController`, `AttendanceController`, `AuthController` | Validate inline and query models in the controller. Permission checks are in place |
+| `StudentController`, `AttendanceController`, `AuthController` | Validate inline and query models in the controller. Permission checks are in place |
 | `ContactService` | Service exists but queries Eloquent directly, with no repository |
 | `Web\ContactController` | Validates inline with `$request->validate(ContactService::RULES)` instead of a FormRequest |
 | Stub controllers (parents, exams, fees, dashboard) | Not implemented. **Build them with this pattern from the start.** Staff (formerly the Teacher stub) has been built; see the Staff and Shifts modules note in `CLAUDE.md`. |

@@ -21,6 +21,35 @@
             <span class="font-medium">{{ item.name }}</span>
           </router-link>
 
+          <!-- Academic group: Classes, Sections and Academic Years -->
+          <div>
+            <button
+              type="button"
+              class="flex w-full items-center justify-between px-6 py-3 text-gray-700 hover:bg-primary-50 hover:text-primary-600 transition-colors"
+              :class="{ 'text-primary-600': isAcademicActive }"
+              @click="academicOpen = !academicOpen"
+              :aria-expanded="academicOpen"
+            >
+              <span class="flex items-center">
+                <span class="text-lg mr-3">🏫</span>
+                <span class="font-medium">Academic</span>
+              </span>
+              <span class="text-xs transition-transform duration-150" :class="{ 'rotate-90': academicOpen }">▶</span>
+            </button>
+            <div v-show="academicOpen">
+              <router-link
+                v-for="child in academicItems"
+                :key="child.name"
+                :to="child.path"
+                class="flex items-center pl-14 pr-6 py-2 text-sm text-gray-600 hover:bg-primary-50 hover:text-primary-600 transition-colors"
+                :class="{ 'bg-primary-50 text-primary-600 border-r-4 border-primary-600': isChildActive(child) }"
+              >
+                <span class="mr-2">{{ child.icon }}</span>
+                <span>{{ child.name }}</span>
+              </router-link>
+            </div>
+          </div>
+
           <!-- CMS group: News, Events and Pages -->
           <div>
             <button
@@ -112,7 +141,6 @@ const menuItems = computed(() => {
     { name: 'Dashboard', path: '/', icon: '📊' },
     { name: 'Students', path: '/students', icon: '👨‍🎓' },
     { name: 'Staff', path: '/staff', icon: '👨‍🏫' },
-    { name: 'Classes', path: '/classes', icon: '🏫' },
     { name: 'Subjects', path: '/subjects', icon: '📚' },
     { name: 'Attendance', path: '/attendance', icon: '📋' },
     { name: 'Exams', path: '/exams', icon: '📝' },
@@ -134,16 +162,27 @@ const cmsItems = [
   { name: 'Menu', path: '/menu', icon: '🧭' },
 ]
 
+const academicItems = [
+  { name: 'Classes', path: '/classes', icon: '🏫' },
+  { name: 'Sections', path: '/sections', icon: '🧑‍🤝‍🧑' },
+  { name: 'Academic Years', path: '/academic-years', icon: '📆' },
+]
+
 const isChildActive = (child) => route.path === child.path || route.path.startsWith(`${child.path}/`)
 
 const isCmsActive = computed(() => cmsItems.some(isChildActive))
+const isAcademicActive = computed(() => academicItems.some(isChildActive))
 
 const cmsOpen = ref(isCmsActive.value)
+const academicOpen = ref(isAcademicActive.value)
 
-// Auto-expand the CMS group whenever the current route is one of its children,
-// without collapsing it back when the user navigates away (they can toggle it).
+// Auto-expand each group whenever the current route is one of its children, without
+// collapsing it back when the user navigates away (they can toggle it).
 watch(isCmsActive, (active) => {
   if (active) cmsOpen.value = true
+})
+watch(isAcademicActive, (active) => {
+  if (active) academicOpen.value = true
 })
 
 const currentPageTitle = computed(() => {

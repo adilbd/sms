@@ -10,6 +10,13 @@ interface ShiftRepositoryInterface extends RepositoryInterface
     public function hasStaff(Shift $shift): bool;
 
     /**
+     * Whether any section uses this shift. sections.shift_id is `restrictOnDelete`, so
+     * an unchecked delete would still be blocked, but as a raw database error (500);
+     * this lets ShiftService::delete() report it as a clean 409 instead.
+     */
+    public function isUsedBySections(Shift $shift): bool;
+
+    /**
      * Active shifts, ordered for display. Used to decide whether the public shift
      * filter pills should be shown at all (only when there is more than one).
      */

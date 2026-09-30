@@ -164,6 +164,12 @@ class StaffService
             'Staff member is assigned to subjects and cannot be deleted.'
         );
 
+        abort_if(
+            $this->staff->isClassTeacher($staff),
+            409,
+            'Staff member is a class teacher and cannot be deleted.'
+        );
+
         $this->staff->delete($staff);
     }
 

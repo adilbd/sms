@@ -6,6 +6,10 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
+/**
+ * A section's class teacher (staff) for one academic year. Managed through
+ * App\Services\ClassTeacherService, not a standalone CRUD endpoint.
+ */
 class ClassSection extends Model
 {
     use HasFactory;
@@ -14,7 +18,7 @@ class ClassSection extends Model
         'class_id',
         'section_id',
         'academic_year_id',
-        'class_teacher_id',
+        'staff_id',
     ];
 
     public function class(): BelongsTo
@@ -32,9 +36,8 @@ class ClassSection extends Model
         return $this->belongsTo(AcademicYear::class);
     }
 
-    public function classTeacher(): BelongsTo
+    public function staff(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'class_teacher_id');
+        return $this->belongsTo(Staff::class);
     }
 }
-

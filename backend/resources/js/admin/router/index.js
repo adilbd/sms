@@ -74,6 +74,46 @@ const routes = [
         component: () => import('@/views/classes/ClassList.vue'),
       },
       {
+        path: 'classes/create',
+        name: 'Add Class',
+        component: () => import('@/views/classes/ClassForm.vue'),
+      },
+      {
+        path: 'classes/:id/edit',
+        name: 'Edit Class',
+        component: () => import('@/views/classes/ClassForm.vue'),
+      },
+      {
+        path: 'sections',
+        name: 'Sections',
+        component: () => import('@/views/sections/SectionList.vue'),
+      },
+      {
+        path: 'sections/create',
+        name: 'Add Section',
+        component: () => import('@/views/sections/SectionForm.vue'),
+      },
+      {
+        path: 'sections/:id/edit',
+        name: 'Edit Section',
+        component: () => import('@/views/sections/SectionForm.vue'),
+      },
+      {
+        path: 'academic-years',
+        name: 'Academic Years',
+        component: () => import('@/views/academic-years/AcademicYearList.vue'),
+      },
+      {
+        path: 'academic-years/create',
+        name: 'Add Academic Year',
+        component: () => import('@/views/academic-years/AcademicYearForm.vue'),
+      },
+      {
+        path: 'academic-years/:id/edit',
+        name: 'Edit Academic Year',
+        component: () => import('@/views/academic-years/AcademicYearForm.vue'),
+      },
+      {
         path: 'subjects',
         name: 'Subjects',
         component: () => import('@/views/subjects/SubjectList.vue'),

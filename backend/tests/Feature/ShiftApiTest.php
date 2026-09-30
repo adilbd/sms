@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\Section;
 use App\Models\Shift;
 use App\Models\Staff;
 use App\Models\User;
@@ -74,6 +75,31 @@ class ShiftApiTest extends TestCase
         $staff->shifts()->attach($shift);
 
         $this->actingAs($this->admin, 'sanctum')->deleteJson("/api/shifts/{$shift->id}")->assertStatus(409);
+
+        $this->assertDatabaseHas('shifts', ['id' => $shift->id]);
+    }
+
+    public function test_deleting_a_shift_used_by_a_section_is_a_conflict(): void
+    {
+        $shift = Shift::factory()->create();
+        Section::factory()->create(['shift_id' => $shift->id]);
+
+        $this->actingAs($this->admin, 'sanctum')
+            ->deleteJson("/api/shifts/{$shift->id}")
+            ->assertStatus(409)
+            ->assertJsonPath('message', 'Shift is used by sections and cannot be deleted.');
+
+        $this->assertDatabaseHas('shifts', ['id' => $shift->id]);
+    }
+
+    public function test_deleting_a_shift_whose_sections_are_all_soft_deleted_is_still_a_conflict(): void
+    {
+        $shift = Shift::factory()->create();
+        Section::factory()->create(['shift_id' => $shift->id])->delete();
+
+        $this->actingAs($this->admin, 'sanctum')
+            ->deleteJson("/api/shifts/{$shift->id}")
+            ->assertStatus(409);
 
         $this->assertDatabaseHas('shifts', ['id' => $shift->id]);
     }

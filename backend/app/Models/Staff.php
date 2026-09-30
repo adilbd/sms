@@ -141,6 +141,12 @@ class Staff extends Model
         return $this->hasMany(SubjectAssignment::class);
     }
 
+    /** Sections this staff member leads as class teacher, one row per academic year. */
+    public function classSections(): HasMany
+    {
+        return $this->hasMany(ClassSection::class);
+    }
+
     public function scopePublished(Builder $query): Builder
     {
         return $query->where('is_published', true);

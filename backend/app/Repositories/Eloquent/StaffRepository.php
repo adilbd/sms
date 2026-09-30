@@ -47,6 +47,16 @@ class StaffRepository extends EloquentRepository implements StaffRepositoryInter
         return $staff->subjectAssignments()->exists();
     }
 
+    public function isClassTeacher(Staff $staff): bool
+    {
+        return $staff->classSections()->exists();
+    }
+
+    public function belongsToShift(Staff $staff, int $shiftId): bool
+    {
+        return $staff->shifts()->where('shifts.id', $shiftId)->exists();
+    }
+
     public function syncEducations(Staff $staff, array $rows): void
     {
         $this->syncChildRows($staff, 'educations', $rows, [

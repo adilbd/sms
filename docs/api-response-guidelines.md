@@ -147,14 +147,14 @@ These endpoints were written before this guideline and don't follow it yet:
 
 | Endpoint | What's different |
 |----------|------------------|
-| `index` on students, classes, sections, academic-years, attendances | Return Laravel's flat paginator (`current_page`, `total`, ... at the top level, not under `meta`) |
-| `show` on students, classes, sections, academic-years | Return a bare model instead of `{ "data": ... }` |
-| `store` / `update` on students, classes, sections, academic-years, attendances | `{message, data}` with a raw model instead of a resource |
-| `destroy` on all resources except subjects and posts | 200 with `{message}` instead of 204 |
-| `students` store/update/destroy, `classes` destroy | Catch exceptions and return `error: $e->getMessage()` with a 500 |
+| `index` on students, attendances | Return Laravel's flat paginator (`current_page`, `total`, ... at the top level, not under `meta`) |
+| `show` on students | Return a bare model instead of `{ "data": ... }` |
+| `store` / `update` on students, attendances | `{message, data}` with a raw model instead of a resource |
+| `destroy` on all resources except subjects, posts, classes, sections, academic-years and shifts | 200 with `{message}` instead of 204 |
+| `students` store/update/destroy | Catch exceptions and return `error: $e->getMessage()` with a 500 |
 | `attendances/report/{student}` | `{stats, attendances}` without the `data` wrapper |
 | `login` / `me` | `{user, token}` and a bare user |
-| Stub controllers (parents, exams, fees, dashboard) | `index` returns `{data: []}`. Other actions return a custom 501 body, and some routes have no method at all. `/api/staff` (formerly the teachers stub) now follows this guideline in full; see the Staff and Shifts modules note in `CLAUDE.md`. |
+| Stub controllers (parents, exams, fees, dashboard) | `index` returns `{data: []}`. Other actions return a custom 501 body, and some routes have no method at all. `/api/staff` (formerly the teachers stub) now follows this guideline in full; see the Staff and Shifts modules note in `CLAUDE.md`. `classes`/`sections`/`academic-years` now follow it in full too; see the Academic structure note in `CLAUDE.md`. |
 
 **How to migrate:** when you change a legacy endpoint, convert it completely **in the same change**:
 1. Update the controller.
