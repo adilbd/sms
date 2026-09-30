@@ -6,6 +6,7 @@ use App\Models\Classes;
 use App\Repositories\Contracts\ClassRepositoryInterface;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\UniqueConstraintViolationException;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 class ClassService
@@ -37,17 +38,30 @@ class ClassService
 
     public function update(Classes $class, array $data): Classes
     {
-        // Checked against the model with the input applied: dropping below Class 9
-        // would leave existing sections with a group the class can no longer have.
-        if (array_key_exists('number', $data)
-            && ! (clone $class)->fill($data)->hasGroups()
-            && $this->classes->hasGroupedSections($class)) {
-            throw ValidationException::withMessages([
-                'number' => ['Sections of this class have a group; remove it first, since groups are only allowed for Class 9 and above.'],
-            ]);
-        }
+        return $this->withUniqueFields(fn () => DB::transaction(function () use ($class, $data) {
+            // Locked first, so a concurrent curriculum change for this class can't slip in
+            // between the checks below and the update. Everything below uses the freshly
+            // locked row, not the possibly stale route-bound model.
+            $class = $this->classes->lockForUpdate($class);
 
-        return $this->withUniqueFields(fn () => $this->classes->update($class, $data));
+            // Checked against the model with the input applied: dropping below Class 9
+            // would leave existing sections with a group the class can no longer have.
+            $dropsGroups = array_key_exists('number', $data) && ! (clone $class)->fill($data)->hasGroups();
+
+            if ($dropsGroups && $this->classes->hasGroupedSections($class)) {
+                throw ValidationException::withMessages([
+                    'number' => ['Sections of this class have a group; remove it first, since groups are only allowed for Class 9 and above.'],
+                ]);
+            }
+
+            if ($dropsGroups && $this->classes->hasGroupedCurriculum($class)) {
+                throw ValidationException::withMessages([
+                    'number' => ['The curriculum of this class has group or optional subjects; remove them first, since they are only allowed for Class 9 and above.'],
+                ]);
+            }
+
+            return $this->classes->update($class, $data);
+        }));
     }
 
     public function delete(Classes $class): void
@@ -61,7 +75,12 @@ class ClassService
         abort_if($this->classes->hasFeeStructures($class), 409, 'Class has fee structures and cannot be deleted.');
         abort_if($this->classes->hasSubjectAssignments($class), 409, 'Class has subject assignments and cannot be deleted.');
 
-        $this->classes->delete($class);
+        // The curriculum rows cascade in the database, but a soft delete doesn't fire
+        // that, so remove them explicitly in the same transaction.
+        DB::transaction(function () use ($class) {
+            $this->classes->deleteCurriculum($class);
+            $this->classes->delete($class);
+        });
     }
 
     /**

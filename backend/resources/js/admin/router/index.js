@@ -79,6 +79,11 @@ const routes = [
         component: () => import('@/views/classes/ClassForm.vue'),
       },
       {
+        path: 'classes/:id/subjects',
+        name: 'Class Curriculum',
+        component: () => import('@/views/classes/CurriculumEditor.vue'),
+      },
+      {
         path: 'classes/:id/edit',
         name: 'Edit Class',
         component: () => import('@/views/classes/ClassForm.vue'),
@@ -117,6 +122,16 @@ const routes = [
         path: 'subjects',
         name: 'Subjects',
         component: () => import('@/views/subjects/SubjectList.vue'),
+      },
+      {
+        path: 'subjects/create',
+        name: 'Add Subject',
+        component: () => import('@/views/subjects/SubjectForm.vue'),
+      },
+      {
+        path: 'subjects/:id/edit',
+        name: 'Edit Subject',
+        component: () => import('@/views/subjects/SubjectForm.vue'),
       },
       {
         path: 'attendance',

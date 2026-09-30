@@ -37,6 +37,7 @@
                 <p v-else class="text-sm text-gray-400 mt-2">No sections yet</p>
               </div>
               <div class="flex space-x-2">
+                <router-link :to="`/classes/${cls.id}/subjects`" class="text-primary-600 hover:text-primary-800" title="Subjects (curriculum)">📚</router-link>
                 <router-link :to="`/classes/${cls.id}/edit`" class="text-primary-600 hover:text-primary-800" title="Edit">✏️</router-link>
                 <button @click="deleteClass(cls)" class="text-red-600 hover:text-red-800" title="Delete">🗑️</button>
               </div>

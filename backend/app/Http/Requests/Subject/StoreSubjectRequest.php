@@ -21,6 +21,7 @@ class StoreSubjectRequest extends FormRequest
     {
         return [
             'name' => 'required|string|max:255',
+            'name_bn' => 'sometimes|nullable|string|max:255',
             'code' => 'required|string|max:255|unique:subjects,code',
             'type' => ['sometimes', 'string', Rule::in(Subject::TYPES)],
             'total_marks' => 'sometimes|integer|min:1|max:1000',

@@ -21,6 +21,8 @@ class DatabaseSeeder extends Seeder
             ShiftSeeder::class,
             StaffSeeder::class,
             ClassSeeder::class,
+            SubjectSeeder::class,
+            CurriculumSeeder::class,
             AcademicYearSeeder::class,
             SectionSeeder::class,
             MenuSeeder::class,

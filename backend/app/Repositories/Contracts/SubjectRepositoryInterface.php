@@ -9,4 +9,6 @@ interface SubjectRepositoryInterface extends RepositoryInterface
     public function isUsedInExamSchedules(Subject $subject): bool;
 
     public function hasTeacherAssignments(Subject $subject): bool;
+
+    public function isUsedInCurriculum(Subject $subject): bool;
 }

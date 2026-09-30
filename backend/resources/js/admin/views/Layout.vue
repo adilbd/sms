@@ -21,7 +21,7 @@
             <span class="font-medium">{{ item.name }}</span>
           </router-link>
 
-          <!-- Academic group: Classes, Sections and Academic Years -->
+          <!-- Academic group: Classes, Sections, Subjects and Academic Years -->
           <div>
             <button
               type="button"
@@ -141,7 +141,6 @@ const menuItems = computed(() => {
     { name: 'Dashboard', path: '/', icon: '📊' },
     { name: 'Students', path: '/students', icon: '👨‍🎓' },
     { name: 'Staff', path: '/staff', icon: '👨‍🏫' },
-    { name: 'Subjects', path: '/subjects', icon: '📚' },
     { name: 'Attendance', path: '/attendance', icon: '📋' },
     { name: 'Exams', path: '/exams', icon: '📝' },
     { name: 'Fees', path: '/fees', icon: '💰' },
@@ -165,6 +164,7 @@ const cmsItems = [
 const academicItems = [
   { name: 'Classes', path: '/classes', icon: '🏫' },
   { name: 'Sections', path: '/sections', icon: '🧑‍🤝‍🧑' },
+  { name: 'Subjects', path: '/subjects', icon: '📚' },
   { name: 'Academic Years', path: '/academic-years', icon: '📆' },
 ]
 

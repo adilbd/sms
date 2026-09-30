@@ -28,7 +28,12 @@ Route::middleware('auth:sanctum')->group(function () {
     // Students
     Route::apiResource('students', StudentController::class);
 
-    // Classes
+    // Classes. The curriculum routes are registered before the resource, like the
+    // class-teacher routes below.
+    Route::get('classes/{class}/subjects', [\App\Http\Controllers\Api\ClassController::class, 'curriculum'])
+        ->where('class', '[0-9]+');
+    Route::put('classes/{class}/subjects', [\App\Http\Controllers\Api\ClassController::class, 'updateCurriculum'])
+        ->where('class', '[0-9]+');
     Route::apiResource('classes', \App\Http\Controllers\Api\ClassController::class)
         ->where(['class' => '[0-9]+']);
 

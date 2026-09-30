@@ -54,6 +54,12 @@ class SubjectService
             'Subject is assigned to teachers and cannot be deleted.'
         );
 
+        abort_if(
+            $this->subjects->isUsedInCurriculum($subject),
+            409,
+            'Subject is part of a class curriculum and cannot be deleted.'
+        );
+
         $this->subjects->delete($subject);
     }
 
