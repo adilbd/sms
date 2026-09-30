@@ -4,6 +4,7 @@ namespace App\Providers;
 
 use App\Repositories\Contracts\AcademicYearRepositoryInterface;
 use App\Repositories\Contracts\ClassRepositoryInterface;
+use App\Repositories\Contracts\ClassSubjectRepositoryInterface;
 use App\Repositories\Contracts\ClassTeacherRepositoryInterface;
 use App\Repositories\Contracts\GalleryRepositoryInterface;
 use App\Repositories\Contracts\MediaRepositoryInterface;
@@ -17,6 +18,7 @@ use App\Repositories\Contracts\StaffRepositoryInterface;
 use App\Repositories\Contracts\SubjectRepositoryInterface;
 use App\Repositories\Eloquent\AcademicYearRepository;
 use App\Repositories\Eloquent\ClassRepository;
+use App\Repositories\Eloquent\ClassSubjectRepository;
 use App\Repositories\Eloquent\ClassTeacherRepository;
 use App\Repositories\Eloquent\GalleryRepository;
 use App\Repositories\Eloquent\MediaRepository;
@@ -51,5 +53,6 @@ class RepositoryServiceProvider extends ServiceProvider
         SectionRepositoryInterface::class => SectionRepository::class,
         AcademicYearRepositoryInterface::class => AcademicYearRepository::class,
         ClassTeacherRepositoryInterface::class => ClassTeacherRepository::class,
+        ClassSubjectRepositoryInterface::class => ClassSubjectRepository::class,
     ];
 }

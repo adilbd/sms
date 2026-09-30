@@ -6,6 +6,7 @@ use App\Models\Classes;
 use App\Repositories\Contracts\ClassRepositoryInterface;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\UniqueConstraintViolationException;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 class ClassService
@@ -47,6 +48,14 @@ class ClassService
             ]);
         }
 
+        if (array_key_exists('number', $data)
+            && ! (clone $class)->fill($data)->hasGroups()
+            && $this->classes->hasGroupedCurriculum($class)) {
+            throw ValidationException::withMessages([
+                'number' => ['The curriculum of this class has group or optional subjects; remove them first, since they are only allowed for Class 9 and above.'],
+            ]);
+        }
+
         return $this->withUniqueFields(fn () => $this->classes->update($class, $data));
     }
 
@@ -61,7 +70,12 @@ class ClassService
         abort_if($this->classes->hasFeeStructures($class), 409, 'Class has fee structures and cannot be deleted.');
         abort_if($this->classes->hasSubjectAssignments($class), 409, 'Class has subject assignments and cannot be deleted.');
 
-        $this->classes->delete($class);
+        // The curriculum rows cascade in the database, but a soft delete doesn't fire
+        // that, so remove them explicitly in the same transaction.
+        DB::transaction(function () use ($class) {
+            $this->classes->deleteCurriculum($class);
+            $this->classes->delete($class);
+        });
     }
 
     /**

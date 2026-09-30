@@ -23,6 +23,7 @@ class Subject extends Model
 
     protected $fillable = [
         'name',
+        'name_bn',
         'code',
         'type',
         'total_marks',
@@ -42,9 +43,13 @@ class Subject extends Model
         return $this->hasMany(SubjectAssignment::class);
     }
 
+    public function classSubjects(): HasMany
+    {
+        return $this->hasMany(ClassSubject::class);
+    }
+
     public function examSchedules(): HasMany
     {
         return $this->hasMany(ExamSchedule::class);
     }
 }
-

@@ -159,6 +159,30 @@ class SubjectApiTest extends TestCase
             ->assertJsonValidationErrors('code');
     }
 
+    public function test_name_bn_round_trips_on_store_update_and_show(): void
+    {
+        $id = $this->actingAs($this->admin, 'sanctum')
+            ->postJson('/api/subjects', ['name' => 'Bangla', 'name_bn' => 'বাংলা', 'code' => 'BAN'])
+            ->assertCreated()
+            ->assertJsonPath('data.name_bn', 'বাংলা')
+            ->json('data.id');
+
+        $this->actingAs($this->admin, 'sanctum')
+            ->putJson("/api/subjects/{$id}", ['name_bn' => 'বাংলা ভাষা'])
+            ->assertOk()
+            ->assertJsonPath('data.name_bn', 'বাংলা ভাষা');
+
+        $this->actingAs($this->admin, 'sanctum')
+            ->getJson("/api/subjects/{$id}")
+            ->assertOk()
+            ->assertJsonPath('data.name_bn', 'বাংলা ভাষা');
+
+        $this->actingAs($this->admin, 'sanctum')
+            ->putJson("/api/subjects/{$id}", ['name_bn' => null])
+            ->assertOk()
+            ->assertJsonPath('data.name_bn', null);
+    }
+
     public function test_destroy_returns_no_content(): void
     {
         $subject = Subject::factory()->create();

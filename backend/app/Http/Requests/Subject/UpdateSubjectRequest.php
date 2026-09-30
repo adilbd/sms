@@ -21,6 +21,7 @@ class UpdateSubjectRequest extends FormRequest
     {
         return [
             'name' => 'sometimes|string|max:255',
+            'name_bn' => 'sometimes|nullable|string|max:255',
             'code' => ['sometimes', 'string', 'max:255', Rule::unique('subjects', 'code')->ignore($this->route('subject'))],
             'type' => ['sometimes', 'string', Rule::in(Subject::TYPES)],
             'total_marks' => 'sometimes|integer|min:1|max:1000',

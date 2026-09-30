@@ -91,6 +91,12 @@ class Classes extends Model
         return $this->hasMany(SubjectAssignment::class, 'class_id');
     }
 
+    /** The class's curriculum rows (see App\Models\ClassSubject). */
+    public function curriculum(): HasMany
+    {
+        return $this->hasMany(ClassSubject::class, 'class_id');
+    }
+
     /**
      * primary (1-5), junior_secondary (6-8), secondary (9-10, SSC) or
      * higher_secondary (11-12, HSC). Null when `number` isn't set yet (legacy rows).

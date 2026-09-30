@@ -115,10 +115,54 @@ class ClassServiceTest extends TestCase
             $mock->shouldReceive('hasExamSchedules')->once()->andReturn(false);
             $mock->shouldReceive('hasFeeStructures')->once()->andReturn(false);
             $mock->shouldReceive('hasSubjectAssignments')->once()->andReturn(false);
+            $mock->shouldReceive('deleteCurriculum')->once()->with($class);
             $mock->shouldReceive('delete')->once()->with($class);
         });
 
         app(ClassService::class)->delete($class);
+    }
+
+    public function test_update_is_refused_when_lowering_number_below_9_with_group_or_optional_curriculum_rows(): void
+    {
+        $class = new Classes(['number' => 9]);
+
+        $this->mock(ClassRepositoryInterface::class, function (MockInterface $mock) use ($class) {
+            $mock->shouldReceive('hasGroupedSections')->once()->with($class)->andReturn(false);
+            $mock->shouldReceive('hasGroupedCurriculum')->once()->with($class)->andReturn(true);
+            $mock->shouldNotReceive('update');
+        });
+
+        try {
+            app(ClassService::class)->update($class, ['number' => 8]);
+            $this->fail('Expected a ValidationException.');
+        } catch (ValidationException $e) {
+            $this->assertArrayHasKey('number', $e->errors());
+        }
+    }
+
+    public function test_update_allows_lowering_number_when_the_curriculum_has_only_common_compulsory_rows(): void
+    {
+        $class = new Classes(['number' => 9]);
+
+        $this->mock(ClassRepositoryInterface::class, function (MockInterface $mock) use ($class) {
+            $mock->shouldReceive('hasGroupedSections')->once()->andReturn(false);
+            $mock->shouldReceive('hasGroupedCurriculum')->once()->andReturn(false);
+            $mock->shouldReceive('update')->once()->with($class, ['number' => 8])->andReturn($class);
+        });
+
+        app(ClassService::class)->update($class, ['number' => 8]);
+    }
+
+    public function test_update_skips_the_curriculum_check_when_number_is_not_sent(): void
+    {
+        $class = new Classes(['number' => 9]);
+
+        $this->mock(ClassRepositoryInterface::class, function (MockInterface $mock) use ($class) {
+            $mock->shouldNotReceive('hasGroupedCurriculum');
+            $mock->shouldReceive('update')->once()->andReturn($class);
+        });
+
+        app(ClassService::class)->update($class, ['name' => 'Renamed']);
     }
 
     public function test_create_reports_a_concurrent_duplicate_number_as_a_validation_error(): void

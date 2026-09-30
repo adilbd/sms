@@ -3,6 +3,7 @@
 namespace App\Repositories\Eloquent;
 
 use App\Models\Classes;
+use App\Models\ClassSubject;
 use App\Repositories\Contracts\ClassRepositoryInterface;
 use Illuminate\Database\Eloquent\Builder;
 
@@ -43,6 +44,18 @@ class ClassRepository extends EloquentRepository implements ClassRepositoryInter
     public function hasSubjectAssignments(Classes $class): bool
     {
         return $class->subjectAssignments()->exists();
+    }
+
+    public function hasGroupedCurriculum(Classes $class): bool
+    {
+        return $class->curriculum()
+            ->where(fn (Builder $q) => $q->whereNotNull('group')->orWhere('type', ClassSubject::TYPE_OPTIONAL))
+            ->exists();
+    }
+
+    public function deleteCurriculum(Classes $class): void
+    {
+        $class->curriculum()->delete();
     }
 
     protected function query(): Builder
