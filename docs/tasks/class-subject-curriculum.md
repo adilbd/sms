@@ -82,7 +82,7 @@ The intended outcome:
 - The domain rules in `CLAUDE.md`: Class 1–12, groups from Class 9, "Class" in copy (never "Grade"), and Bangla names allowed.
 
 ## Acceptance criteria
-- [ ] `class_subjects` and `subjects.name_bn` are migrated, and the migrations work on SQLite and MySQL, including rollback. SQLite and rollback are verified. MySQL hasn't been run yet; check it on the next `php artisan migrate` against Docker.
+- [x] `class_subjects` and `subjects.name_bn` are migrated, and the migrations work on SQLite and MySQL, including rollback. Verified on Docker MySQL 8.0 with migrate → rollback --step=2 → migrate, then seeded: 23 subjects and 136 curriculum rows, and a re-seed added nothing.
 - [x] `GET` and `PUT /api/classes/{class}/subjects` follow the response guideline and are covered by `ApiAuthorizationTest`.
 - [x] Every rule listed under Scope item 3 is enforced in `CurriculumService`, with 422 errors keyed per row.
 - [x] `?group=` returns that group's effective list.
