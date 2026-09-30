@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
  * A school shift (Morning, Day, ...) that every Staff member belongs to at least one
@@ -41,6 +42,11 @@ class Shift extends Model
     public function staff(): BelongsToMany
     {
         return $this->belongsToMany(Staff::class, 'shift_staff');
+    }
+
+    public function sections(): HasMany
+    {
+        return $this->hasMany(Section::class);
     }
 
     public function scopeActive(Builder $query): Builder

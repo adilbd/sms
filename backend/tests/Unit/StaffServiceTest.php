@@ -278,9 +278,32 @@ class StaffServiceTest extends TestCase
 
         $this->mock(StaffRepositoryInterface::class, function (MockInterface $mock) use ($staff) {
             $mock->shouldReceive('hasSubjectAssignments')->once()->with($staff)->andReturn(false);
+            $mock->shouldReceive('isClassTeacher')->once()->with($staff)->andReturn(false);
             $mock->shouldReceive('delete')->once()->with($staff);
         });
 
         app(StaffService::class)->delete($staff);
+    }
+
+    /**
+     * Regression test: delete() used to soft-delete a staff member without checking
+     * class_sections.staff_id, even though foreign keys don't protect soft deletes.
+     */
+    public function test_delete_is_refused_when_staff_is_a_class_teacher(): void
+    {
+        $staff = new Staff;
+
+        $this->mock(StaffRepositoryInterface::class, function (MockInterface $mock) use ($staff) {
+            $mock->shouldReceive('hasSubjectAssignments')->once()->with($staff)->andReturn(false);
+            $mock->shouldReceive('isClassTeacher')->once()->with($staff)->andReturn(true);
+            $mock->shouldNotReceive('delete');
+        });
+
+        try {
+            app(StaffService::class)->delete($staff);
+            $this->fail('Expected a 409 HttpException.');
+        } catch (HttpException $e) {
+            $this->assertSame(409, $e->getStatusCode());
+        }
     }
 }

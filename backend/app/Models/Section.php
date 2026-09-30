@@ -14,11 +14,18 @@ class Section extends Model
 
     protected $fillable = [
         'class_id',
+        'shift_id',
         'name',
         'code',
         'capacity',
+        'group',
         'description',
         'is_active',
+    ];
+
+    protected $attributes = [
+        'capacity' => 40,
+        'is_active' => true,
     ];
 
     protected $casts = [
@@ -31,14 +38,33 @@ class Section extends Model
         return $this->belongsTo(Classes::class, 'class_id');
     }
 
+    public function shift(): BelongsTo
+    {
+        return $this->belongsTo(Shift::class);
+    }
+
     public function students(): HasMany
     {
         return $this->hasMany(Student::class);
+    }
+
+    public function attendances(): HasMany
+    {
+        return $this->hasMany(Attendance::class);
     }
 
     public function examSchedules(): HasMany
     {
         return $this->hasMany(ExamSchedule::class);
     }
-}
 
+    public function subjectAssignments(): HasMany
+    {
+        return $this->hasMany(SubjectAssignment::class);
+    }
+
+    public function classSections(): HasMany
+    {
+        return $this->hasMany(ClassSection::class);
+    }
+}

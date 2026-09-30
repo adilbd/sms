@@ -2,20 +2,28 @@
 
 namespace App\Providers;
 
+use App\Repositories\Contracts\AcademicYearRepositoryInterface;
+use App\Repositories\Contracts\ClassRepositoryInterface;
+use App\Repositories\Contracts\ClassTeacherRepositoryInterface;
 use App\Repositories\Contracts\GalleryRepositoryInterface;
 use App\Repositories\Contracts\MediaRepositoryInterface;
 use App\Repositories\Contracts\MenuItemRepositoryInterface;
 use App\Repositories\Contracts\PageRepositoryInterface;
 use App\Repositories\Contracts\PostRepositoryInterface;
+use App\Repositories\Contracts\SectionRepositoryInterface;
 use App\Repositories\Contracts\SettingRepositoryInterface;
 use App\Repositories\Contracts\ShiftRepositoryInterface;
 use App\Repositories\Contracts\StaffRepositoryInterface;
 use App\Repositories\Contracts\SubjectRepositoryInterface;
+use App\Repositories\Eloquent\AcademicYearRepository;
+use App\Repositories\Eloquent\ClassRepository;
+use App\Repositories\Eloquent\ClassTeacherRepository;
 use App\Repositories\Eloquent\GalleryRepository;
 use App\Repositories\Eloquent\MediaRepository;
 use App\Repositories\Eloquent\MenuItemRepository;
 use App\Repositories\Eloquent\PageRepository;
 use App\Repositories\Eloquent\PostRepository;
+use App\Repositories\Eloquent\SectionRepository;
 use App\Repositories\Eloquent\SettingRepository;
 use App\Repositories\Eloquent\ShiftRepository;
 use App\Repositories\Eloquent\StaffRepository;
@@ -39,5 +47,9 @@ class RepositoryServiceProvider extends ServiceProvider
         GalleryRepositoryInterface::class => GalleryRepository::class,
         StaffRepositoryInterface::class => StaffRepository::class,
         ShiftRepositoryInterface::class => ShiftRepository::class,
+        ClassRepositoryInterface::class => ClassRepository::class,
+        SectionRepositoryInterface::class => SectionRepository::class,
+        AcademicYearRepositoryInterface::class => AcademicYearRepository::class,
+        ClassTeacherRepositoryInterface::class => ClassTeacherRepository::class,
     ];
 }

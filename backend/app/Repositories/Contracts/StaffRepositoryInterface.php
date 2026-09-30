@@ -33,6 +33,19 @@ interface StaffRepositoryInterface extends RepositoryInterface
     public function hasSubjectAssignments(Staff $staff): bool;
 
     /**
+     * Whether $staff leads any section as class teacher. class_sections.staff_id is
+     * `restrictOnDelete`, but foreign keys don't protect soft-deleted rows, so
+     * StaffService::delete() checks this explicitly too.
+     */
+    public function isClassTeacher(Staff $staff): bool;
+
+    /**
+     * Whether $staff belongs to shift $shiftId. Used by ClassTeacherService to
+     * enforce that a class teacher belongs to their section's shift.
+     */
+    public function belongsToShift(Staff $staff, int $shiftId): bool;
+
+    /**
      * @param  list<array<string, mixed>>  $rows
      */
     public function syncEducations(Staff $staff, array $rows): void;

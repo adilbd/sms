@@ -11,7 +11,12 @@ class AcademicYear extends Model
 {
     use HasFactory, SoftDeletes;
 
+    public const MIN_YEAR = 2000;
+
+    public const MAX_YEAR = 2100;
+
     protected $fillable = [
+        'year',
         'name',
         'code',
         'start_date',
@@ -21,6 +26,7 @@ class AcademicYear extends Model
     ];
 
     protected $casts = [
+        'year' => 'integer',
         'start_date' => 'date',
         'end_date' => 'date',
         'is_active' => 'boolean',
@@ -45,5 +51,9 @@ class AcademicYear extends Model
     {
         return $this->hasMany(ClassSection::class);
     }
-}
 
+    public function subjectAssignments(): HasMany
+    {
+        return $this->hasMany(SubjectAssignment::class);
+    }
+}

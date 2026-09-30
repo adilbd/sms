@@ -32,6 +32,7 @@ class ShiftService
     public function delete(Shift $shift): void
     {
         abort_if($this->shifts->hasStaff($shift), 409, 'Shift has staff assigned and cannot be deleted.');
+        abort_if($this->shifts->isUsedBySections($shift), 409, 'Shift is used by sections and cannot be deleted.');
 
         $this->shifts->delete($shift);
     }

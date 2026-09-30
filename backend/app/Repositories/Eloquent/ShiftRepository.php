@@ -16,6 +16,11 @@ class ShiftRepository extends EloquentRepository implements ShiftRepositoryInter
         return $shift->staff()->exists();
     }
 
+    public function isUsedBySections(Shift $shift): bool
+    {
+        return $shift->sections()->exists();
+    }
+
     public function activeOrdered(): Collection
     {
         return Shift::active()->orderBy('sort_order')->orderBy('id')->get();

@@ -3,12 +3,18 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\AcademicYear\IndexAcademicYearRequest;
+use App\Http\Requests\AcademicYear\StoreAcademicYearRequest;
+use App\Http\Requests\AcademicYear\UpdateAcademicYearRequest;
+use App\Http\Resources\AcademicYearResource;
 use App\Models\AcademicYear;
-use Illuminate\Http\Request;
+use App\Services\AcademicYearService;
 use Illuminate\Routing\Controllers\HasMiddleware;
 
 class AcademicYearController extends Controller implements HasMiddleware
 {
+    public function __construct(private AcademicYearService $academicYears) {}
+
     public static function middleware(): array
     {
         // Any signed-in user can read academic years; changing them is a settings task.
@@ -22,68 +28,48 @@ class AcademicYearController extends Controller implements HasMiddleware
         ]);
     }
 
-    public function index(Request $request)
+    public function index(IndexAcademicYearRequest $request)
     {
-        return AcademicYear::orderBy('start_date', 'desc')
-                          ->paginate($request->per_page ?? 15);
+        $perPage = min(max((int) $request->query('per_page', 15), 1), 100);
+
+        return AcademicYearResource::collection(
+            $this->academicYears->list($request->safe()->only(['is_active']), $perPage)
+        );
     }
 
-    public function store(Request $request)
+    public function store(StoreAcademicYearRequest $request)
     {
-        $validated = $request->validate([
-            'name' => 'required|string|max:255',
-            'code' => 'required|string|unique:academic_years,code',
-            'start_date' => 'required|date',
-            'end_date' => 'required|date|after:start_date',
-            'description' => 'nullable|string',
-        ]);
+        $academicYear = $this->academicYears->create($request->validated());
 
-        $academicYear = AcademicYear::create($validated);
-
-        return response()->json([
-            'message' => 'Academic year created successfully',
-            'data' => $academicYear,
-        ], 201);
+        return (new AcademicYearResource($academicYear))
+            ->additional(['message' => 'Academic year created successfully'])
+            ->response()
+            ->setStatusCode(201);
     }
 
     public function show(AcademicYear $academicYear)
     {
-        return response()->json($academicYear);
+        return new AcademicYearResource($academicYear);
     }
 
-    public function update(Request $request, AcademicYear $academicYear)
+    public function update(UpdateAcademicYearRequest $request, AcademicYear $academicYear)
     {
-        $validated = $request->validate([
-            'name' => 'sometimes|string|max:255',
-            'code' => 'sometimes|string|unique:academic_years,code,' . $academicYear->id,
-            'start_date' => 'sometimes|date',
-            'end_date' => 'sometimes|date|after:start_date',
-            'description' => 'nullable|string',
-        ]);
+        $academicYear = $this->academicYears->update($academicYear, $request->validated());
 
-        $academicYear->update($validated);
-
-        return response()->json([
-            'message' => 'Academic year updated successfully',
-            'data' => $academicYear,
-        ]);
+        return (new AcademicYearResource($academicYear))->additional(['message' => 'Academic year updated successfully']);
     }
 
     public function destroy(AcademicYear $academicYear)
     {
-        $academicYear->delete();
-        return response()->json(['message' => 'Academic year deleted successfully']);
+        $this->academicYears->delete($academicYear);
+
+        return response()->noContent();
     }
 
     public function activate(AcademicYear $academicYear)
     {
-        AcademicYear::where('is_active', true)->update(['is_active' => false]);
-        $academicYear->update(['is_active' => true]);
+        $academicYear = $this->academicYears->activate($academicYear);
 
-        return response()->json([
-            'message' => 'Academic year activated successfully',
-            'data' => $academicYear,
-        ]);
+        return (new AcademicYearResource($academicYear))->additional(['message' => 'Academic year activated successfully']);
     }
 }
-

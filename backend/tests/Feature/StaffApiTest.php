@@ -259,6 +259,19 @@ class StaffApiTest extends TestCase
         $this->assertDatabaseHas('staff', ['id' => $staff->id, 'deleted_at' => null]);
     }
 
+    public function test_destroy_is_refused_when_staff_is_a_class_teacher(): void
+    {
+        $staff = Staff::factory()->create();
+        \App\Models\ClassSection::factory()->create(['staff_id' => $staff->id]);
+
+        $this->actingAs($this->admin, 'sanctum')
+            ->deleteJson("/api/staff/{$staff->id}")
+            ->assertStatus(409)
+            ->assertJsonPath('message', 'Staff member is a class teacher and cannot be deleted.');
+
+        $this->assertDatabaseHas('staff', ['id' => $staff->id, 'deleted_at' => null]);
+    }
+
     public static function invalidStorePayloads(): array
     {
         return [

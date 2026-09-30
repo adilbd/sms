@@ -2,7 +2,6 @@
 
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\StudentController;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
 Route::post('/login', [AuthController::class, 'login']);
@@ -30,10 +29,17 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::apiResource('students', StudentController::class);
 
     // Classes
-    Route::apiResource('classes', \App\Http\Controllers\Api\ClassController::class);
+    Route::apiResource('classes', \App\Http\Controllers\Api\ClassController::class)
+        ->where(['class' => '[0-9]+']);
 
-    // Sections
-    Route::apiResource('sections', \App\Http\Controllers\Api\SectionController::class);
+    // Sections. The class-teacher routes are registered before the resource so
+    // 'class-teachers'/'class-teacher' aren't captured by the {section} wildcard.
+    Route::get('sections/{section}/class-teachers', [\App\Http\Controllers\Api\SectionController::class, 'classTeachers'])
+        ->where('section', '[0-9]+');
+    Route::put('sections/{section}/class-teacher', [\App\Http\Controllers\Api\SectionController::class, 'updateClassTeacher'])
+        ->where('section', '[0-9]+');
+    Route::apiResource('sections', \App\Http\Controllers\Api\SectionController::class)
+        ->where(['section' => '[0-9]+']);
 
     // Subjects
     Route::apiResource('subjects', \App\Http\Controllers\Api\SubjectController::class)
@@ -51,8 +57,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::apiResource('parents', \App\Http\Controllers\Api\ParentController::class);
 
     // Academic Years
-    Route::apiResource('academic-years', \App\Http\Controllers\Api\AcademicYearController::class);
-    Route::post('academic-years/{academicYear}/activate', [\App\Http\Controllers\Api\AcademicYearController::class, 'activate']);
+    Route::apiResource('academic-years', \App\Http\Controllers\Api\AcademicYearController::class)
+        ->where(['academic_year' => '[0-9]+']);
+    Route::post('academic-years/{academicYear}/activate', [\App\Http\Controllers\Api\AcademicYearController::class, 'activate'])
+        ->where('academicYear', '[0-9]+');
 
     // Attendance
     Route::apiResource('attendances', \App\Http\Controllers\Api\AttendanceController::class);
@@ -114,4 +122,3 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('dashboard/stats', [\App\Http\Controllers\Api\DashboardController::class, 'stats']);
     Route::get('dashboard/recent-activities', [\App\Http\Controllers\Api\DashboardController::class, 'recentActivities']);
 });
-
