@@ -67,7 +67,7 @@ return static::resourcePermissions('attendance', [
 
 Mapping an action to `null` leaves it open to any signed-in user. Do that only on purpose, and add the route to `ApiAuthorizationTest::OPEN_TO_ANY_USER`. That test fails for any authenticated `/api` route without a `permission:` or `role:` check. If a module needs a permission that doesn't exist yet, add it to `RolePermissionSeeder`.
 
-Permissions are role-wide. `view-students` lets a parent list **every** student, not just their own children. Rules scoped to particular records belong in the service or a policy, and none exist yet.
+Permissions are role-wide. `view-students` would let a role list **every** student, so the parent and student roles don't have it: they read their own records through `GET /api/my/children` and `GET /api/my/student`, which use `role:` middleware and a service that resolves the record from the signed-in user. Other rules scoped to particular records (for example, teachers limited to their own sections) belong in the service or a policy, and none exist yet.
 
 **Routes:** constrain resource ids to digits, for example `Route::apiResource('subjects', ...)->where(['subject' => '[0-9]+'])`. MySQL casts `'1abc'` to `1` when comparing it with an integer column, so without the constraint `/api/subjects/1abc` would act on subject 1.
 
@@ -187,10 +187,10 @@ These modules predate the pattern and query Eloquent directly:
 
 | Code | Current state |
 |------|---------------|
-| `StudentController`, `AttendanceController`, `AuthController` | Validate inline and query models in the controller. Permission checks are in place |
+| `AttendanceController` | Validates inline and queries models in the controller. Permission checks are in place |
 | `ContactService` | Service exists but queries Eloquent directly, with no repository |
 | `Web\ContactController` | Validates inline with `$request->validate(ContactService::RULES)` instead of a FormRequest |
-| Stub controllers (parents, exams, fees, dashboard) | Not implemented. **Build them with this pattern from the start.** Staff (formerly the Teacher stub) has been built; see the Staff and Shifts modules note in `CLAUDE.md`. |
+| Stub controllers (exams, fees, dashboard) | Not implemented. **Build them with this pattern from the start.** Staff (formerly the Teacher stub) has been built, and the parents stub was removed in favor of the Students module; see the Staff and Shifts modules and Students notes in `CLAUDE.md`. |
 
 **How to migrate:** don't refactor a module just to apply the pattern. When a task changes a legacy module, convert **that whole module** in the same change: repository and interface, binding, service, FormRequests, resource, and a thin controller. At the same time, update its response shape and SPA consumers as described in the API guideline. Update the tables above and in the API guideline afterwards.
 

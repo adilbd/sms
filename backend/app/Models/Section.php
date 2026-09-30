@@ -43,9 +43,9 @@ class Section extends Model
         return $this->belongsTo(Shift::class);
     }
 
-    public function students(): HasMany
+    public function enrolments(): HasMany
     {
-        return $this->hasMany(Student::class);
+        return $this->hasMany(StudentEnrolment::class);
     }
 
     public function attendances(): HasMany

@@ -16,14 +16,15 @@
 
           <div class="space-y-4">
             <div>
-              <label for="email" class="block text-sm font-medium text-gray-700 mb-1">
-                Email address
+              <label for="login" class="block text-sm font-medium text-gray-700 mb-1">
+                Email, student ID or mobile
               </label>
               <input
-                id="email"
-                v-model="form.email"
-                type="email"
+                id="login"
+                v-model="form.login"
+                type="text"
                 required
+                autocomplete="username"
                 class="input"
                 placeholder="admin@sms.com"
               />
@@ -91,7 +92,7 @@ const router = useRouter()
 const authStore = useAuthStore()
 
 const form = reactive({
-  email: 'admin@sms.com',
+  login: 'admin@sms.com',
   password: 'password',
   remember: false,
 })
@@ -105,12 +106,12 @@ const handleLogin = async () => {
 
   try {
     await authStore.login({
-      email: form.email,
+      login: form.login,
       password: form.password,
     })
     router.push('/')
   } catch (err) {
-    error.value = err.response?.data?.message || 'Invalid credentials'
+    error.value = err.response?.data?.errors?.login?.[0] || err.response?.data?.message || 'Invalid credentials'
   } finally {
     loading.value = false
   }

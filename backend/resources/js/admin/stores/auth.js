@@ -9,19 +9,22 @@ export const useAuthStore = defineStore('auth', () => {
   const loading = ref(false)
 
   const isAuthenticated = computed(() => !!token.value)
-  const userRole = computed(() => user.value?.roles?.[0]?.name || null)
+  // roles and permissions arrive as plain name strings (UserResource)
+  const userRole = computed(() => user.value?.roles?.[0] || null)
 
   const login = async (credentials) => {
     loading.value = true
     try {
+      // credentials: { login, password }. login is an email, student ID or mobile number.
       const response = await api.post('/login', credentials)
-      token.value = response.data.token
-      user.value = response.data.user
+      const { token: newToken, user: newUser } = response.data.data
+      token.value = newToken
+      user.value = newUser
 
-      localStorage.setItem('token', response.data.token)
-      localStorage.setItem('user', JSON.stringify(response.data.user))
+      localStorage.setItem('token', newToken)
+      localStorage.setItem('user', JSON.stringify(newUser))
 
-      return response.data
+      return response.data.data
     } catch (error) {
       throw error
     } finally {
@@ -48,8 +51,8 @@ export const useAuthStore = defineStore('auth', () => {
 
     try {
       const response = await api.get('/me')
-      user.value = response.data
-      localStorage.setItem('user', JSON.stringify(response.data))
+      user.value = response.data.data
+      localStorage.setItem('user', JSON.stringify(response.data.data))
     } catch (error) {
       token.value = null
       user.value = null
@@ -59,11 +62,11 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   const hasPermission = (permission) => {
-    return user.value?.permissions?.some(p => p.name === permission) || false
+    return user.value?.permissions?.includes(permission) || false
   }
 
   const hasRole = (role) => {
-    return user.value?.roles?.some(r => r.name === role) || false
+    return user.value?.roles?.includes(role) || false
   }
 
   return {

@@ -32,9 +32,9 @@ class AcademicYear extends Model
         'is_active' => 'boolean',
     ];
 
-    public function students(): HasMany
+    public function enrolments(): HasMany
     {
-        return $this->hasMany(Student::class);
+        return $this->hasMany(StudentEnrolment::class);
     }
 
     public function exams(): HasMany

@@ -25,6 +25,11 @@ class SubjectRepository extends EloquentRepository implements SubjectRepositoryI
         return $subject->classSubjects()->exists();
     }
 
+    public function isUsedAsOptionalSubject(Subject $subject): bool
+    {
+        return $subject->enrolments()->exists();
+    }
+
     protected function query(): Builder
     {
         return parent::query()->orderBy('name')->orderBy('id');

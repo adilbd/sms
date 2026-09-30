@@ -29,6 +29,11 @@ const routes = [
         component: () => import('@/views/students/StudentForm.vue'),
       },
       {
+        path: 'students/:id/edit',
+        name: 'EditStudent',
+        component: () => import('@/views/students/StudentForm.vue'),
+      },
+      {
         path: 'students/:id',
         name: 'StudentDetails',
         component: () => import('@/views/students/StudentDetails.vue'),

@@ -112,7 +112,7 @@ class PublicApiTest extends TestCase
 
         $this->postJson('/api/login', ['email' => 'admin@sms.com', 'password' => 'password', 'device_name' => 'iPhone 17'])
             ->assertOk()
-            ->assertJsonStructure(['token', 'user']);
+            ->assertJsonStructure(['data' => ['token', 'user' => ['id', 'name', 'roles', 'permissions']]]);
 
         $this->assertDatabaseHas('personal_access_tokens', ['name' => 'iPhone 17']);
     }
