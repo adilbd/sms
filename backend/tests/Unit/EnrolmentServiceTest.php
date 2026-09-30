@@ -16,6 +16,7 @@ use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Validation\ValidationException;
 use Mockery\MockInterface;
+use Tests\Support\FakeUniqueViolation;
 use Tests\TestCase;
 
 /**
@@ -218,44 +219,55 @@ class EnrolmentServiceTest extends TestCase
         }
     }
 
-    public function test_a_concurrent_roll_number_clash_becomes_a_validation_error(): void
+    private function mockCreateThrowing(UniqueConstraintViolationException $exception, bool $rollCheck): void
     {
         $section = $this->section();
-        $this->mock(StudentEnrolmentRepositoryInterface::class, function (MockInterface $mock) use ($section) {
+        $this->mock(StudentEnrolmentRepositoryInterface::class, function (MockInterface $mock) use ($section, $exception, $rollCheck) {
             $mock->shouldReceive('lockSection')->andReturn($section);
             $mock->shouldReceive('forStudentAndYear')->andReturn(null);
             $mock->shouldReceive('countActiveInSection')->andReturn(0);
-            $mock->shouldReceive('rollNumberTaken')->andReturn(false);
-            $mock->shouldReceive('create')->andThrow(new UniqueConstraintViolationException(
-                'sqlite', 'insert', [], new \Exception('UNIQUE constraint failed: student_enrolments.section_id, student_enrolments.academic_year_id, student_enrolments.roll_number')
-            ));
+            if ($rollCheck) {
+                $mock->shouldReceive('rollNumberTaken')->andReturn(false);
+            }
+            $mock->shouldReceive('create')->andThrow($exception);
         });
         $this->mock(ClassSubjectRepositoryInterface::class);
+    }
 
-        try {
-            app(EnrolmentService::class)->save($this->student, $this->year, ['section_id' => 9, 'roll_number' => 2]);
-            $this->fail('Expected a validation error.');
-        } catch (ValidationException $e) {
-            $this->assertArrayHasKey('enrolment.roll_number', $e->errors());
+    private const INSERT_COLUMNS = ['class_id', 'section_id', 'group', 'optional_subject_id', 'roll_number', 'status', 'student_id', 'academic_year_id'];
+
+    public function test_a_concurrent_roll_number_clash_becomes_a_validation_error(): void
+    {
+        foreach (FakeUniqueViolation::drivers() as $driver) {
+            $this->mockCreateThrowing(FakeUniqueViolation::make(
+                $driver, 'student_enrolments', ['section_id', 'academic_year_id', 'roll_number'], self::INSERT_COLUMNS,
+                'student_enrolments_section_year_roll_unique',
+            ), rollCheck: true);
+
+            try {
+                app(EnrolmentService::class)->save($this->student, $this->year, ['section_id' => 9, 'roll_number' => 2]);
+                $this->fail("Expected a validation error ({$driver}).");
+            } catch (ValidationException $e) {
+                $this->assertArrayHasKey('enrolment.roll_number', $e->errors(), $driver);
+            }
         }
     }
 
     public function test_another_unique_violation_is_not_reported_as_a_roll_number_error(): void
     {
-        $section = $this->section();
-        $this->mock(StudentEnrolmentRepositoryInterface::class, function (MockInterface $mock) use ($section) {
-            $mock->shouldReceive('lockSection')->andReturn($section);
-            $mock->shouldReceive('forStudentAndYear')->andReturn(null);
-            $mock->shouldReceive('countActiveInSection')->andReturn(0);
-            $mock->shouldReceive('create')->andThrow(new UniqueConstraintViolationException(
-                'sqlite', 'insert', [], new \Exception('UNIQUE constraint failed: student_enrolments.student_id, student_enrolments.academic_year_id')
-            ));
-        });
-        $this->mock(ClassSubjectRepositoryInterface::class);
+        // The INSERT names roll_number too, so matching the whole message would misfire.
+        foreach (FakeUniqueViolation::drivers() as $driver) {
+            $this->mockCreateThrowing(FakeUniqueViolation::make(
+                $driver, 'student_enrolments', ['student_id', 'academic_year_id'], self::INSERT_COLUMNS,
+            ), rollCheck: true);
 
-        $this->expectException(UniqueConstraintViolationException::class);
-
-        app(EnrolmentService::class)->save($this->student, $this->year, ['section_id' => 9]);
+            try {
+                app(EnrolmentService::class)->save($this->student, $this->year, ['section_id' => 9, 'roll_number' => 2]);
+                $this->fail("Expected the unique violation to be rethrown ({$driver}).");
+            } catch (UniqueConstraintViolationException) {
+                $this->addToAssertionCount(1);
+            }
+        }
     }
 
     public function test_the_enrolment_status_follows_the_students_status(): void

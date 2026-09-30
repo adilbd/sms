@@ -8,6 +8,7 @@ use App\Models\User;
 use App\Repositories\Contracts\AcademicYearRepositoryInterface;
 use App\Repositories\Contracts\StudentRepositoryInterface;
 use App\Repositories\Contracts\UserRepositoryInterface;
+use App\Support\UniqueViolation;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\UniqueConstraintViolationException;
@@ -186,9 +187,22 @@ class StudentService
                 } else {
                     $guardian = $this->users->find((int) $student->guardian_user_id);
 
-                    if ($guardian && filled($guardianPassword)) {
-                        $this->users->update($guardian, ['password' => $guardianPassword]);
-                        $this->users->revokeAllTokens($guardian);
+                    if ($guardian) {
+                        $attributes = isset($profile['guardian_name']) && $guardian->name !== $profile['guardian_name']
+                            ? ['name' => $profile['guardian_name']]
+                            : [];
+
+                        if (filled($guardianPassword)) {
+                            $attributes['password'] = $guardianPassword;
+                        }
+
+                        if ($attributes !== []) {
+                            $this->users->update($guardian, $attributes);
+                        }
+
+                        if (filled($guardianPassword)) {
+                            $this->users->revokeAllTokens($guardian);
+                        }
                     }
                 }
 
@@ -241,8 +255,12 @@ class StudentService
                 $this->users->revokeAllTokens($login);
             }
 
-            // Enrolments stay as history. Deleted first so the guardian check below
-            // no longer counts this student.
+            // The enrolment stays as history but frees its seat and roll number.
+            if ($year = $this->years->findActive()) {
+                $this->enrolments->release($student, $year);
+            }
+
+            // Deleted before the guardian check below so it no longer counts this student.
             $this->students->delete($student);
 
             if ($student->guardian_user_id) {
@@ -294,8 +312,26 @@ class StudentService
             ]);
         }
 
+        // A deactivated guardian login belongs to a number that may since have been
+        // recycled to someone else, so it is never revived under its old password.
+        if (! $user->is_active && blank($password)) {
+            throw ValidationException::withMessages([
+                'guardian_password' => ['A new guardian password is required because the existing guardian login for this mobile number is deactivated.'],
+            ]);
+        }
+
+        // The login carries the latest guardian name written for it.
+        $attributes = $user->name !== $name ? ['name' => $name] : [];
+
         if (filled($password)) {
-            $this->users->update($user, ['password' => $password]);
+            $attributes['password'] = $password;
+        }
+
+        if ($attributes !== []) {
+            $this->users->update($user, $attributes);
+        }
+
+        if (filled($password)) {
             $this->users->revokeAllTokens($user);
         }
 
@@ -395,20 +431,24 @@ class StudentService
         try {
             return $write();
         } catch (UniqueConstraintViolationException $e) {
-            if (str_contains($e->getMessage(), 'birth_registration_number')) {
+            if (UniqueViolation::is($e, 'students', ['birth_registration_number'])) {
                 throw ValidationException::withMessages([
                     'birth_registration_number' => ['The birth registration number has already been taken.'],
                 ]);
             }
 
-            if (str_contains($e->getMessage(), 'email')) {
+            if (UniqueViolation::is($e, 'users', ['email'])) {
                 throw ValidationException::withMessages(['email' => ['The email has already been taken.']]);
             }
 
             // student_id / username: two requests allocated the same next number.
-            throw ValidationException::withMessages([
-                'student_id' => ['Could not allocate a unique student ID. Please try again.'],
-            ]);
+            if (UniqueViolation::is($e, 'students', ['student_id']) || UniqueViolation::is($e, 'users', ['username'])) {
+                throw ValidationException::withMessages([
+                    'student_id' => ['Could not allocate a unique student ID. Please try again.'],
+                ]);
+            }
+
+            throw $e;
         }
     }
 

@@ -75,7 +75,7 @@ class StudentSeederTest extends TestCase
         $this->assertGreaterThan(0, $guardianWithTwo);
 
         $this->postJson('/api/login', ['login' => '20260001', 'password' => 'password'])->assertOk()->assertJsonPath('data.user.roles', ['student']);
-        $this->postJson('/api/login', ['login' => '+8801700000001', 'password' => 'password'])->assertOk()->assertJsonPath('data.user.roles', ['parent']);
+        $this->postJson('/api/login', ['login' => '+8801999000001', 'password' => 'password'])->assertOk()->assertJsonPath('data.user.roles', ['parent']);
     }
 
     public function test_running_twice_creates_no_duplicates(): void

@@ -115,6 +115,7 @@ class AuthServiceTest extends TestCase
 
         $this->mock(UserRepositoryInterface::class, function (MockInterface $mock) use ($user) {
             $mock->shouldReceive('update')->once()->with($user, ['password' => 'new-password-1']);
+            $mock->shouldReceive('revokeOtherTokens')->once()->with($user);
         });
 
         app(AuthService::class)->changePassword($user, 'secret-pass', 'new-password-1');
@@ -124,7 +125,7 @@ class AuthServiceTest extends TestCase
     {
         $user = $this->user();
 
-        $this->mock(UserRepositoryInterface::class, fn (MockInterface $mock) => $mock->shouldNotReceive('update'));
+        $this->mock(UserRepositoryInterface::class, fn (MockInterface $mock) => $mock->shouldNotReceive('update', 'revokeOtherTokens'));
 
         try {
             app(AuthService::class)->changePassword($user, 'wrong', 'new-password-1');

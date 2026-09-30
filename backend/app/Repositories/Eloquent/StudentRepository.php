@@ -14,12 +14,16 @@ class StudentRepository extends EloquentRepository implements StudentRepositoryI
 
     public function nextStudentId(int $year): string
     {
+        // The sequence is at least 4 digits and keeps growing past 9999 (5+ digits), so
+        // the longest ID sorts highest numerically, then the largest of that length.
         $latest = Student::withTrashed()
             ->where('student_id', 'like', "{$year}%")
-            ->whereRaw('length(student_id) = ?', [strlen((string) $year) + 4])
-            ->max('student_id');
+            ->whereRaw('length(student_id) >= ?', [strlen((string) $year) + 4])
+            ->orderByRaw('length(student_id) desc')
+            ->orderByDesc('student_id')
+            ->value('student_id');
 
-        $sequence = $latest ? (int) substr((string) $latest, -4) + 1 : 1;
+        $sequence = $latest ? (int) substr((string) $latest, strlen((string) $year)) + 1 : 1;
 
         return $year.str_pad((string) $sequence, 4, '0', STR_PAD_LEFT);
     }

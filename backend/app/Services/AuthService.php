@@ -54,5 +54,8 @@ class AuthService
         }
 
         $this->users->update($user, ['password' => $newPassword]);
+
+        // Other devices must sign in again with the new password; this one stays signed in.
+        $this->users->revokeOtherTokens($user);
     }
 }

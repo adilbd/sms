@@ -11,6 +11,7 @@ use App\Models\StudentEnrolment;
 use App\Repositories\Contracts\ClassSubjectRepositoryInterface;
 use App\Repositories\Contracts\StudentEnrolmentRepositoryInterface;
 use App\Support\AcademicGroup;
+use App\Support\UniqueViolation;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
@@ -42,7 +43,7 @@ class EnrolmentService
                 $section = $this->enrolments->lockSection((int) $data['section_id']);
                 $existing = $this->enrolments->forStudentAndYear($student, $year->id);
 
-                $this->ensureValid($section, $year, $data, $existing);
+                $this->ensureValid($section, $year, $data, $existing, $this->statusFor($student));
 
                 $attributes = [
                     'class_id' => $section->class_id,
@@ -59,7 +60,7 @@ class EnrolmentService
             });
         } catch (UniqueConstraintViolationException $e) {
             // The roll check runs before the write; a concurrent request can still win.
-            if (! str_contains($e->getMessage(), 'roll')) {
+            if (! UniqueViolation::is($e, 'student_enrolments', ['section_id', 'academic_year_id', 'roll_number'], 'student_enrolments_section_year_roll_unique')) {
                 throw $e;
             }
 
@@ -85,6 +86,20 @@ class EnrolmentService
         }
     }
 
+    /**
+     * Frees the student's seat and roll number for $year (used when the student is
+     * deleted). The row stays as history, marked as left; its roll number is cleared
+     * because the unique index on (section, year, roll) would otherwise keep it taken.
+     */
+    public function release(Student $student, AcademicYear $year): void
+    {
+        $existing = $this->enrolments->forStudentAndYear($student, $year->id);
+
+        if ($existing && $existing->status === StudentEnrolment::STATUS_ACTIVE) {
+            $this->enrolments->update($existing, ['status' => StudentEnrolment::STATUS_LEFT, 'roll_number' => null]);
+        }
+    }
+
     public function history(Student $student): Collection
     {
         return $this->enrolments->historyFor($student);
@@ -102,7 +117,7 @@ class EnrolmentService
     /**
      * @param  array<string, mixed>  $data
      */
-    private function ensureValid(Section $section, AcademicYear $year, array $data, ?StudentEnrolment $existing): void
+    private function ensureValid(Section $section, AcademicYear $year, array $data, ?StudentEnrolment $existing, string $newStatus): void
     {
         $class = $section->class;
         $group = $data['group'] ?? null;
@@ -110,11 +125,17 @@ class EnrolmentService
         $roll = $data['roll_number'] ?? null;
         $errors = [];
 
+        // The section checks apply whenever the enrolment starts taking a seat: a new
+        // active enrolment, a move into another section, or one turning active again.
         // A student keeping their seat can be edited even if the section or its shift
-        // was deactivated (or filled up) since; only a move into a section is checked.
-        $movingIn = ! $existing || $existing->section_id !== $section->id;
+        // was deactivated (or filled up) since, and a student who is not active (left,
+        // graduated) takes no seat, so is never blocked by these.
+        $takesSeat = $newStatus === StudentEnrolment::STATUS_ACTIVE
+            && (! $existing
+                || $existing->section_id !== $section->id
+                || $existing->status !== StudentEnrolment::STATUS_ACTIVE);
 
-        if ($movingIn) {
+        if ($takesSeat) {
             if (! $section->is_active) {
                 $errors['enrolment.section_id'][] = 'The section is not active.';
             } elseif (! $section->shift || ! $section->shift->is_active) {

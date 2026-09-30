@@ -56,7 +56,7 @@
         <h2 class="text-lg font-semibold text-gray-900 mb-2">Logins</h2>
         <p class="text-sm text-gray-600">
           Student signs in with username <strong>{{ student.username }}</strong>.
-          The guardian signs in with their mobile number <strong>{{ student.guardian.mobile }}</strong>.
+          <template v-if="student.guardian.mobile">The guardian signs in with their mobile number <strong>{{ student.guardian.mobile }}</strong>.</template>
         </p>
       </section>
 

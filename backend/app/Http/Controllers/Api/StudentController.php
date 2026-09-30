@@ -10,6 +10,7 @@ use App\Http\Resources\StudentEnrolmentResource;
 use App\Http\Resources\StudentResource;
 use App\Models\Student;
 use App\Services\StudentService;
+use Illuminate\Http\Request;
 use Illuminate\Routing\Controllers\HasMiddleware;
 
 class StudentController extends Controller implements HasMiddleware
@@ -27,11 +28,12 @@ class StudentController extends Controller implements HasMiddleware
     {
         $perPage = min(max((int) $request->query('per_page', 15), 1), 100);
 
-        return StudentResource::collection(
+        return StudentResource::collectionFor(
             $this->students->list(
                 $request->safe()->only(['academic_year_id', 'class_id', 'section_id', 'shift_id', 'group', 'status', 'search']),
                 $perPage,
-            )
+            ),
+            $this->canSeeSensitive($request),
         );
     }
 
@@ -40,14 +42,15 @@ class StudentController extends Controller implements HasMiddleware
         $student = $this->students->create($request->safe()->except(['photo']), $request->file('photo'));
 
         return (new StudentResource($student))
+            ->withSensitive($this->canSeeSensitive($request))
             ->additional(['message' => 'Student created successfully'])
             ->response()
             ->setStatusCode(201);
     }
 
-    public function show(Student $student)
+    public function show(Request $request, Student $student)
     {
-        return new StudentResource($this->students->find($student));
+        return (new StudentResource($this->students->find($student)))->withSensitive($this->canSeeSensitive($request));
     }
 
     public function update(UpdateStudentRequest $request, Student $student)
@@ -59,7 +62,18 @@ class StudentController extends Controller implements HasMiddleware
             $request->boolean('remove_photo'),
         );
 
-        return (new StudentResource($student))->additional(['message' => 'Student updated successfully']);
+        return (new StudentResource($student))
+            ->withSensitive($this->canSeeSensitive($request))
+            ->additional(['message' => 'Student updated successfully']);
+    }
+
+    /**
+     * Addresses, birth registration number, parents' mobiles and login ids go only to
+     * users who can edit students (view-students alone, e.g. a teacher, is not enough).
+     */
+    private function canSeeSensitive(Request $request): bool
+    {
+        return $request->user()->can('edit-students');
     }
 
     public function destroy(Student $student)

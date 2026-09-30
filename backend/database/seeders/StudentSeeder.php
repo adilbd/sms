@@ -88,7 +88,8 @@ class StudentSeeder extends Seeder
         $guardianKey = ($i === self::PER_CLASS && $number >= 2)
             ? ($number - 2) * self::PER_CLASS + 1
             : ($number - 1) * self::PER_CLASS + $i;
-        $guardianMobile = '01700'.str_pad((string) $guardianKey, 6, '0', STR_PAD_LEFT);
+        // Reserved demo range 01999xxxxxx, unlikely to collide with a real subscriber's number.
+        $guardianMobile = '01999'.str_pad((string) $guardianKey, 6, '0', STR_PAD_LEFT);
 
         $guardian = User::firstOrCreate(['username' => $guardianMobile], [
             'name' => $fatherEn,

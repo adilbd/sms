@@ -8,7 +8,7 @@ use App\Support\Mobile;
 use Illuminate\Validation\Rule;
 
 /**
- * Field rules shared by the store and update requests. Mobile numbers are normalized to
+ * Field rules shared by the store and update requests. The email is lowercased and mobile numbers are normalized to
  * 01XXXXXXXXX in prepareForValidation() (a "+88" prefix is dropped) before the pattern
  * rule runs.
  */
@@ -25,6 +25,12 @@ trait HasStudentRules
             if (is_string($this->input($field))) {
                 $normalized[$field] = Mobile::normalize($this->input($field));
             }
+        }
+
+        // Emails are stored lowercased (MySQL compares them case-insensitively, SQLite
+        // does not), which lets login and the unique rule compare them exactly.
+        if (is_string($this->input('email'))) {
+            $normalized['email'] = mb_strtolower(trim($this->input('email')));
         }
 
         $this->merge($normalized);
@@ -48,7 +54,7 @@ trait HasStudentRules
     protected function enrolmentRules(bool $required): array
     {
         return [
-            'enrolment' => [$required ? 'required' : 'sometimes', 'array'],
+            'enrolment' => [$required ? 'required' : 'sometimes', 'array', 'required_array_keys:section_id'],
             'enrolment.section_id' => ['required_with:enrolment', 'integer', Rule::exists('sections', 'id')->whereNull('deleted_at')],
             'enrolment.group' => ['nullable', Rule::in(AcademicGroup::VALUES)],
             'enrolment.optional_subject_id' => ['nullable', 'integer', Rule::exists('subjects', 'id')->whereNull('deleted_at')],

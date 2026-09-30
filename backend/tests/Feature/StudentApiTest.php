@@ -752,4 +752,165 @@ class StudentApiTest extends TestCase
             ->assertNotFound()
             ->assertJsonPath('message', 'Record not found.');
     }
+
+    // --- review round 1 ---------------------------------------------------------------
+
+    public function test_deleting_a_student_frees_the_seat_and_the_roll_number(): void
+    {
+        $this->section5->update(['capacity' => 1]);
+        $id = $this->actingAs($this->admin, 'sanctum')->postJson('/api/students', $this->payload())->json('data.id');
+
+        // The section is full and roll 1 is taken.
+        $this->actingAs($this->admin, 'sanctum')
+            ->postJson('/api/students', $this->payload(['guardian_mobile' => '01722222222', 'enrolment' => ['roll_number' => 1]]))
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('enrolment.section_id');
+
+        $this->actingAs($this->admin, 'sanctum')->deleteJson("/api/students/{$id}")->assertNoContent();
+
+        $this->assertSame('left', StudentEnrolment::where('student_id', $id)->value('status'));
+        $this->actingAs($this->admin, 'sanctum')
+            ->postJson('/api/students', $this->payload(['guardian_mobile' => '01722222222', 'enrolment' => ['roll_number' => 1]]))
+            ->assertCreated();
+    }
+
+    public function test_an_empty_enrolment_block_is_a_validation_error_not_a_500(): void
+    {
+        $id = $this->actingAs($this->admin, 'sanctum')->postJson('/api/students', $this->payload())->json('data.id');
+
+        $this->actingAs($this->admin, 'sanctum')
+            ->putJson("/api/students/{$id}", ['enrolment' => []])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('enrolment');
+        $this->actingAs($this->admin, 'sanctum')
+            ->call('PUT', "/api/students/{$id}", [], [], [], ['CONTENT_TYPE' => 'application/json', 'HTTP_ACCEPT' => 'application/json'], '{"enrolment": {}}')
+            ->assertUnprocessable();
+        $this->actingAs($this->admin, 'sanctum')
+            ->putJson("/api/students/{$id}", ['enrolment' => ['roll_number' => 4]])
+            ->assertUnprocessable();
+    }
+
+    public function test_a_recycled_mobile_matching_an_inactive_guardian_needs_a_new_password(): void
+    {
+        $old = $this->actingAs($this->admin, 'sanctum')->postJson('/api/students', $this->payload())->json('data.id');
+        $guardian = User::findOrFail(Student::findOrFail($old)->guardian_user_id);
+        $this->actingAs($this->admin, 'sanctum')->deleteJson("/api/students/{$old}")->assertNoContent();
+        $this->assertFalse($guardian->refresh()->is_active);
+        $guardian->createToken('old-device');
+
+        $recycled = $this->payload(['guardian_name' => 'New Owner', 'guardian_password' => null, 'enrolment' => ['roll_number' => 2]]);
+        $this->actingAs($this->admin, 'sanctum')
+            ->postJson('/api/students', $recycled)
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('guardian_password');
+        $this->assertFalse($guardian->refresh()->is_active);
+
+        $recycled['guardian_password'] = 'brand-new-guardian';
+        $this->actingAs($this->admin, 'sanctum')->postJson('/api/students', $recycled)->assertCreated();
+
+        $guardian->refresh();
+        $this->assertTrue($guardian->is_active);
+        $this->assertSame('New Owner', $guardian->name);
+        $this->assertTrue(Hash::check('brand-new-guardian', $guardian->password));
+        $this->assertFalse(Hash::check('guardian-pass', $guardian->password));
+        $this->assertSame(0, $guardian->tokens()->count(), 'old tokens are revoked');
+    }
+
+    public function test_the_guardian_login_name_follows_the_latest_guardian_name(): void
+    {
+        $first = $this->actingAs($this->admin, 'sanctum')->postJson('/api/students', $this->payload())->json('data.id');
+        $guardian = User::findOrFail(Student::findOrFail($first)->guardian_user_id);
+
+        $this->actingAs($this->admin, 'sanctum')
+            ->putJson("/api/students/{$first}", ['guardian_name' => 'Renamed Guardian'])
+            ->assertOk();
+        $this->assertSame('Renamed Guardian', $guardian->refresh()->name);
+
+        // A sibling registered later with the same mobile wins as the latest name.
+        $this->actingAs($this->admin, 'sanctum')
+            ->postJson('/api/students', $this->payload(['guardian_name' => 'Sibling Guardian', 'guardian_password' => null, 'enrolment' => ['roll_number' => 2]]))
+            ->assertCreated();
+        $this->assertSame('Sibling Guardian', $guardian->refresh()->name);
+    }
+
+    public function test_an_email_differing_only_by_case_is_a_duplicate_and_is_stored_lowercase(): void
+    {
+        User::factory()->create(['email' => 'taken@example.com']);
+
+        $this->actingAs($this->admin, 'sanctum')
+            ->postJson('/api/students', $this->payload(['email' => 'Taken@Example.COM']))
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('email');
+
+        $this->actingAs($this->admin, 'sanctum')
+            ->postJson('/api/students', $this->payload(['email' => 'Fresh@Example.COM']))
+            ->assertCreated()
+            ->assertJsonPath('data.email', 'fresh@example.com');
+
+        $id = Student::firstOrFail()->id;
+        $this->actingAs($this->admin, 'sanctum')
+            ->putJson("/api/students/{$id}", ['email' => 'TAKEN@example.com'])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('email');
+    }
+
+    public function test_a_login_with_a_differently_cased_student_email_works(): void
+    {
+        $this->actingAs($this->admin, 'sanctum')
+            ->postJson('/api/students', $this->payload(['email' => 'Kid@Example.com']))->assertCreated();
+
+        $this->postJson('/api/login', ['login' => 'KID@example.COM', 'password' => 'student-pass'])->assertOk();
+    }
+
+    public function test_sensitive_fields_are_only_sent_to_users_who_can_edit_students(): void
+    {
+        $id = $this->actingAs($this->admin, 'sanctum')
+            ->postJson('/api/students', $this->payload(['birth_registration_number' => '20140123456789012', 'present_address' => 'Mirpur, Dhaka', 'father_mobile' => '01755555555']))
+            ->assertCreated()
+            ->assertJsonPath('data.birth_registration_number', '20140123456789012')
+            ->json('data.id');
+
+        $this->actingAs($this->admin, 'sanctum')->getJson("/api/students/{$id}")
+            ->assertOk()
+            ->assertJsonPath('data.birth_registration_number', '20140123456789012')
+            ->assertJsonPath('data.present_address', 'Mirpur, Dhaka')
+            ->assertJsonPath('data.father.mobile', '01755555555')
+            ->assertJsonPath('data.guardian.mobile', '01711111111')
+            ->assertJsonPath('data.user_id', Student::findOrFail($id)->user_id);
+
+        $teacher = User::factory()->create();
+        $teacher->assignRole('teacher');
+
+        $hidden = ['birth_registration_number', 'present_address', 'permanent_address', 'user_id'];
+        $show = $this->actingAs($teacher, 'sanctum')->getJson("/api/students/{$id}")->assertOk();
+        foreach ($hidden as $key) {
+            $show->assertJsonMissingPath("data.{$key}");
+        }
+        $show->assertJsonMissingPath('data.father.mobile')
+            ->assertJsonMissingPath('data.mother.mobile')
+            ->assertJsonMissingPath('data.guardian.mobile')
+            ->assertJsonMissingPath('data.guardian.user_id')
+            ->assertJsonPath('data.father.name_en', null)
+            ->assertJsonPath('data.student_id', '20260001');
+
+        $list = $this->actingAs($teacher, 'sanctum')->getJson('/api/students')->assertOk();
+        $list->assertJsonMissingPath('data.0.birth_registration_number')
+            ->assertJsonMissingPath('data.0.guardian.mobile')
+            ->assertJsonMissingPath('data.0.present_address');
+
+        $this->actingAs($this->admin, 'sanctum')->getJson('/api/students')
+            ->assertJsonPath('data.0.guardian.mobile', '01711111111');
+    }
+
+    public function test_the_next_student_id_does_not_wrap_after_9999(): void
+    {
+        Student::factory()->create(['student_id' => '20269999']);
+
+        $this->actingAs($this->admin, 'sanctum')->postJson('/api/students', $this->payload())
+            ->assertCreated()->assertJsonPath('data.student_id', '202610000');
+
+        $this->actingAs($this->admin, 'sanctum')
+            ->postJson('/api/students', $this->payload(['guardian_mobile' => '01722222222', 'enrolment' => ['roll_number' => 2]]))
+            ->assertCreated()->assertJsonPath('data.student_id', '202610001');
+    }
 }

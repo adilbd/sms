@@ -36,4 +36,10 @@ interface UserRepositoryInterface extends RepositoryInterface
     public function revokeCurrentToken(User $user): void;
 
     public function revokeAllTokens(User $user): void;
+
+    /**
+     * Deletes every token except the one the current request was authenticated with
+     * (all of them when there is none, as with actingAs() in tests).
+     */
+    public function revokeOtherTokens(User $user): void;
 }

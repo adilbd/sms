@@ -170,4 +170,45 @@ class StudentEnrolmentTest extends TestCase
             ->assertOk()
             ->assertJsonPath('data.0.roll_number', 9);
     }
+
+    public function test_a_soft_deleted_student_holds_no_seat_or_roll_number(): void
+    {
+        $gone = Student::factory()->create();
+        $this->service()->save($gone, $this->year, ['section_id' => $this->section->id, 'roll_number' => 1]);
+        $this->service()->save(Student::factory()->create(), $this->year, ['section_id' => $this->section->id, 'roll_number' => 2]);
+        $this->service()->release($gone, $this->year);
+        $gone->delete();
+
+        $saved = $this->service()->save(Student::factory()->create(), $this->year, ['section_id' => $this->section->id, 'roll_number' => 1]);
+
+        $this->assertSame(1, $saved->roll_number);
+    }
+
+    public function test_a_student_who_is_not_active_is_not_blocked_by_a_full_section(): void
+    {
+        $this->service()->save(Student::factory()->create(), $this->year, ['section_id' => $this->section->id]);
+        $this->service()->save(Student::factory()->create(), $this->year, ['section_id' => $this->section->id]);
+
+        $left = Student::factory()->create(['status' => Student::STATUS_LEFT, 'leaving_date' => '2026-06-30']);
+        $saved = $this->service()->save($left, $this->year, ['section_id' => $this->section->id]);
+
+        $this->assertSame('left', $saved->status);
+    }
+
+    public function test_reactivating_a_student_into_a_full_section_is_checked(): void
+    {
+        $left = Student::factory()->create(['status' => Student::STATUS_LEFT, 'leaving_date' => '2026-06-30']);
+        $this->service()->save($left, $this->year, ['section_id' => $this->section->id]);
+        $this->service()->save(Student::factory()->create(), $this->year, ['section_id' => $this->section->id]);
+        $this->service()->save(Student::factory()->create(), $this->year, ['section_id' => $this->section->id]);
+
+        $left->update(['status' => Student::STATUS_ACTIVE, 'leaving_date' => null]);
+
+        try {
+            $this->service()->save($left, $this->year, ['section_id' => $this->section->id]);
+            $this->fail('The section should be full.');
+        } catch (ValidationException $e) {
+            $this->assertArrayHasKey('enrolment.section_id', $e->errors());
+        }
+    }
 }

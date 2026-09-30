@@ -32,6 +32,8 @@ class StudentEnrolmentRepository implements StudentEnrolmentRepositoryInterface
             ->where('section_id', $sectionId)
             ->where('academic_year_id', $academicYearId)
             ->where('roll_number', $rollNumber)
+            // A soft-deleted student no longer holds a roll number.
+            ->whereHas('student')
             ->when($exceptId, fn (Builder $q) => $q->whereKeyNot($exceptId))
             ->exists();
     }
@@ -42,6 +44,8 @@ class StudentEnrolmentRepository implements StudentEnrolmentRepositoryInterface
             ->where('section_id', $sectionId)
             ->where('academic_year_id', $academicYearId)
             ->where('status', StudentEnrolment::STATUS_ACTIVE)
+            // A soft-deleted student no longer takes a seat.
+            ->whereHas('student')
             ->count();
     }
 

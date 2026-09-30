@@ -5,7 +5,6 @@ namespace App\Repositories\Eloquent;
 use App\Models\User;
 use App\Repositories\Contracts\UserRepositoryInterface;
 use App\Support\Mobile;
-use Illuminate\Support\Facades\DB;
 use Laravel\Sanctum\PersonalAccessToken;
 
 class UserRepository extends EloquentRepository implements UserRepositoryInterface
@@ -20,12 +19,14 @@ class UserRepository extends EloquentRepository implements UserRepositoryInterfa
             return null;
         }
 
+        // Every writer stores emails lowercased (StudentService via the request's
+        // prepareForValidation(), the seeders directly), so an exact match on the
+        // lowercased input can use the unique index. Usernames are digits.
         $lower = array_map('mb_strtolower', $candidates);
 
-        // Email compares case-insensitively on every database; usernames are digits.
         return User::query()
             ->where(fn ($q) => $q
-                ->whereIn(DB::raw('lower(email)'), $lower)
+                ->whereIn('email', $lower)
                 ->orWhereIn('username', $candidates))
             ->orderBy('id')
             ->first();
@@ -66,5 +67,14 @@ class UserRepository extends EloquentRepository implements UserRepositoryInterfa
     public function revokeAllTokens(User $user): void
     {
         $user->tokens()->delete();
+    }
+
+    public function revokeOtherTokens(User $user): void
+    {
+        $current = $user->currentAccessToken();
+
+        $user->tokens()
+            ->when($current instanceof PersonalAccessToken, fn ($q) => $q->whereKeyNot($current->getKey()))
+            ->delete();
     }
 }

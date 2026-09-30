@@ -15,6 +15,7 @@ use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Validation\ValidationException;
 use Mockery;
 use Mockery\MockInterface;
+use Tests\Support\FakeUniqueViolation;
 use Tests\TestCase;
 
 /**
@@ -112,6 +113,7 @@ class StudentServiceTest extends TestCase
     {
         $this->years();
         $guardian = $this->user(20);
+        $guardian->name = 'Karim Uddin';
         $created = $this->savedStudent();
 
         $this->mock(UserRepositoryInterface::class, function (MockInterface $mock) use ($guardian) {
@@ -129,6 +131,54 @@ class StudentServiceTest extends TestCase
         $this->mock(EnrolmentService::class, fn (MockInterface $mock) => $mock->shouldReceive('save')->andReturn(new StudentEnrolment));
 
         app(StudentService::class)->create($this->data(['guardian_password' => null]), null);
+    }
+
+    public function test_create_needs_a_new_password_to_reuse_an_inactive_guardian_login(): void
+    {
+        $this->years();
+        $guardian = $this->user(20, active: false);
+
+        $this->mock(UserRepositoryInterface::class, function (MockInterface $mock) use ($guardian) {
+            $mock->shouldReceive('findByUsername')->with('01711111111')->andReturn($guardian);
+            $mock->shouldReceive('hasRole')->with($guardian, 'parent')->andReturn(true);
+            $mock->shouldReceive('createWithRole')->andReturn($this->user(10));
+            $mock->shouldNotReceive('update');
+            $mock->shouldNotReceive('revokeAllTokens');
+        });
+        $this->mock(StudentRepositoryInterface::class, fn (MockInterface $mock) => $mock->shouldReceive('nextStudentId')->andReturn('20260002'));
+        $this->mock(EnrolmentService::class);
+
+        try {
+            app(StudentService::class)->create($this->data(['guardian_password' => null]), null);
+            $this->fail('Expected a ValidationException.');
+        } catch (ValidationException $e) {
+            $this->assertArrayHasKey('guardian_password', $e->errors());
+        }
+    }
+
+    public function test_create_sets_the_new_password_and_revokes_tokens_when_reusing_an_inactive_guardian_login(): void
+    {
+        $this->years();
+        $guardian = $this->user(20, active: false);
+        $created = $this->savedStudent();
+
+        $this->mock(UserRepositoryInterface::class, function (MockInterface $mock) use ($guardian) {
+            $mock->shouldReceive('findByUsername')->with('01711111111')->andReturn($guardian);
+            $mock->shouldReceive('hasRole')->with($guardian, 'parent')->andReturn(true);
+            $mock->shouldReceive('createWithRole')->andReturn($this->user(10));
+            $mock->shouldReceive('update')->once()->with($guardian, ['name' => 'Karim Uddin', 'password' => 'guardian-pass'])->ordered();
+            $mock->shouldReceive('revokeAllTokens')->once()->with($guardian)->ordered();
+            $mock->shouldReceive('update')->once()->with($guardian, ['is_active' => true]);
+        });
+        $this->mock(StudentRepositoryInterface::class, function (MockInterface $mock) use ($created) {
+            $mock->shouldReceive('nextStudentId')->andReturn('20260002');
+            $mock->shouldReceive('create')->andReturn($created);
+            $mock->shouldReceive('hasActiveChildren')->andReturn(true);
+            $mock->shouldReceive('loadDetail')->andReturn($created);
+        });
+        $this->mock(EnrolmentService::class, fn (MockInterface $mock) => $mock->shouldReceive('save')->andReturn(new StudentEnrolment));
+
+        app(StudentService::class)->create($this->data(), null);
     }
 
     public function test_create_needs_a_password_for_a_new_guardian(): void
@@ -216,49 +266,67 @@ class StudentServiceTest extends TestCase
         }
     }
 
-    public function test_create_reports_a_concurrent_student_id_clash_as_a_validation_error(): void
+    /**
+     * @param  list<string>  $columns
+     * @param  list<string>  $insertColumns
+     */
+    private function assertConcurrentClashBecomes(string $driver, string $where, string $table, array $columns, array $insertColumns, string $expectedKey): void
+    {
+        $exception = FakeUniqueViolation::make($driver, $table, $columns, $insertColumns);
+
+        $this->mock(UserRepositoryInterface::class, function (MockInterface $mock) use ($where, $exception) {
+            $mock->shouldReceive('findByUsername')->andReturn(null);
+            if ($where === 'user') {
+                $mock->shouldReceive('createWithRole')->andThrow($exception);
+            } else {
+                $mock->shouldReceive('createWithRole')->andReturn($this->user(20), $this->user(10));
+            }
+        });
+        $this->mock(StudentRepositoryInterface::class, function (MockInterface $mock) use ($where, $exception) {
+            $mock->shouldReceive('nextStudentId')->andReturn('20260001');
+            if ($where === 'student') {
+                $mock->shouldReceive('create')->andThrow($exception);
+            }
+        });
+        $this->mock(EnrolmentService::class);
+
+        try {
+            app(StudentService::class)->create($this->data(), null);
+            $this->fail('Expected a ValidationException.');
+        } catch (ValidationException $e) {
+            $this->assertSame([$expectedKey], array_keys($e->errors()), "{$driver} {$table}.".implode(',', $columns));
+        }
+    }
+
+    public function test_create_reports_a_concurrent_clash_on_the_right_field_for_each_driver(): void
     {
         $this->years();
+        $userColumns = ['name', 'username', 'email', 'phone', 'password', 'is_active', 'updated_at', 'created_at'];
+        $studentColumns = ['name_en', 'birth_registration_number', 'email', 'student_id', 'user_id', 'guardian_user_id'];
 
+        foreach (FakeUniqueViolation::drivers() as $driver) {
+            // The INSERT names `email` and `birth_registration_number` in every case, so a
+            // substring match on the whole message would pick the wrong field.
+            $this->assertConcurrentClashBecomes($driver, 'user', 'users', ['username'], $userColumns, 'student_id');
+            $this->assertConcurrentClashBecomes($driver, 'user', 'users', ['email'], $userColumns, 'email');
+            $this->assertConcurrentClashBecomes($driver, 'student', 'students', ['student_id'], $studentColumns, 'student_id');
+            $this->assertConcurrentClashBecomes($driver, 'student', 'students', ['birth_registration_number'], $studentColumns, 'birth_registration_number');
+        }
+    }
+
+    public function test_create_rethrows_an_unrecognised_unique_violation(): void
+    {
+        $this->years();
         $this->mock(UserRepositoryInterface::class, function (MockInterface $mock) {
             $mock->shouldReceive('findByUsername')->andReturn(null);
-            $mock->shouldReceive('createWithRole')->andThrow(new UniqueConstraintViolationException(
-                'sqlite', 'insert', [], new \Exception('UNIQUE constraint failed: users.username')
-            ));
+            $mock->shouldReceive('createWithRole')->andThrow(FakeUniqueViolation::make('mysql', 'users', ['phone'], ['name', 'email', 'phone']));
         });
         $this->mock(StudentRepositoryInterface::class, fn (MockInterface $mock) => $mock->shouldReceive('nextStudentId')->andReturn('20260001'));
         $this->mock(EnrolmentService::class);
 
-        try {
-            app(StudentService::class)->create($this->data(), null);
-            $this->fail('Expected a ValidationException.');
-        } catch (ValidationException $e) {
-            $this->assertArrayHasKey('student_id', $e->errors());
-        }
-    }
+        $this->expectException(UniqueConstraintViolationException::class);
 
-    public function test_create_reports_a_concurrent_birth_registration_clash_as_a_validation_error(): void
-    {
-        $this->years();
-
-        $this->mock(UserRepositoryInterface::class, function (MockInterface $mock) {
-            $mock->shouldReceive('findByUsername')->andReturn(null);
-            $mock->shouldReceive('createWithRole')->andReturn($this->user(20), $this->user(10));
-        });
-        $this->mock(StudentRepositoryInterface::class, function (MockInterface $mock) {
-            $mock->shouldReceive('nextStudentId')->andReturn('20260001');
-            $mock->shouldReceive('create')->andThrow(new UniqueConstraintViolationException(
-                'sqlite', 'insert', [], new \Exception('UNIQUE constraint failed: students.birth_registration_number')
-            ));
-        });
-        $this->mock(EnrolmentService::class);
-
-        try {
-            app(StudentService::class)->create($this->data(), null);
-            $this->fail('Expected a ValidationException.');
-        } catch (ValidationException $e) {
-            $this->assertArrayHasKey('birth_registration_number', $e->errors());
-        }
+        app(StudentService::class)->create($this->data(), null);
     }
 
     public function test_update_relinks_the_guardian_and_deactivates_the_old_login_when_it_has_no_active_children(): void
@@ -417,8 +485,8 @@ class StudentServiceTest extends TestCase
             $mock->shouldReceive('update')->once()->with($guardian, ['is_active' => false]);
             $mock->shouldReceive('revokeAllTokens')->twice();
         });
-        $this->mock(AcademicYearRepositoryInterface::class);
-        $this->mock(EnrolmentService::class);
+        $this->years();
+        $this->mock(EnrolmentService::class, fn (MockInterface $mock) => $mock->shouldReceive('release')->once()->with($student, $this->year));
 
         app(StudentService::class)->delete($student);
     }
@@ -440,8 +508,8 @@ class StudentServiceTest extends TestCase
             $mock->shouldReceive('update')->once()->with($login, ['is_active' => false]);
             $mock->shouldReceive('revokeAllTokens')->once()->with($login);
         });
-        $this->mock(AcademicYearRepositoryInterface::class);
-        $this->mock(EnrolmentService::class);
+        $this->years();
+        $this->mock(EnrolmentService::class, fn (MockInterface $mock) => $mock->shouldReceive('release')->once()->with($student, $this->year));
 
         app(StudentService::class)->delete($student);
     }

@@ -131,6 +131,10 @@ return new class extends Migration
     }
 
     /**
+     * Deletes the users whose roles are exclusively among $roles. A user who also holds
+     * any other role (an admin or teacher who is also a parent, say) survives, and only
+     * loses the $roles rows.
+     *
      * @param  list<string>  $roles
      */
     private function deleteUsersWithRoles(array $roles): void
@@ -145,16 +149,33 @@ return new class extends Migration
             ->where('model_type', \App\Models\User::class)
             ->whereIn('role_id', $roleIds)
             ->pluck('model_id')
+            ->unique()
             ->all();
 
         foreach (array_chunk($userIds, 500) as $chunk) {
+            $keep = DB::table('model_has_roles')
+                ->where('model_type', \App\Models\User::class)
+                ->whereIn('model_id', $chunk)
+                ->whereNotIn('role_id', $roleIds)
+                ->pluck('model_id')
+                ->unique()
+                ->all();
+
+            DB::table('model_has_roles')
+                ->where('model_type', \App\Models\User::class)
+                ->whereIn('model_id', $keep)
+                ->whereIn('role_id', $roleIds)
+                ->delete();
+
+            $delete = array_values(array_diff($chunk, $keep));
+
             DB::table('personal_access_tokens')
                 ->where('tokenable_type', \App\Models\User::class)
-                ->whereIn('tokenable_id', $chunk)
+                ->whereIn('tokenable_id', $delete)
                 ->delete();
-            DB::table('model_has_roles')->where('model_type', \App\Models\User::class)->whereIn('model_id', $chunk)->delete();
-            DB::table('model_has_permissions')->where('model_type', \App\Models\User::class)->whereIn('model_id', $chunk)->delete();
-            DB::table('users')->whereIn('id', $chunk)->delete();
+            DB::table('model_has_roles')->where('model_type', \App\Models\User::class)->whereIn('model_id', $delete)->delete();
+            DB::table('model_has_permissions')->where('model_type', \App\Models\User::class)->whereIn('model_id', $delete)->delete();
+            DB::table('users')->whereIn('id', $delete)->delete();
         }
     }
 };

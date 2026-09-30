@@ -219,6 +219,8 @@ const fetchStudents = async (page = 1) => {
 
 const fetchLookups = async () => {
   try {
+    // The API caps per_page at 100, so a school with more than 100 sections would see
+    // only the first 100 here; page through meta.last_page if that ever happens.
     const [classRes, sectionRes, shiftRes, yearRes] = await Promise.all([
       api.get('/classes', { params: { per_page: 100 } }),
       api.get('/sections', { params: { per_page: 100 } }),

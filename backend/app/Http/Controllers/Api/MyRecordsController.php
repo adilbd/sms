@@ -18,11 +18,12 @@ class MyRecordsController extends Controller
 
     public function student(Request $request)
     {
-        return new StudentResource($this->students->findOwn($request->user()));
+        // The caller's own (or own child's) record, so sensitive fields are included.
+        return (new StudentResource($this->students->findOwn($request->user())))->withSensitive();
     }
 
     public function children(Request $request)
     {
-        return StudentResource::collection($this->students->childrenOf($request->user()));
+        return StudentResource::collectionFor($this->students->childrenOf($request->user()), sensitive: true);
     }
 }

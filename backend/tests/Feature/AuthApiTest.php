@@ -176,4 +176,34 @@ class AuthApiTest extends TestCase
     {
         $this->get('/admin/login')->assertOk();
     }
+
+    public function test_login_is_throttled_per_identifier_and_ip(): void
+    {
+        for ($i = 0; $i < 5; $i++) {
+            $this->postJson('/api/login', ['login' => 'admin@sms.com', 'password' => 'wrong'])->assertUnprocessable();
+        }
+
+        // The next attempt is refused, even with the right password and a variant spelling.
+        $this->postJson('/api/login', ['login' => 'ADMIN@sms.com', 'password' => 'password'])
+            ->assertStatus(429)
+            ->assertJsonStructure(['message'])
+            ->assertJsonMissingPath('errors');
+
+        // Another identifier has its own bucket.
+        $this->postJson('/api/login', ['login' => 'someone@example.com', 'password' => 'x'])->assertUnprocessable();
+    }
+
+    public function test_change_password_revokes_the_other_tokens_but_keeps_the_current_one(): void
+    {
+        $user = $this->studentLogin();
+        $current = $user->createToken('this-device')->plainTextToken;
+        $user->createToken('other-device');
+        $this->assertSame(2, $user->tokens()->count());
+
+        $this->withToken($current)->postJson('/api/change-password', [
+            'current_password' => 'student-pass', 'new_password' => 'new-password-1', 'new_password_confirmation' => 'new-password-1',
+        ])->assertOk();
+
+        $this->assertSame(['this-device'], $user->tokens()->pluck('name')->all());
+    }
 }
