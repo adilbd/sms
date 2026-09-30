@@ -38,13 +38,6 @@ class MenuSeeder extends Seeder
                 ['label' => 'আমাদের কোর্সসমূহ', 'type' => MenuItem::TYPE_PAGE, 'page_slug' => 'our-courses'],
                 ['label' => 'সুযোগ-সুবিধা', 'type' => MenuItem::TYPE_PAGE, 'page_slug' => 'school-facilities'],
             ]],
-            ['label' => 'একাডেমিক', 'type' => MenuItem::TYPE_HEADING, 'children' => [
-                ['label' => 'নিয়ম-কানুন', 'type' => MenuItem::TYPE_PAGE, 'page_slug' => 'rules'],
-                ['label' => 'ইউনিফর্ম', 'type' => MenuItem::TYPE_PAGE, 'page_slug' => 'uniform'],
-                ['label' => 'সহপাঠ কার্যক্রম', 'type' => MenuItem::TYPE_PAGE, 'page_slug' => 'co-curricular'],
-                ['label' => 'ছুটির তালিকা', 'type' => MenuItem::TYPE_PAGE, 'page_slug' => 'holidays'],
-            ]],
-            ['label' => 'ভর্তি', 'type' => MenuItem::TYPE_ROUTE, 'route_name' => 'admissions'],
             ['label' => 'স্কুল প্রশাসন', 'type' => MenuItem::TYPE_HEADING, 'children' => [
                 ['label' => 'প্রধান শিক্ষক', 'type' => MenuItem::TYPE_ROUTE, 'route_name' => 'staff.head'],
                 ['label' => 'সহকারী প্রধান শিক্ষক', 'type' => MenuItem::TYPE_ROUTE, 'route_name' => 'staff.assistant_head'],
@@ -54,6 +47,13 @@ class MenuSeeder extends Seeder
                 ['label' => 'সাবেক শিক্ষকগণ', 'type' => MenuItem::TYPE_ROUTE, 'route_name' => 'staff.ex_teachers'],
                 ['label' => 'সাবেক কর্মচারীগণ', 'type' => MenuItem::TYPE_ROUTE, 'route_name' => 'staff.ex_employees'],
             ]],
+            ['label' => 'একাডেমিক', 'type' => MenuItem::TYPE_HEADING, 'children' => [
+                ['label' => 'নিয়ম-কানুন', 'type' => MenuItem::TYPE_PAGE, 'page_slug' => 'rules'],
+                ['label' => 'ইউনিফর্ম', 'type' => MenuItem::TYPE_PAGE, 'page_slug' => 'uniform'],
+                ['label' => 'সহপাঠ কার্যক্রম', 'type' => MenuItem::TYPE_PAGE, 'page_slug' => 'co-curricular'],
+                ['label' => 'ছুটির তালিকা', 'type' => MenuItem::TYPE_PAGE, 'page_slug' => 'holidays'],
+            ]],
+            ['label' => 'ভর্তি', 'type' => MenuItem::TYPE_ROUTE, 'route_name' => 'admissions'],
             ['label' => 'সংবাদ', 'type' => MenuItem::TYPE_ROUTE, 'route_name' => 'news.index'],
             ['label' => 'ইভেন্ট', 'type' => MenuItem::TYPE_ROUTE, 'route_name' => 'events.index'],
             ['label' => 'গ্যালারি', 'type' => MenuItem::TYPE_ROUTE, 'route_name' => 'gallery.index'],
