@@ -53,7 +53,7 @@ This is Task 6 of 7 in `/Users/adil/.claude/plans/make-the-plan-for-radiant-flur
 - [x] The numbers are correct on seeded data, and teachers only see their own sections.
 - [x] The query count is bounded: the same with 2 or 6 sections.
 - [x] Stub routes are removed, and the old `dashboard/*` routes return 404.
-- [ ] `Dashboard.vue` shows real data per role, with permission-aware quick actions and empty states. The build passes. A browser check on Docker happens before the merge.
+- [x] `Dashboard.vue` shows real data per role, with permission-aware quick actions and empty states. Checked in Chrome on Docker: placeholders gone, 26 bars, no console errors.
 - [x] The full suite, Pint, `npm run build` and smoke pass. CLAUDE.md and both guidelines are updated, with no stubs left listed.
 
 ## Test cases
@@ -74,3 +74,13 @@ This is Task 6 of 7 in `/Users/adil/.claude/plans/make-the-plan-for-radiant-flur
 - [x] **Performance:** the query count with 6 sections equals the query count with 2.
 - [x] **Legacy:** `/api/dashboard/stats` and `/api/dashboard/recent-activities` return 404.
 - [x] **Unit:** `DashboardServiceTest` covers role selection and the percentage and money formatting, with mocked repositories.
+
+## Docker check
+- [x] **Admin:** 55 active students (Primary 25, Junior Secondary 10, Secondary 10, Higher Secondary 10; Science 8, Business Studies 8, Humanities 4; all Morning shift), 41 teachers out of 47 staff, 3 staff with a login, and 24 sections. Attendance today is 85.45% across the 11 marked sections, with none left unmarked. The Half Yearly exam pass rate is Class 9 0.00% and Class 10 20.00% (top GPA 3.64). Today's collection is ৳2,000.00 (cash and bKash).
+- [x] **Teacher `VHBUB-3`:** only 10-A, at 80.00%. No mark sheets, because no exam is open.
+- [x] **Office `VHBUB-52`:** collections, recent payments and the outstanding count only.
+
+## Follow-ups (from review)
+- `BarList.vue`: mark the bar `aria-hidden` and drop the `progressbar` attributes, so values aren't announced twice.
+- `DashboardService`: choice-pair subjects run one query per exam subject. Derive the pair from the loaded subjects, or cover it in the query-count test.
+- `DashboardRepository`: fee totals include dues of enrolments that have since left. Check this against the fees module's totals.
