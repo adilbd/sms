@@ -11,8 +11,8 @@ use App\Models\StudentEnrolment;
 use App\Repositories\Contracts\ClassSubjectRepositoryInterface;
 use App\Repositories\Contracts\StudentEnrolmentRepositoryInterface;
 use App\Support\AcademicGroup;
+use App\Support\EnrolmentStart;
 use App\Support\UniqueViolation;
-use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
@@ -35,7 +35,7 @@ class EnrolmentService
      * section row is locked first, so two requests filling the last seat queue up and
      * the second one sees it taken.
      *
-     * @param  array{section_id: int, group?: ?string, optional_subject_id?: ?int, roll_number?: ?int, enrolled_on?: ?string}  $data  `enrolled_on` only applies to a new enrolment (default: today in Asia/Dhaka); promotion passes the target year's start date.
+     * @param  array{section_id: int, group?: ?string, optional_subject_id?: ?int, roll_number?: ?int, enrolled_on?: ?string}  $data  `enrolled_on` only applies to a new enrolment (default: the student's admission date clamped to the year, see EnrolmentStart); promotion passes the target year's start date.
      */
     public function save(Student $student, AcademicYear $year, array $data): StudentEnrolment
     {
@@ -60,7 +60,7 @@ class EnrolmentService
                     : $this->enrolments->create($attributes + [
                         'student_id' => $student->id,
                         'academic_year_id' => $year->id,
-                        'enrolled_on' => $data['enrolled_on'] ?? CarbonImmutable::now('Asia/Dhaka')->toDateString(),
+                        'enrolled_on' => $data['enrolled_on'] ?? EnrolmentStart::for($year->start_date, $year->end_date, $student->admission_date),
                     ]);
             });
         } catch (UniqueConstraintViolationException $e) {

@@ -183,7 +183,24 @@ class AttendanceService
     private function studentView(Student $student, ?string $month, ?User $staff): array
     {
         [$month, $first, $last] = $this->monthRange($month);
-        $year = $this->yearForMonth($first);
+        $year = $this->years->findByYear((int) substr($first, 0, 4));
+
+        if ($year === null) {
+            // No year to look the student up in. Staff without access still get 403 before
+            // the month error, like the sheet and the report (checked against the active year).
+            if ($staff !== null && ! $this->users->hasRole($staff, 'admin')) {
+                $active = $this->years->findActive();
+                $context = $active ? $this->teacherScope->forUser($staff, $active->id) : null;
+                abort_unless(
+                    $context !== null && $context->staff->status === Staff::STATUS_ACTIVE && $context->leadingSectionIds() !== [],
+                    403,
+                    "Only the section's class teacher or an admin can use its attendance."
+                );
+            }
+
+            $this->yearForMonth($first);
+        }
+
         $enrolment = $this->enrolments->forStudentAndYear($student, $year->id);
 
         abort_if($enrolment === null, 404, 'The student has no enrolment in this academic year.');

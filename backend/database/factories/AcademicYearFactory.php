@@ -17,6 +17,8 @@ class AcademicYearFactory extends Factory
      * A year nobody else holds, with the name, code and Jan 1 to Dec 31 dates following it
      * (also when a test overrides `year`). Years count up from 2100 and skip any that
      * already exist, so the factory can't collide with a year a test creates by hand.
+     * Note: these years start at 2100, above the app's 2000-2100 store/update rule, so a
+     * test that sends a factory year through the store/update endpoints must override `year`.
      */
     public function definition(): array
     {
