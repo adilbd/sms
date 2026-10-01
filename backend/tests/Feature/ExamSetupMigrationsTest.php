@@ -50,8 +50,8 @@ class ExamSetupMigrationsTest extends TestCase
 
     public function test_migrations_roll_back_and_re_run(): void
     {
-        // The three newest migrations are the exam tables and results (ExamTablesMigrationTest); step past them.
-        $this->artisan('migrate:rollback', ['--step' => 5])->assertSuccessful();
+        // The four newest migrations are the pass mark default, exam tables and results (ExamTablesMigrationTest); step past them.
+        $this->artisan('migrate:rollback', ['--step' => 6])->assertSuccessful();
 
         $this->assertFalse(Schema::hasColumn('class_subjects', 'paper_group'));
 

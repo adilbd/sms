@@ -17,7 +17,7 @@ class Subject extends Model
     protected $attributes = [
         'type' => 'theory',
         'total_marks' => 100,
-        'pass_marks' => 40,
+        'pass_marks' => 33,
         'is_active' => true,
     ];
 

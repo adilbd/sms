@@ -9,6 +9,7 @@ This is a school management system for a **Bangladeshi school** that covers **Cl
 - **Classes**: Class 1 to Class 12 only. Call them "Class" (Class 1 … Class 12), not "Grade", in the UI, seed data and copy.
 - **Levels**: Primary (Class 1–5), Junior Secondary (Class 6–8), Secondary (Class 9–10, ending with the SSC exam) and Higher Secondary (Class 11–12, ending with the HSC exam).
 - **Groups**: from Class 9, each student is in a group (Science, Business Studies or Humanities), and subjects can differ by group.
+- **Pass mark**: 33% of the full mark (`subjects.pass_marks` defaults to 33 on a 100-mark subject; Class 9-12 parts use the SSC/HSC split such as written 70/23). The old default of 40 graded D marks (33-39) as F; migration `2026_10_06_000001` changed the default and corrected legacy 100/40 rows in `subjects`, `class_subjects` and the `exam_subjects` of draft/marks-entry exams (processed/published snapshots are never touched).
 - **Grading**: the Bangladesh GPA scale: A+ 80–100 = 5.00, A 70–79 = 4.00, A- 60–69 = 3.50, B 50–59 = 3.00, C 40–49 = 2.00, D 33–39 = 1.00, F 0–32 = 0.00.
 - **Academic year**: January to December.
 - **Money**: Bangladeshi Taka (BDT, ৳), stored and sent as `decimal:2` per the API guideline.

@@ -78,7 +78,7 @@ class ExamResultRepository implements ExamResultRepositoryInterface
             ->join('classes', 'classes.id', '=', 'exam_results.class_id')
             ->join('student_enrolments', 'student_enrolments.id', '=', 'exam_results.enrolment_id')
             ->select('exam_results.*')
-            ->with(['student', 'enrolment', 'class', 'section']);
+            ->with(['student', 'enrolment', 'class', 'section.shift']);
 
         if (filled($filters['class_id'] ?? null)) {
             $query->where('exam_results.class_id', $filters['class_id']);
