@@ -53,11 +53,6 @@ class Section extends Model
         return $this->hasMany(Attendance::class);
     }
 
-    public function examSchedules(): HasMany
-    {
-        return $this->hasMany(ExamSchedule::class);
-    }
-
     public function subjectAssignments(): HasMany
     {
         return $this->hasMany(SubjectAssignment::class);

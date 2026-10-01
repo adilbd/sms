@@ -65,11 +65,14 @@ interface ClassSubjectRepositoryInterface
     public function savedPaperGroups(Classes $class): array;
 
     /**
-     * The subjects that have subject-teacher assignments in $class, as id => name.
-     * Removing one of them from the curriculum must be refused (the assignment would
-     * point at a subject the class no longer studies).
+     * The subject-teacher assignments of $class that still matter, one entry per distinct
+     * (subject, section group): only the active academic year and later ones count (earlier
+     * years are history), and every year counts when none is active. `group` is the
+     * assigned section's group (null for a section without one). Removing the curriculum
+     * row an assignment relies on must be refused, since the assignment would point at a
+     * subject the section's class and group no longer study.
      *
-     * @return array<int, string>
+     * @return list<array{subject_id: int, name: string, group: ?string}>
      */
     public function assignedSubjects(Classes $class): array;
 }

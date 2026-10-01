@@ -347,4 +347,61 @@ class SubjectAssignmentApiTest extends TestCase
         $this->assertFalse($service->canEnterMarks($assignedUser, $this->section, $subject, $otherYear));
         $this->assertFalse($service->canEnterMarks($assignedUser, $this->section, Subject::factory()->create(), $this->year));
     }
+
+    public function test_a_retired_or_transferred_teacher_cannot_enter_marks(): void
+    {
+        $subject = $this->subjectInCurriculum();
+        $user = $this->userWithRole('teacher');
+        $staff = $this->teacher(['user_id' => $user->id]);
+        SubjectAssignment::factory()->create([
+            'class_id' => $this->class->id, 'section_id' => $this->section->id,
+            'academic_year_id' => $this->year->id, 'subject_id' => $subject->id, 'staff_id' => $staff->id,
+        ]);
+        $service = app(SubjectAssignmentService::class);
+
+        $this->assertTrue($service->canEnterMarks($user, $this->section, $subject, $this->year));
+
+        foreach ([Staff::STATUS_RETIRED, Staff::STATUS_TRANSFERRED, Staff::STATUS_RESIGNED, Staff::STATUS_DECEASED] as $status) {
+            $staff->update(['status' => $status, 'leaving_date' => '2026-06-30']);
+
+            $this->assertFalse($service->canEnterMarks($user, $this->section, $subject, $this->year), $status);
+        }
+    }
+
+    public function test_a_section_with_a_group_only_accepts_subjects_of_its_group_or_common_ones(): void
+    {
+        $class = Classes::factory()->create(['number' => 10]);
+        $science = Section::factory()->create(['class_id' => $class->id, 'shift_id' => $this->shift->id, 'group' => 'science']);
+        $humanitiesOnly = Subject::factory()->create();
+        $scienceOnly = Subject::factory()->create();
+        $common = Subject::factory()->create();
+        ClassSubject::factory()->create(['class_id' => $class->id, 'subject_id' => $humanitiesOnly->id, 'group' => 'humanities']);
+        ClassSubject::factory()->create(['class_id' => $class->id, 'subject_id' => $scienceOnly->id, 'group' => 'science']);
+        ClassSubject::factory()->create(['class_id' => $class->id, 'subject_id' => $common->id, 'group' => null]);
+        $staff = $this->teacher();
+        $post = fn (Subject $subject) => $this->as($this->admin)->postJson('/api/subject-assignments', [
+            'section_id' => $science->id, 'subject_id' => $subject->id, 'staff_id' => $staff->id,
+        ]);
+
+        $post($humanitiesOnly)->assertUnprocessable()->assertJsonValidationErrors(['subject_id']);
+        $post($scienceOnly)->assertCreated();
+        $post($common)->assertCreated();
+
+        // The bulk form applies the same rule, keyed per row.
+        $this->as($this->admin)->putJson("/api/sections/{$science->id}/subject-teachers", [
+            'academic_year_id' => $this->year->id,
+            'assignments' => [
+                ['subject_id' => $scienceOnly->id, 'staff_id' => $staff->id],
+                ['subject_id' => $humanitiesOnly->id, 'staff_id' => $staff->id],
+            ],
+        ])->assertUnprocessable()->assertJsonValidationErrors(['assignments.1.subject_id']);
+    }
+
+    public function test_a_section_without_a_group_accepts_any_curriculum_row(): void
+    {
+        $subject = Subject::factory()->create();
+        ClassSubject::factory()->create(['class_id' => $this->class->id, 'subject_id' => $subject->id, 'group' => 'humanities']);
+
+        $this->as($this->admin)->postJson('/api/subject-assignments', $this->payload($subject, $this->teacher()))->assertCreated();
+    }
 }

@@ -20,11 +20,6 @@ class SectionRepository extends EloquentRepository implements SectionRepositoryI
         return $section->attendances()->exists();
     }
 
-    public function hasExamSchedules(Section $section): bool
-    {
-        return $section->examSchedules()->exists();
-    }
-
     public function hasSubjectAssignments(Section $section): bool
     {
         return $section->subjectAssignments()->exists();

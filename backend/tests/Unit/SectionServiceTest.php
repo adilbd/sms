@@ -107,21 +107,6 @@ class SectionServiceTest extends TestCase
         $this->assertConflict(fn () => app(SectionService::class)->delete($section));
     }
 
-    public function test_delete_is_refused_when_section_has_exam_schedules(): void
-    {
-        $section = new Section;
-
-        $this->mock(SectionRepositoryInterface::class, function (MockInterface $mock) use ($section) {
-            $mock->shouldReceive('hasStudents')->once()->andReturn(false);
-            $mock->shouldReceive('hasAttendances')->once()->andReturn(false);
-            $mock->shouldReceive('hasExamSchedules')->once()->with($section)->andReturn(true);
-            $mock->shouldNotReceive('delete');
-        });
-        $this->mock(ClassTeacherRepositoryInterface::class, fn (MockInterface $mock) => $mock->shouldNotReceive('deleteForSection'));
-
-        $this->assertConflict(fn () => app(SectionService::class)->delete($section));
-    }
-
     public function test_delete_is_refused_when_section_has_subject_assignments(): void
     {
         $section = new Section;
@@ -129,7 +114,6 @@ class SectionServiceTest extends TestCase
         $this->mock(SectionRepositoryInterface::class, function (MockInterface $mock) use ($section) {
             $mock->shouldReceive('hasStudents')->once()->andReturn(false);
             $mock->shouldReceive('hasAttendances')->once()->andReturn(false);
-            $mock->shouldReceive('hasExamSchedules')->once()->andReturn(false);
             $mock->shouldReceive('hasSubjectAssignments')->once()->with($section)->andReturn(true);
             $mock->shouldNotReceive('delete');
         });
@@ -150,7 +134,6 @@ class SectionServiceTest extends TestCase
         $this->mock(SectionRepositoryInterface::class, function (MockInterface $mock) use ($section) {
             $mock->shouldReceive('hasStudents')->once()->andReturn(false);
             $mock->shouldReceive('hasAttendances')->once()->andReturn(false);
-            $mock->shouldReceive('hasExamSchedules')->once()->andReturn(false);
             $mock->shouldReceive('hasSubjectAssignments')->once()->andReturn(false);
             $mock->shouldReceive('delete')->once()->with($section)->globally()->ordered();
         });

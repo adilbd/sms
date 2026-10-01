@@ -80,7 +80,6 @@ class SectionService
         // (see SubjectService::delete() for the same pattern).
         abort_if($this->sections->hasStudents($section), 409, 'Section has students and cannot be deleted.');
         abort_if($this->sections->hasAttendances($section), 409, 'Section has attendance records and cannot be deleted.');
-        abort_if($this->sections->hasExamSchedules($section), 409, 'Section has exam schedules and cannot be deleted.');
         abort_if($this->sections->hasSubjectAssignments($section), 409, 'Section has subject assignments and cannot be deleted.');
 
         DB::transaction(function () use ($section) {

@@ -6,6 +6,8 @@ use App\Repositories\Contracts\AcademicYearRepositoryInterface;
 use App\Repositories\Contracts\ClassRepositoryInterface;
 use App\Repositories\Contracts\ClassSubjectRepositoryInterface;
 use App\Repositories\Contracts\ClassTeacherRepositoryInterface;
+use App\Repositories\Contracts\ExamMarkRepositoryInterface;
+use App\Repositories\Contracts\ExamRepositoryInterface;
 use App\Repositories\Contracts\GalleryRepositoryInterface;
 use App\Repositories\Contracts\MediaRepositoryInterface;
 use App\Repositories\Contracts\MenuItemRepositoryInterface;
@@ -24,6 +26,8 @@ use App\Repositories\Eloquent\AcademicYearRepository;
 use App\Repositories\Eloquent\ClassRepository;
 use App\Repositories\Eloquent\ClassSubjectRepository;
 use App\Repositories\Eloquent\ClassTeacherRepository;
+use App\Repositories\Eloquent\ExamMarkRepository;
+use App\Repositories\Eloquent\ExamRepository;
 use App\Repositories\Eloquent\GalleryRepository;
 use App\Repositories\Eloquent\MediaRepository;
 use App\Repositories\Eloquent\MenuItemRepository;
@@ -66,5 +70,7 @@ class RepositoryServiceProvider extends ServiceProvider
         UserRepositoryInterface::class => UserRepository::class,
         StudentRepositoryInterface::class => StudentRepository::class,
         StudentEnrolmentRepositoryInterface::class => StudentEnrolmentRepository::class,
+        ExamRepositoryInterface::class => ExamRepository::class,
+        ExamMarkRepositoryInterface::class => ExamMarkRepository::class,
     ];
 }

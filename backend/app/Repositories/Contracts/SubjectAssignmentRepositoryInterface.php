@@ -2,6 +2,7 @@
 
 namespace App\Repositories\Contracts;
 
+use App\Models\Classes;
 use App\Models\Section;
 use App\Models\SubjectAssignment;
 use Illuminate\Database\Eloquent\Collection;
@@ -16,11 +17,20 @@ interface SubjectAssignmentRepositoryInterface extends RepositoryInterface
     public function lockSection(Section $section): Section;
 
     /**
-     * The ids of every subject in the curriculum of class $classId (any group, any type).
+     * Takes a row lock on class $classId. Assignment writes lock the class first and the
+     * section second (see lockSection()), always in that order, so they queue behind a
+     * curriculum replacement and can't deadlock with each other. Call inside a transaction.
+     */
+    public function lockClass(int $classId): Classes;
+
+    /**
+     * The ids of the subjects in the curriculum of class $classId (any type). With a
+     * $group, only the rows that apply to it (the group's own and the class-wide ones),
+     * which is what a section with that group accepts; without one, every row.
      *
      * @return list<int>
      */
-    public function curriculumSubjectIds(int $classId): array;
+    public function curriculumSubjectIds(int $classId, ?string $group = null): array;
 
     /**
      * The assignment of $subjectId in $sectionId for $academicYearId, or null.
@@ -43,7 +53,8 @@ interface SubjectAssignmentRepositoryInterface extends RepositoryInterface
 
     /**
      * Whether the staff member linked to user $userId (`staff.user_id`) holds the
-     * assignment of $subjectId in $sectionId for $academicYearId.
+     * assignment of $subjectId in $sectionId for $academicYearId and is still active
+     * (`staff.status = active`).
      */
     public function userHoldsAssignment(int $userId, int $sectionId, int $subjectId, int $academicYearId): bool;
 }

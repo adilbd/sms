@@ -86,16 +86,22 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('attendances/bulk', [\App\Http\Controllers\Api\AttendanceController::class, 'bulkStore']);
     Route::get('attendances/report/{student}', [\App\Http\Controllers\Api\AttendanceController::class, 'studentReport']);
 
-    // Exams
-    Route::apiResource('exams', \App\Http\Controllers\Api\ExamController::class);
-    Route::post('exams/{exam}/publish', [\App\Http\Controllers\Api\ExamController::class, 'publish']);
-
-    // Exam Schedules
-    Route::apiResource('exam-schedules', \App\Http\Controllers\Api\ExamScheduleController::class);
-
-    // Exam Results
-    Route::apiResource('exam-results', \App\Http\Controllers\Api\ExamResultController::class);
-    Route::get('exam-results/student/{student}/exam/{exam}', [\App\Http\Controllers\Api\ExamResultController::class, 'studentExamResults']);
+    // Exams. The extra actions have more path segments than the resource routes, so they
+    // can't be captured by its {exam} wildcard.
+    Route::post('exams/{exam}/open-marks-entry', [\App\Http\Controllers\Api\ExamController::class, 'openMarksEntry'])
+        ->where('exam', '[0-9]+');
+    Route::post('exams/{exam}/classes/{class}/regenerate', [\App\Http\Controllers\Api\ExamController::class, 'regenerateClass'])
+        ->where(['exam' => '[0-9]+', 'class' => '[0-9]+']);
+    Route::get('exams/{exam}/subjects', [\App\Http\Controllers\Api\ExamSubjectController::class, 'index'])
+        ->where('exam', '[0-9]+');
+    Route::put('exams/{exam}/subjects/{examSubject}', [\App\Http\Controllers\Api\ExamSubjectController::class, 'update'])
+        ->where(['exam' => '[0-9]+', 'examSubject' => '[0-9]+']);
+    Route::get('exams/{exam}/marks', [\App\Http\Controllers\Api\ExamMarkController::class, 'sheet'])
+        ->where('exam', '[0-9]+');
+    Route::put('exams/{exam}/marks', [\App\Http\Controllers\Api\ExamMarkController::class, 'save'])
+        ->where('exam', '[0-9]+');
+    Route::apiResource('exams', \App\Http\Controllers\Api\ExamController::class)
+        ->where(['exam' => '[0-9]+']);
 
     // Fee Types
     Route::apiResource('fee-types', \App\Http\Controllers\Api\FeeTypeController::class);

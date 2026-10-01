@@ -65,7 +65,7 @@ class SubjectAssignmentService
     public function create(array $data): SubjectAssignment
     {
         return DB::transaction(function () use ($data) {
-            $section = $this->assignments->lockSection($this->sections->findOrFail((int) $data['section_id']));
+            $section = $this->lockClassThenSection($this->sections->findOrFail((int) $data['section_id']));
             $year = $this->resolveYear($data['academic_year_id'] ?? null);
             $subjectId = (int) $data['subject_id'];
             $staff = $this->staff->findOrFail((int) $data['staff_id']);
@@ -74,8 +74,8 @@ class SubjectAssignmentService
                 throw ValidationException::withMessages(['staff_id' => [$problem]]);
             }
 
-            if (! in_array($subjectId, $this->assignments->curriculumSubjectIds($section->class_id), true)) {
-                throw ValidationException::withMessages(['subject_id' => ["The subject is not in this section's class curriculum."]]);
+            if (! in_array($subjectId, $this->assignments->curriculumSubjectIds($section->class_id, $section->group), true)) {
+                throw ValidationException::withMessages(['subject_id' => [$this->notInCurriculum($section)]]);
             }
 
             if ($this->assignments->findFor($section->id, $subjectId, $year->id)) {
@@ -103,7 +103,7 @@ class SubjectAssignmentService
     public function update(SubjectAssignment $assignment, array $data): SubjectAssignment
     {
         return DB::transaction(function () use ($assignment, $data) {
-            $section = $this->assignments->lockSection($assignment->section);
+            $section = $this->lockClassThenSection($assignment->section);
             $staff = $this->staff->findOrFail((int) $data['staff_id']);
 
             if ($problem = $this->staffProblem($staff, $section)) {
@@ -130,9 +130,9 @@ class SubjectAssignmentService
     public function syncForSection(Section $section, array $data): Collection
     {
         return DB::transaction(function () use ($section, $data) {
-            $locked = $this->assignments->lockSection($section);
+            $locked = $this->lockClassThenSection($section);
             $year = $this->years->findOrFail((int) $data['academic_year_id']);
-            $curriculum = $this->assignments->curriculumSubjectIds($locked->class_id);
+            $curriculum = $this->assignments->curriculumSubjectIds($locked->class_id, $locked->group);
 
             $errors = [];
             $wanted = [];
@@ -156,7 +156,7 @@ class SubjectAssignmentService
                 }
 
                 if (! in_array($subjectId, $curriculum, true)) {
-                    $errors["assignments.{$i}.subject_id"][] = "The subject is not in this section's class curriculum.";
+                    $errors["assignments.{$i}.subject_id"][] = $this->notInCurriculum($locked);
                 }
 
                 $staff = $staffById[$staffId] ??= $this->staff->findOrFail((int) $staffId);
@@ -181,7 +181,8 @@ class SubjectAssignmentService
     /**
      * Whether $user may enter marks for $subject in $section for $year: an admin always,
      * otherwise only the user whose linked staff row (`staff.user_id`) holds that
-     * assignment. A user with no staff link, or another teacher, may not.
+     * assignment, and only while that staff member is still active (a retired or
+     * transferred teacher may not). A user with no staff link, or another teacher, may not.
      */
     public function canEnterMarks(User $user, Section $section, Subject $subject, AcademicYear $year): bool
     {
@@ -190,6 +191,25 @@ class SubjectAssignmentService
         }
 
         return $this->assignments->userHoldsAssignment($user->id, $section->id, $subject->id, $year->id);
+    }
+
+    /**
+     * Every assignment write takes the class row first and the section row second, always
+     * in that order, so it queues behind a concurrent curriculum replacement (which locks
+     * the class) and two writers can't deadlock on the pair.
+     */
+    private function lockClassThenSection(Section $section): Section
+    {
+        $this->assignments->lockClass((int) $section->class_id);
+
+        return $this->assignments->lockSection($section);
+    }
+
+    private function notInCurriculum(Section $section): string
+    {
+        return $section->group === null
+            ? "The subject is not in this section's class curriculum."
+            : "The subject is not in the curriculum of this section's class for its group.";
     }
 
     private function resolveYear(mixed $academicYearId): AcademicYear

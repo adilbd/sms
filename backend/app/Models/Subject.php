@@ -54,8 +54,8 @@ class Subject extends Model
         return $this->hasMany(StudentEnrolment::class, 'optional_subject_id');
     }
 
-    public function examSchedules(): HasMany
+    public function examSubjects(): HasMany
     {
-        return $this->hasMany(ExamSchedule::class);
+        return $this->hasMany(ExamSubject::class);
     }
 }

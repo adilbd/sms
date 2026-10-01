@@ -2,6 +2,7 @@
 
 namespace App\Repositories\Eloquent;
 
+use App\Models\AcademicYear;
 use App\Models\Classes;
 use App\Models\ClassSubject;
 use App\Models\Subject;
@@ -78,10 +79,28 @@ class ClassSubjectRepository implements ClassSubjectRepositoryInterface
 
     public function assignedSubjects(Classes $class): array
     {
-        return Subject::withTrashed()
-            ->whereIn('id', SubjectAssignment::query()->where('class_id', $class->id)->select('subject_id'))
-            ->orderBy('name')
-            ->pluck('name', 'id')
+        // Years before the active one are history and never block a curriculum edit. With
+        // no active year yet, every year counts.
+        $activeYear = AcademicYear::query()->where('is_active', true)->max('year');
+
+        return SubjectAssignment::query()
+            ->join('sections', 'sections.id', '=', 'subject_assignments.section_id')
+            ->join('subjects', 'subjects.id', '=', 'subject_assignments.subject_id')
+            ->where('subject_assignments.class_id', $class->id)
+            ->when($activeYear !== null, fn (Builder $q) => $q->whereIn(
+                'subject_assignments.academic_year_id',
+                AcademicYear::query()->where('year', '>=', $activeYear)->select('id'),
+            ))
+            ->distinct()
+            ->orderBy('subjects.name')
+            ->orderBy('subjects.id')
+            // MySQL needs every ORDER BY column in a DISTINCT select list.
+            ->get(['subject_assignments.subject_id', 'subjects.id', 'subjects.name', 'sections.group'])
+            ->map(fn ($row) => [
+                'subject_id' => (int) $row->subject_id,
+                'name' => (string) $row->name,
+                'group' => $row->group,
+            ])
             ->all();
     }
 

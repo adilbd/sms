@@ -156,7 +156,10 @@ class AcademicYearApiTest extends TestCase
 
     public function test_seeder_does_not_leave_two_active_years_and_is_idempotent(): void
     {
-        $other = AcademicYear::factory()->create(['year' => 2025, 'is_active' => true]);
+        $other = AcademicYear::factory()->create([
+            'year' => 2025, 'name' => '2025', 'code' => '2025',
+            'start_date' => '2025-01-01', 'end_date' => '2025-12-31', 'is_active' => true,
+        ]);
 
         $this->seed(\Database\Seeders\AcademicYearSeeder::class);
         $this->seed(\Database\Seeders\AcademicYearSeeder::class);

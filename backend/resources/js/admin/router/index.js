@@ -159,6 +159,26 @@ const routes = [
         component: () => import('@/views/exams/ExamList.vue'),
       },
       {
+        path: 'exams/create',
+        name: 'Add Exam',
+        component: () => import('@/views/exams/ExamForm.vue'),
+      },
+      {
+        path: 'exams/:id/edit',
+        name: 'Edit Exam',
+        component: () => import('@/views/exams/ExamForm.vue'),
+      },
+      {
+        path: 'exams/:id/schedule',
+        name: 'Exam Schedule',
+        component: () => import('@/views/exams/ExamSchedule.vue'),
+      },
+      {
+        path: 'exams/:id/marks',
+        name: 'Mark Entry',
+        component: () => import('@/views/exams/MarkEntry.vue'),
+      },
+      {
         path: 'fees',
         name: 'Fees',
         component: () => import('@/views/fees/FeeList.vue'),

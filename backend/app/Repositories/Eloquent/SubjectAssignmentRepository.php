@@ -2,8 +2,10 @@
 
 namespace App\Repositories\Eloquent;
 
+use App\Models\Classes;
 use App\Models\ClassSubject;
 use App\Models\Section;
+use App\Models\Staff;
 use App\Models\SubjectAssignment;
 use App\Repositories\Contracts\SubjectAssignmentRepositoryInterface;
 use Illuminate\Database\Eloquent\Builder;
@@ -18,9 +20,18 @@ class SubjectAssignmentRepository extends EloquentRepository implements SubjectA
         return Section::query()->whereKey($section->getKey())->lockForUpdate()->firstOrFail();
     }
 
-    public function curriculumSubjectIds(int $classId): array
+    public function lockClass(int $classId): Classes
     {
-        return ClassSubject::query()->where('class_id', $classId)->distinct()->pluck('subject_id')
+        return Classes::query()->whereKey($classId)->lockForUpdate()->firstOrFail();
+    }
+
+    public function curriculumSubjectIds(int $classId, ?string $group = null): array
+    {
+        return ClassSubject::query()
+            ->where('class_id', $classId)
+            ->when($group !== null, fn (Builder $q) => $q->where(fn (Builder $q) => $q->whereNull('group')->orWhere('group', $group)))
+            ->distinct()
+            ->pluck('subject_id')
             ->map(fn ($id) => (int) $id)->all();
     }
 
@@ -63,7 +74,7 @@ class SubjectAssignmentRepository extends EloquentRepository implements SubjectA
             ->where('section_id', $sectionId)
             ->where('subject_id', $subjectId)
             ->where('academic_year_id', $academicYearId)
-            ->whereHas('staff', fn (Builder $q) => $q->where('user_id', $userId))
+            ->whereHas('staff', fn (Builder $q) => $q->where('user_id', $userId)->where('status', Staff::STATUS_ACTIVE))
             ->exists();
     }
 

@@ -3,6 +3,7 @@
 namespace Tests\Unit;
 
 use App\Models\AcademicYear;
+use App\Models\Classes;
 use App\Models\Section;
 use App\Models\Staff;
 use App\Models\Subject;
@@ -54,6 +55,7 @@ class SubjectAssignmentServiceTest extends TestCase
         $section = $o['section'] ?? $this->section();
 
         $this->mock(SubjectAssignmentRepositoryInterface::class, function (MockInterface $m) use ($o, $section) {
+            $m->shouldReceive('lockClass')->andReturn(new Classes)->byDefault();
             $m->shouldReceive('lockSection')->andReturn($section)->byDefault();
             $m->shouldReceive('curriculumSubjectIds')->andReturn($o['curriculum'] ?? [11, 12])->byDefault();
             $m->shouldReceive('findFor')->andReturn($o['existing'] ?? null)->byDefault();
@@ -141,14 +143,57 @@ class SubjectAssignmentServiceTest extends TestCase
         $this->assertSame(['academic_year_id'], array_keys($this->errors(fn () => app(SubjectAssignmentService::class)->create($this->data()))));
     }
 
-    public function test_the_section_is_locked_before_anything_is_written(): void
+    public function test_the_class_is_locked_before_the_section_and_both_before_any_write(): void
     {
         $this->repos(['assignments' => function (MockInterface $m) {
+            $m->shouldReceive('lockClass')->once()->with(9)->ordered()->andReturn(new Classes);
             $m->shouldReceive('lockSection')->once()->ordered()->andReturn($this->section());
             $m->shouldReceive('create')->once()->ordered()->andReturn(new SubjectAssignment);
         }]);
 
         app(SubjectAssignmentService::class)->create($this->data());
+    }
+
+    public function test_the_curriculum_check_uses_the_sections_group(): void
+    {
+        $section = new Section(['class_id' => 9, 'shift_id' => 4, 'group' => 'science']);
+        $section->id = 20;
+
+        $this->repos(['section' => $section, 'assignments' => function (MockInterface $m) {
+            $m->shouldReceive('curriculumSubjectIds')->once()->with(9, 'science')->andReturn([12]);
+            $m->shouldNotReceive('create');
+        }]);
+
+        $errors = $this->errors(fn () => app(SubjectAssignmentService::class)->create($this->data()));
+
+        $this->assertSame(['subject_id'], array_keys($errors));
+        $this->assertStringContainsString('group', $errors['subject_id'][0]);
+    }
+
+    public function test_update_locks_the_class_before_the_section(): void
+    {
+        $this->repos(['assignments' => function (MockInterface $m) {
+            $m->shouldReceive('lockClass')->once()->with(9)->ordered()->andReturn(new Classes);
+            $m->shouldReceive('lockSection')->once()->ordered()->andReturn($this->section());
+            $m->shouldReceive('update')->once()->ordered()->andReturn(new SubjectAssignment);
+        }]);
+
+        $assignment = new SubjectAssignment;
+        $assignment->setRelation('section', $this->section());
+
+        app(SubjectAssignmentService::class)->update($assignment, ['staff_id' => 7]);
+    }
+
+    public function test_bulk_locks_the_class_before_the_section(): void
+    {
+        $this->repos(['assignments' => function (MockInterface $m) {
+            $m->shouldReceive('lockClass')->once()->with(9)->ordered()->andReturn(new Classes);
+            $m->shouldReceive('lockSection')->once()->ordered()->andReturn($this->section());
+            $m->shouldReceive('replaceForSection')->once()->ordered();
+            $m->shouldReceive('forSectionAndYear')->andReturn(new Collection);
+        }]);
+
+        app(SubjectAssignmentService::class)->syncForSection($this->section(), ['academic_year_id' => 3, 'assignments' => []]);
     }
 
     public function test_list_defaults_to_the_active_year(): void

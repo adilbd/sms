@@ -22,7 +22,8 @@ class AcademicYearRepository extends EloquentRepository implements AcademicYearR
 
     public function hasExams(AcademicYear $academicYear): bool
     {
-        return $academicYear->exams()->exists();
+        // Soft-deleted exams still hold the restrict foreign key to the year.
+        return $academicYear->exams()->withTrashed()->exists();
     }
 
     public function hasFeeStructures(AcademicYear $academicYear): bool

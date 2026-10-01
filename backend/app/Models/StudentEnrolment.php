@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
  * A student's place in one academic year. `class_id` is always the section's class.
@@ -79,5 +80,11 @@ class StudentEnrolment extends Model
     public function optionalSubject(): BelongsTo
     {
         return $this->belongsTo(Subject::class, 'optional_subject_id');
+    }
+
+    /** Marks entered under this enrolment (see App\Models\ExamMark). */
+    public function examMarks(): HasMany
+    {
+        return $this->hasMany(ExamMark::class, 'enrolment_id');
     }
 }
