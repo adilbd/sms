@@ -53,12 +53,19 @@ Route::middleware('auth:sanctum')->group(function () {
         ->where('section', '[0-9]+');
     Route::put('sections/{section}/class-teacher', [\App\Http\Controllers\Api\SectionController::class, 'updateClassTeacher'])
         ->where('section', '[0-9]+');
+    Route::put('sections/{section}/subject-teachers', [\App\Http\Controllers\Api\SectionController::class, 'updateSubjectTeachers'])
+        ->where('section', '[0-9]+');
     Route::apiResource('sections', \App\Http\Controllers\Api\SectionController::class)
         ->where(['section' => '[0-9]+']);
 
     // Subjects
     Route::apiResource('subjects', \App\Http\Controllers\Api\SubjectController::class)
         ->where(['subject' => '[0-9]+']);
+
+    // Subject teachers: who teaches each subject in each section per academic year.
+    // The bulk form is PUT sections/{section}/subject-teachers above.
+    Route::apiResource('subject-assignments', \App\Http\Controllers\Api\SubjectAssignmentController::class)
+        ->where(['subject_assignment' => '[0-9]+']);
 
     // Staff (teachers and non-teaching staff). Replaces the old teachers stub.
     Route::apiResource('staff', \App\Http\Controllers\Api\StaffController::class)

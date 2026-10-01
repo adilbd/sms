@@ -28,7 +28,12 @@ interface ClassSubjectRepositoryInterface
      * a (subject_id, group) pair that already exists is updated in place and the rest
      * are created. Array position becomes `sort_order`.
      *
-     * @param  list<array{subject_id: int, group: ?string, type: string}>  $rows
+     * A row may carry the marks scheme. Only the keys present are applied: with none of the
+     * six part fields a saved row keeps its marks and a new row takes its subject's
+     * total/pass marks as the written part; with `paper_group` absent a saved row keeps its
+     * pairing. Any part field present sets all six (a missing one becomes null).
+     *
+     * @param  list<array<string, mixed>>  $rows  subject_id, group, type and optionally the marks fields
      */
     public function sync(Classes $class, array $rows): void;
 
@@ -50,4 +55,21 @@ interface ClassSubjectRepositoryInterface
      * @return list<int>
      */
     public function unusableRowIndexes(Classes $class, array $rows): array;
+
+    /**
+     * The saved `paper_group` of each curriculum row of $class, keyed `{subject_id}|{group}`
+     * (group empty for a class-wide row). Rows without a pairing are left out.
+     *
+     * @return array<string, string>
+     */
+    public function savedPaperGroups(Classes $class): array;
+
+    /**
+     * The subjects that have subject-teacher assignments in $class, as id => name.
+     * Removing one of them from the curriculum must be refused (the assignment would
+     * point at a subject the class no longer studies).
+     *
+     * @return array<int, string>
+     */
+    public function assignedSubjects(Classes $class): array;
 }

@@ -20,6 +20,8 @@ class ClassSubjectFactory extends Factory
             'group' => null,
             'type' => ClassSubject::TYPE_COMPULSORY,
             'sort_order' => 0,
+            'written_full' => 100,
+            'written_pass' => 33,
         ];
     }
 }

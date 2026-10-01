@@ -46,6 +46,18 @@ class CurriculumSeederTest extends TestCase
         $this->assertSame(['SCI'], $this->codes(10, 'humanities', 'compulsory', ['SCI']));
         $this->assertSame([], $this->codes(10, 'science', 'compulsory', ['SCI']));
 
+        // SSC/HSC marks and paper pairs for Class 9-12; the subject's own marks below.
+        $this->assertSame(
+            [50, 17, 25, 8, 25, 8],
+            $this->marks(9, 'PHY', 'science'),
+        );
+        $this->assertSame([70, 23, 30, 10, null, null], $this->marks(11, 'ACC', 'business_studies'));
+        $this->assertSame([100, 40, null, null, null, null], $this->marks(1, 'BAN', null));
+        $this->assertSame(['bangla', 'bangla'], $this->curriculumOf(10)->whereIn('subject.code', ['BAN1', 'BAN2'])->pluck('paper_group')->all());
+        $this->assertSame(['english', 'english'], $this->curriculumOf(12)->whereIn('subject.code', ['ENG1', 'ENG2'])->pluck('paper_group')->all());
+        $this->assertSame(0, ClassSubject::whereNotNull('paper_group')->whereIn('class_id', Classes::where('number', '<', 9)->pluck('id'))->count());
+        $this->assertSame(0, ClassSubject::whereNull('written_full')->count());
+
         // A re-run updates a renamed subject, matched on its code, and keeps the rows.
         Subject::where('code', 'GEO')->update(['name' => 'Geography']);
 
@@ -55,6 +67,19 @@ class CurriculumSeederTest extends TestCase
 
         $this->assertSame($subjects, Subject::count());
         $this->assertSame($rows, ClassSubject::count());
+    }
+
+    private function curriculumOf(int $number)
+    {
+        return Classes::where('number', $number)->firstOrFail()->curriculum()->with('subject')->get();
+    }
+
+    /** @return list<?int> */
+    private function marks(int $number, string $code, ?string $group): array
+    {
+        $row = $this->curriculumOf($number)->first(fn ($r) => $r->subject->code === $code && $r->group === $group);
+
+        return [$row->written_full, $row->written_pass, $row->mcq_full, $row->mcq_pass, $row->practical_full, $row->practical_pass];
     }
 
     /** @return list<string> sorted codes of $codes present in the class's group/type */

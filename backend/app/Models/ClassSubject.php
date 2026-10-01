@@ -33,10 +33,31 @@ class ClassSubject extends Model
         'group',
         'type',
         'sort_order',
+        'written_full',
+        'written_pass',
+        'mcq_full',
+        'mcq_pass',
+        'practical_full',
+        'practical_pass',
+        'paper_group',
     ];
 
     protected $casts = [
         'sort_order' => 'integer',
+        'written_full' => 'integer',
+        'written_pass' => 'integer',
+        'mcq_full' => 'integer',
+        'mcq_pass' => 'integer',
+        'practical_full' => 'integer',
+        'practical_pass' => 'integer',
+    ];
+
+    /** The marked parts, in order. Each has a `{part}_full` and a `{part}_pass` column. */
+    public const PARTS = ['written', 'mcq', 'practical'];
+
+    /** Every marks-scheme column that can be sent for a row. */
+    public const MARK_FIELDS = [
+        'written_full', 'written_pass', 'mcq_full', 'mcq_pass', 'practical_full', 'practical_pass',
     ];
 
     public function class(): BelongsTo

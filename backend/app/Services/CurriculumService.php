@@ -31,17 +31,34 @@ class CurriculumService
     /**
      * Replaces the whole curriculum in one transaction; array order becomes sort_order.
      * Every rule is checked before anything is written, and errors are keyed per row
-     * (for example `subjects.3.group`).
+     * (for example `subjects.3.group`, `subjects.3.mcq_pass`).
+     *
+     * A row may carry the marks scheme (`written_full` ... `practical_pass`, `paper_group`).
+     * Only the keys a row sends are passed on: a row that sends no part field keeps its
+     * saved marks (a new row gets its subject's total/pass as written marks), and a row
+     * that omits `paper_group` keeps its saved pairing.
      *
      * @param  list<array{subject_id: int, group?: ?string, type: string}>  $subjects
      */
     public function sync(Classes $class, array $subjects): Collection
     {
-        $rows = array_map(fn (array $row) => [
-            'subject_id' => (int) $row['subject_id'],
-            'group' => $row['group'] ?? null,
-            'type' => $row['type'],
-        ], array_values($subjects));
+        $rows = array_map(function (array $row) {
+            $normalized = [
+                'subject_id' => (int) $row['subject_id'],
+                'group' => $row['group'] ?? null,
+                'type' => $row['type'],
+            ];
+
+            foreach ([...ClassSubject::MARK_FIELDS, 'paper_group'] as $field) {
+                if (array_key_exists($field, $row)) {
+                    $normalized[$field] = $row[$field] === null || $row[$field] === ''
+                        ? null
+                        : ($field === 'paper_group' ? (string) $row[$field] : (int) $row[$field]);
+                }
+            }
+
+            return $normalized;
+        }, array_values($subjects));
 
         // The class row is locked first, so two concurrent replacements for it queue up
         // and each validates against (and writes over) the other's committed result.
@@ -55,7 +72,7 @@ class CurriculumService
     }
 
     /**
-     * @param  list<array{subject_id: int, group: ?string, type: string}>  $rows
+     * @param  list<array<string, mixed>>  $rows
      */
     private function ensureValid(Classes $class, array $rows): void
     {
@@ -98,8 +115,116 @@ class CurriculumService
             $errors["subjects.{$i}.subject_id"][] = 'Only active subjects can be added to a curriculum.';
         }
 
+        foreach ($rows as $i => $row) {
+            foreach ($this->partErrors($row) as $field => $message) {
+                $errors["subjects.{$i}.{$field}"][] = $message;
+            }
+        }
+
+        foreach ($this->paperGroupErrors($class, $rows) as $i => $message) {
+            $errors["subjects.{$i}.paper_group"][] = $message;
+        }
+
+        $assigned = $this->curriculum->assignedSubjects($class);
+        $listed = array_column($rows, 'subject_id');
+
+        foreach ($assigned as $subjectId => $name) {
+            if (! in_array($subjectId, $listed, true)) {
+                $errors['subjects'][] = "{$name} still has subject-teacher assignments in this class. Unassign it first, then remove it from the curriculum.";
+            }
+        }
+
         if ($errors !== []) {
             throw ValidationException::withMessages($errors);
         }
+    }
+
+    /**
+     * The part rules for a row that sends any part field: at least one part, each part's
+     * full and pass set together, pass <= full, full >= 1. Keyed by the field to blame.
+     *
+     * @param  array<string, mixed>  $row
+     * @return array<string, string>
+     */
+    private function partErrors(array $row): array
+    {
+        if (array_intersect(ClassSubject::MARK_FIELDS, array_keys($row)) === []) {
+            return [];
+        }
+
+        $errors = [];
+        $anySet = false;
+
+        foreach (ClassSubject::PARTS as $part) {
+            $full = $row["{$part}_full"] ?? null;
+            $pass = $row["{$part}_pass"] ?? null;
+
+            if ($full === null && $pass === null) {
+                continue;
+            }
+
+            $anySet = true;
+
+            if ($full === null) {
+                $errors["{$part}_full"] = "The {$part} full marks are required when the pass marks are set.";
+            } elseif ($pass === null) {
+                $errors["{$part}_pass"] = "The {$part} pass marks are required when the full marks are set.";
+            } elseif ($full < 1) {
+                $errors["{$part}_full"] = "The {$part} full marks must be at least 1.";
+            } elseif ($pass > $full) {
+                $errors["{$part}_pass"] = "The {$part} pass marks cannot be more than the full marks.";
+            }
+        }
+
+        if (! $anySet) {
+            $errors['written_full'] = 'At least one marks part (written, MCQ or practical) must be set.';
+        }
+
+        return $errors;
+    }
+
+    /**
+     * A paper group pairs at most 2 rows of the class, and both must share type and group.
+     * A row that omits `paper_group` keeps its saved one, so the saved pairing is read
+     * only when some row needs it. Keyed by row index.
+     *
+     * @param  list<array<string, mixed>>  $rows
+     * @return array<int, string>
+     */
+    private function paperGroupErrors(Classes $class, array $rows): array
+    {
+        $saved = null;
+        $members = [];
+
+        foreach ($rows as $i => $row) {
+            if (array_key_exists('paper_group', $row)) {
+                $paperGroup = $row['paper_group'];
+            } else {
+                $saved ??= $this->curriculum->savedPaperGroups($class);
+                $paperGroup = $saved[$row['subject_id'].'|'.($row['group'] ?? '')] ?? null;
+            }
+
+            if ($paperGroup !== null) {
+                $members[$paperGroup][] = $i;
+            }
+        }
+
+        $errors = [];
+
+        foreach ($members as $paperGroup => $indexes) {
+            $first = $rows[$indexes[0]];
+
+            foreach (array_slice($indexes, 1) as $position => $i) {
+                if ($position >= 1) {
+                    $errors[$i] = "The paper group \"{$paperGroup}\" can have at most 2 subjects.";
+                } elseif ($rows[$i]['type'] !== $first['type']) {
+                    $errors[$i] = "Both subjects in the paper group \"{$paperGroup}\" must be compulsory, or both optional.";
+                } elseif (($rows[$i]['group'] ?? null) !== ($first['group'] ?? null)) {
+                    $errors[$i] = "Both subjects in the paper group \"{$paperGroup}\" must be in the same group.";
+                }
+            }
+        }
+
+        return $errors;
     }
 }

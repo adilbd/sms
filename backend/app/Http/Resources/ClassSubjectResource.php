@@ -19,6 +19,13 @@ class ClassSubjectResource extends JsonResource
             'group' => $this->group,
             'type' => $this->type,
             'sort_order' => $this->sort_order,
+            'written_full' => $this->written_full,
+            'written_pass' => $this->written_pass,
+            'mcq_full' => $this->mcq_full,
+            'mcq_pass' => $this->mcq_pass,
+            'practical_full' => $this->practical_full,
+            'practical_pass' => $this->practical_pass,
+            'paper_group' => $this->paper_group,
         ];
     }
 }

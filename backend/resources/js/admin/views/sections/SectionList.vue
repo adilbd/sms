@@ -69,6 +69,7 @@
               </td>
               <td>
                 <div class="flex space-x-2">
+                  <router-link :to="`/sections/${section.id}/subject-teachers`" class="text-primary-600 hover:text-primary-800" title="Subject teachers">👩‍🏫</router-link>
                   <router-link :to="`/sections/${section.id}/edit`" class="text-primary-600 hover:text-primary-800" title="Edit">✏️</router-link>
                   <button @click="deleteSection(section)" class="text-red-600 hover:text-red-800" title="Delete">🗑️</button>
                 </div>
