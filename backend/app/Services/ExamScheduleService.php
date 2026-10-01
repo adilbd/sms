@@ -36,11 +36,17 @@ class ExamScheduleService
     {
         abort_unless($subject->exam_id === $exam->id, 404, 'Record not found.');
 
-        return DB::transaction(function () use ($subject, $data) {
+        return DB::transaction(function () use ($exam, $subject, $data) {
             $locked = $this->exams->lockSubject($subject);
             $applied = (clone $locked)->fill($data);
 
             $this->ensureTimesInOrder($applied);
+
+            // Only when the date is being set, so an exam whose dates moved later doesn't
+            // block unrelated edits to a subject that still carries an older date.
+            if (array_key_exists('exam_date', $data)) {
+                $this->ensureDateWithinExam($applied, $exam);
+            }
 
             if ($this->marksChanged($locked, $data)) {
                 $errors = MarkParts::errors($applied->only(ClassSubject::MARK_FIELDS));
@@ -75,6 +81,23 @@ class ExamScheduleService
         }
 
         return false;
+    }
+
+    /**
+     * The exam date falls on or between the exam's start and end dates, checked against the
+     * subject with the input applied (the pattern of the other rules here).
+     */
+    private function ensureDateWithinExam(ExamSubject $subject, Exam $exam): void
+    {
+        $date = $subject->exam_date?->toDateString();
+        $start = $exam->start_date->toDateString();
+        $end = $exam->end_date->toDateString();
+
+        if ($date !== null && ($date < $start || $date > $end)) {
+            throw ValidationException::withMessages([
+                'exam_date' => ["The exam date must be within the exam's dates ({$start} to {$end})."],
+            ]);
+        }
     }
 
     private function ensureTimesInOrder(ExamSubject $subject): void

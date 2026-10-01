@@ -148,7 +148,46 @@ class ExamMarkServiceTest extends TestCase
         $this->assertStatus(403, fn () => app(ExamMarkService::class)->sheet($this->user(), $this->exam(), 20, 40));
     }
 
-    public function test_only_an_exam_in_mark_entry_accepts_marks(): void
+    public function test_the_assignment_is_checked_again_once_the_locks_are_held(): void
+    {
+        // Still assigned when the sheet is resolved, removed before the save gets its locks.
+        $this->repos(function (MockInterface $m) {
+            $m->shouldReceive('lockSection')->once()->andReturn($this->section());
+            $m->shouldNotReceive('saveRows');
+        });
+        $this->mock(SubjectAssignmentService::class, function (MockInterface $m) {
+            $m->shouldReceive('canEnterMarks')->twice()->andReturn(true, false);
+        });
+
+        $this->assertStatus(403, fn () => app(ExamMarkService::class)->save($this->user(), $this->exam(), $this->data([['student_id' => 1, 'written' => 1]])));
+    }
+
+    public function test_saving_into_a_processed_exam_sends_it_back_to_mark_entry(): void
+    {
+        $locked = $this->exam(Exam::STATUS_PROCESSED);
+
+        $this->repos(function (MockInterface $m) {
+            $m->shouldReceive('saveRows')->once();
+        }, exams: function (MockInterface $m) use ($locked) {
+            $m->shouldReceive('lockExam')->once()->andReturn($locked);
+            $m->shouldReceive('update')->once()->with($locked, ['status' => Exam::STATUS_MARKS_ENTRY])->andReturn($locked);
+        });
+
+        $result = app(ExamMarkService::class)->save($this->user(), $this->exam(Exam::STATUS_PROCESSED), $this->data([['student_id' => 1, 'written' => 1]]));
+
+        $this->assertSame(Exam::STATUS_MARKS_ENTRY, $result['exam']->status);
+    }
+
+    public function test_saving_into_an_exam_in_mark_entry_leaves_its_status_alone(): void
+    {
+        $this->repos(function (MockInterface $m) {
+            $m->shouldReceive('saveRows')->once();
+        }, exams: fn (MockInterface $m) => $m->shouldNotReceive('update'));
+
+        app(ExamMarkService::class)->save($this->user(), $this->exam(), $this->data([['student_id' => 1, 'written' => 1]]));
+    }
+
+    public function test_only_an_exam_in_mark_entry_or_processed_accepts_marks(): void
     {
         foreach ([Exam::STATUS_DRAFT, Exam::STATUS_PUBLISHED] as $status) {
             $this->repos(fn (MockInterface $m) => $m->shouldNotReceive('saveRows'));

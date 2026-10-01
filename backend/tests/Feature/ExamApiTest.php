@@ -361,6 +361,14 @@ class ExamApiTest extends TestCase
         $this->assertSame(1, $exam->examSubjects()->count());
     }
 
+    public function test_regenerate_for_a_class_not_in_the_exam_is_a_404_even_when_its_curriculum_is_empty(): void
+    {
+        $exam = $this->createExam([$this->class9]);
+        ClassSubject::where('class_id', $this->class10->id)->delete();
+
+        $this->as($this->admin)->postJson("/api/exams/{$exam->id}/classes/{$this->class10->id}/regenerate")->assertNotFound();
+    }
+
     // Delete
 
     public function test_destroy_deletes_an_exam_without_marks_and_frees_its_classes(): void
@@ -402,11 +410,11 @@ class ExamApiTest extends TestCase
         $this->as($this->admin)->postJson('/api/exams/1abc/open-marks-entry')->assertNotFound();
     }
 
-    public function test_the_old_publish_route_is_gone(): void
+    public function test_publishing_a_draft_exam_is_a_conflict(): void
     {
         $exam = $this->createExam();
 
-        $this->as($this->admin)->postJson("/api/exams/{$exam->id}/publish")->assertStatus(404);
+        $this->as($this->admin)->postJson("/api/exams/{$exam->id}/publish")->assertStatus(409);
     }
 
     // Guards

@@ -57,6 +57,38 @@ class StudentEnrolment extends Model
             ->orderByDesc('student_enrolments.id');
     }
 
+    /**
+     * The enrolments that count for an academic year's exams: active, in that year, and of
+     * a student who has not been deleted.
+     */
+    public function scopeActiveIn(Builder $query, int $academicYearId): Builder
+    {
+        return $query
+            ->where('student_enrolments.academic_year_id', $academicYearId)
+            ->where('student_enrolments.status', self::STATUS_ACTIVE)
+            ->whereHas('student');
+    }
+
+    /**
+     * The enrolments whose student takes an exam subject, the one rule for "who takes
+     * which subject" (the mark sheets and result processing both use it). A subject is
+     * taken when it is compulsory and common to the class (no group) or for the student's
+     * group, or when it is optional and is the student's chosen 4th subject (and, for a
+     * group's row, the student is in that group).
+     */
+    public function scopeTakingSubject(Builder $query, ExamSubject $subject): Builder
+    {
+        return $query->where(function (Builder $q) use ($subject) {
+            if ($subject->type === ClassSubject::TYPE_OPTIONAL) {
+                $q->where('student_enrolments.optional_subject_id', $subject->subject_id);
+            }
+
+            if ($subject->group !== null) {
+                $q->where('student_enrolments.group', $subject->group);
+            }
+        });
+    }
+
     public function student(): BelongsTo
     {
         return $this->belongsTo(Student::class);

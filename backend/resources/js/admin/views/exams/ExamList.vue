@@ -56,6 +56,7 @@
                 <div class="flex flex-wrap gap-x-3 gap-y-1 text-sm">
                   <router-link :to="`/exams/${exam.id}/schedule`" class="text-primary-600 hover:text-primary-800">Schedule</router-link>
                   <router-link :to="`/exams/${exam.id}/marks`" class="text-primary-600 hover:text-primary-800">Marks</router-link>
+                  <router-link v-if="exam.status !== 'draft'" :to="`/exams/${exam.id}/results`" class="text-primary-600 hover:text-primary-800">Results</router-link>
                   <button v-if="exam.status === 'draft'" class="text-green-700 hover:text-green-900" @click="openMarksEntry(exam)">Open mark entry</button>
                   <router-link :to="`/exams/${exam.id}/edit`" class="text-primary-600 hover:text-primary-800" title="Edit">✏️</router-link>
                   <button class="text-red-600 hover:text-red-800" title="Delete" @click="deleteExam(exam)">🗑️</button>

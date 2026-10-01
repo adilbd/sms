@@ -84,6 +84,19 @@ class StudentService
     }
 
     /**
+     * One of the signed-in guardian's own children. 403 for any other student, whether or
+     * not it exists, so the response doesn't reveal which ids are taken.
+     */
+    public function findChildOf(User $guardian, int $studentId): Student
+    {
+        $child = $this->childrenOf($guardian)->firstWhere('id', $studentId);
+
+        abort_if($child === null, 403, 'This student is not one of your children.');
+
+        return $child;
+    }
+
+    /**
      * @param  array<string, mixed>  $data  Profile fields, `password`, `guardian_password` and `enrolment`.
      */
     public function create(array $data, ?UploadedFile $photo): Student

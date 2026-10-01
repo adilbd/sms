@@ -21,8 +21,11 @@ use Illuminate\Validation\ValidationException;
  */
 class ExamMarkService
 {
-    /** Exam statuses that accept marks. Task 3 adds `processed` once results exist. */
-    private const ENTRY_STATUSES = [Exam::STATUS_MARKS_ENTRY];
+    /**
+     * Exam statuses that accept marks. Saving into a `processed` exam sends it back to
+     * `marks_entry` so stale results can't be published; a published exam is locked.
+     */
+    private const ENTRY_STATUSES = [Exam::STATUS_MARKS_ENTRY, Exam::STATUS_PROCESSED];
 
     public function __construct(
         private ExamRepositoryInterface $exams,
@@ -34,7 +37,7 @@ class ExamMarkService
     /**
      * The sheet for one section and subject.
      *
-     * @return array{exam_subject: ExamSubject, section: Section, enrolments: \Illuminate\Database\Eloquent\Collection}
+     * @return array{exam: Exam, exam_subject: ExamSubject, section: Section, enrolments: \Illuminate\Database\Eloquent\Collection}
      */
     public function sheet(User $user, Exam $exam, int $sectionId, int $examSubjectId): array
     {
@@ -48,15 +51,19 @@ class ExamMarkService
      * (`marks.3.mcq`). 403 without the assignment, 409 unless the exam is in mark entry.
      *
      * @param  array{section_id: int, exam_subject_id: int, marks: list<array<string, mixed>>}  $data
-     * @return array{exam_subject: ExamSubject, section: Section, enrolments: \Illuminate\Database\Eloquent\Collection}
+     * @return array{exam: Exam, exam_subject: ExamSubject, section: Section, enrolments: \Illuminate\Database\Eloquent\Collection}
      */
     public function save(User $user, Exam $exam, array $data): array
     {
         [$subject, $section] = $this->resolve($user, $exam, (int) $data['section_id'], (int) $data['exam_subject_id']);
 
-        DB::transaction(function () use ($user, $exam, $section, $subject, $data) {
+        $status = DB::transaction(function () use ($user, $exam, $section, $subject, $data) {
             $lockedSection = $this->marks->lockSection($section->id);
             $lockedExam = $this->exams->lockExam($exam);
+
+            // Checked again now the locks are held: the assignment may have been removed
+            // since resolve() read it, and the teacher must not save past that.
+            $this->authorizeEntry($user, $exam, $section, $subject);
 
             abort_unless(
                 in_array($lockedExam->status, self::ENTRY_STATUSES, true),
@@ -72,7 +79,17 @@ class ExamMarkService
             $rows = $this->validatedRows($lockedSubject, $enrolments, array_values($data['marks']));
 
             $this->marks->saveRows($lockedSubject, $rows, $user->id);
+
+            if ($lockedExam->status === Exam::STATUS_PROCESSED) {
+                $this->exams->update($lockedExam, ['status' => Exam::STATUS_MARKS_ENTRY]);
+
+                return Exam::STATUS_MARKS_ENTRY;
+            }
+
+            return $lockedExam->status;
         });
+
+        $exam->status = $status;
 
         return $this->build($exam, $section, $subject);
     }
@@ -97,6 +114,16 @@ class ExamMarkService
             throw ValidationException::withMessages(['section_id' => ["The section is not in this subject's class."]]);
         }
 
+        $this->authorizeEntry($user, $exam, $section, $subject);
+
+        return [$subject, $section];
+    }
+
+    /**
+     * 403 unless the user is an admin or the subject's assigned teacher in the section.
+     */
+    private function authorizeEntry(User $user, Exam $exam, Section $section, ExamSubject $subject): void
+    {
         $exam->loadMissing('academicYear');
 
         abort_unless(
@@ -104,16 +131,15 @@ class ExamMarkService
             403,
             'Only the assigned subject teacher or an admin can enter marks.'
         );
-
-        return [$subject, $section];
     }
 
     /**
-     * @return array{exam_subject: ExamSubject, section: Section, enrolments: \Illuminate\Database\Eloquent\Collection}
+     * @return array{exam: Exam, exam_subject: ExamSubject, section: Section, enrolments: \Illuminate\Database\Eloquent\Collection}
      */
     private function build(Exam $exam, Section $section, ExamSubject $subject): array
     {
         return [
+            'exam' => $exam,
             'exam_subject' => $subject,
             'section' => $section,
             'enrolments' => $this->marks->sheetEnrolments($exam, $section, $subject),

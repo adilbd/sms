@@ -133,8 +133,20 @@ class ExamService
                     $this->exams->deleteClassSubjects($locked, $removedId);
                 }
 
+                // Additions come from this locked read, not the earlier one, so a class
+                // that was removed concurrently is added back rather than silently dropped.
+                $additions = array_values(array_diff($classIds, $current));
+
+                // A class that only became missing after the first read was never locked
+                // (the class locks come before the exam lock), so it has no snapshot.
+                abort_if(
+                    array_diff($additions, array_keys($snapshots)) !== [],
+                    409,
+                    "The exam's classes changed while you were saving. Reload the exam and try again."
+                );
+
                 foreach ($classes as $class) {
-                    if (! in_array($class->id, $current, true)) {
+                    if (in_array($class->id, $additions, true)) {
                         $this->exams->replaceClassSubjects($locked, $class, $snapshots[$class->id]);
                     }
                 }
@@ -185,11 +197,12 @@ class ExamService
     {
         $exam = DB::transaction(function () use ($exam, $class) {
             $classes = $this->lockClasses([$class->id]);
-            $snapshots = $this->snapshotsFor($classes, [$class->id], null, 'class_id');
-
             $locked = $this->exams->lockExam($exam);
 
+            // Membership first: a class the exam isn't held for is a 404 whatever its curriculum.
             abort_unless(in_array($class->id, $this->exams->classIds($locked), true), 404, 'This exam is not held for the class.');
+
+            $snapshots = $this->snapshotsFor($classes, [$class->id], null, 'class_id');
             abort_if(
                 $this->exams->hasMarksForClass($locked, $class->id),
                 409,

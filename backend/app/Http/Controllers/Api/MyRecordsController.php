@@ -3,7 +3,10 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Resources\ExamResultResource;
+use App\Http\Resources\MyExamScheduleResource;
 use App\Http\Resources\StudentResource;
+use App\Services\ResultService;
 use App\Services\StudentService;
 use Illuminate\Http\Request;
 
@@ -14,7 +17,7 @@ use Illuminate\Http\Request;
  */
 class MyRecordsController extends Controller
 {
-    public function __construct(private StudentService $students) {}
+    public function __construct(private StudentService $students, private ResultService $results) {}
 
     public function student(Request $request)
     {
@@ -25,5 +28,20 @@ class MyRecordsController extends Controller
     public function children(Request $request)
     {
         return StudentResource::collectionFor($this->students->childrenOf($request->user()), sensitive: true);
+    }
+
+    public function results(Request $request)
+    {
+        return ExamResultResource::collectionWithSubjects($this->results->ownResults($request->user()));
+    }
+
+    public function childResults(Request $request, int $student)
+    {
+        return ExamResultResource::collectionWithSubjects($this->results->childResults($request->user(), $student));
+    }
+
+    public function exams(Request $request)
+    {
+        return MyExamScheduleResource::collection($this->results->ownSchedule($request->user()));
     }
 }

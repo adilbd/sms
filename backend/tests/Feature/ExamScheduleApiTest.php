@@ -34,6 +34,15 @@ class ExamScheduleApiTest extends TestCase
         return $this->as($this->admin)->putJson("/api/exams/{$exam->id}/subjects/{$subject->id}", $data);
     }
 
+    public function test_the_exam_date_must_be_within_the_exams_dates(): void
+    {
+        // createExam() holds the exam from 2026-06-01 to 2026-06-15.
+        $this->edit(['exam_date' => '2026-05-31'])->assertUnprocessable()->assertJsonValidationErrors(['exam_date']);
+        $this->edit(['exam_date' => '2026-06-16'])->assertUnprocessable()->assertJsonValidationErrors(['exam_date']);
+        $this->edit(['exam_date' => '2026-06-01'])->assertOk();
+        $this->edit(['exam_date' => '2026-06-15'])->assertOk()->assertJsonPath('data.exam_date', '2026-06-15');
+    }
+
     public function test_index_lists_the_schedule_in_class_then_curriculum_order(): void
     {
         $this->as($this->admin)->getJson("/api/exams/{$this->exam->id}/subjects")

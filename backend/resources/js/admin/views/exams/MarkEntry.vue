@@ -12,9 +12,9 @@
       <router-link to="/exams" class="btn btn-secondary">Back to exams</router-link>
     </div>
 
-    <div v-if="exam && exam.status !== 'marks_entry'" class="rounded-lg border border-yellow-200 bg-yellow-50 px-4 py-3 text-sm text-yellow-800">
+    <div v-if="exam && !acceptsMarks" class="rounded-lg border border-yellow-200 bg-yellow-50 px-4 py-3 text-sm text-yellow-800">
       <template v-if="exam.status === 'draft'">Mark entry has not been opened for this exam yet. Open it from the exam list first.</template>
-      <template v-else>Marks can no longer be entered for this exam.</template>
+      <template v-else>These results are published, so marks can no longer be entered. Unpublish the exam first to change them.</template>
     </div>
 
     <div v-if="notice" :class="['rounded-lg border px-4 py-3 text-sm', notice.ok ? 'border-green-200 bg-green-50 text-green-700' : 'border-red-200 bg-red-50 text-red-700']">
@@ -111,7 +111,7 @@
         </p>
 
         <div class="mt-4 flex justify-end">
-          <button type="button" class="btn btn-primary" :disabled="saving || exam?.status !== 'marks_entry'" @click="save">
+          <button type="button" class="btn btn-primary" :disabled="saving || !acceptsMarks" @click="save">
             {{ saving ? 'Saving...' : 'Save marks' }}
           </button>
         </div>
@@ -141,6 +141,10 @@ const loadingSheet = ref(false)
 const saving = ref(false)
 const notice = ref(null)
 const errors = ref({})
+
+// Marks are accepted while the exam is open for mark entry or processed. Saving into a
+// processed exam sends it back to mark entry, so it has to be processed again.
+const acceptsMarks = computed(() => ['marks_entry', 'processed'].includes(exam.value?.status))
 
 // The parts the chosen subject has, each with its full and pass marks.
 const parts = computed(() => {
@@ -260,7 +264,14 @@ const save = async () => {
       })),
     })
     applySheet(data.data)
-    notice.value = { ok: true, text: data.message || 'Marks saved successfully' }
+    const reopened = exam.value.status === 'processed' && data.data.exam_status === 'marks_entry'
+    exam.value.status = data.data.exam_status
+    notice.value = {
+      ok: true,
+      text: reopened
+        ? 'Marks saved. The exam is back in mark entry, so process the results again before publishing.'
+        : data.message || 'Marks saved successfully',
+    }
   } catch (error) {
     if (error.response?.status === 422) {
       errors.value = error.response.data.errors ?? {}
