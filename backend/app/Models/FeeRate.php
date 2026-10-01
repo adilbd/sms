@@ -5,29 +5,34 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\HasMany;
 
-class FeeStructure extends Model
+/**
+ * What one fee head costs for a class in an academic year, optionally for one group (Class
+ * 9+; a null group is the whole class, and a group's own rate wins over it). `amount` is
+ * BDT, `decimal:2`. `due_day` (1-28) is the day of the month a monthly due falls on.
+ * Written through App\Services\FeeRateService.
+ */
+class FeeRate extends Model
 {
     use HasFactory;
 
     protected $fillable = [
-        'fee_type_id',
+        'fee_head_id',
         'class_id',
         'academic_year_id',
+        'group',
         'amount',
-        'frequency',
-        'due_date',
+        'due_day',
     ];
 
     protected $casts = [
         'amount' => 'decimal:2',
-        'due_date' => 'date',
+        'due_day' => 'integer',
     ];
 
-    public function feeType(): BelongsTo
+    public function head(): BelongsTo
     {
-        return $this->belongsTo(FeeType::class);
+        return $this->belongsTo(FeeHead::class, 'fee_head_id');
     }
 
     public function class(): BelongsTo
@@ -39,10 +44,4 @@ class FeeStructure extends Model
     {
         return $this->belongsTo(AcademicYear::class);
     }
-
-    public function feePayments(): HasMany
-    {
-        return $this->hasMany(FeePayment::class);
-    }
 }
-

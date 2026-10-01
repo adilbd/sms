@@ -10,6 +10,12 @@ use App\Repositories\Contracts\ClassTeacherRepositoryInterface;
 use App\Repositories\Contracts\ExamMarkRepositoryInterface;
 use App\Repositories\Contracts\ExamRepositoryInterface;
 use App\Repositories\Contracts\ExamResultRepositoryInterface;
+use App\Repositories\Contracts\FeeDueRepositoryInterface;
+use App\Repositories\Contracts\FeeHeadRepositoryInterface;
+use App\Repositories\Contracts\FeePaymentRepositoryInterface;
+use App\Repositories\Contracts\FeeRateRepositoryInterface;
+use App\Repositories\Contracts\FeeReportRepositoryInterface;
+use App\Repositories\Contracts\FeeWaiverRepositoryInterface;
 use App\Repositories\Contracts\GalleryRepositoryInterface;
 use App\Repositories\Contracts\HolidayRepositoryInterface;
 use App\Repositories\Contracts\MediaRepositoryInterface;
@@ -34,6 +40,12 @@ use App\Repositories\Eloquent\ClassTeacherRepository;
 use App\Repositories\Eloquent\ExamMarkRepository;
 use App\Repositories\Eloquent\ExamRepository;
 use App\Repositories\Eloquent\ExamResultRepository;
+use App\Repositories\Eloquent\FeeDueRepository;
+use App\Repositories\Eloquent\FeeHeadRepository;
+use App\Repositories\Eloquent\FeePaymentRepository;
+use App\Repositories\Eloquent\FeeRateRepository;
+use App\Repositories\Eloquent\FeeReportRepository;
+use App\Repositories\Eloquent\FeeWaiverRepository;
 use App\Repositories\Eloquent\GalleryRepository;
 use App\Repositories\Eloquent\HolidayRepository;
 use App\Repositories\Eloquent\MediaRepository;
@@ -84,5 +96,11 @@ class RepositoryServiceProvider extends ServiceProvider
         PromotionRepositoryInterface::class => PromotionRepository::class,
         AttendanceRepositoryInterface::class => AttendanceRepository::class,
         HolidayRepositoryInterface::class => HolidayRepository::class,
+        FeeHeadRepositoryInterface::class => FeeHeadRepository::class,
+        FeeRateRepositoryInterface::class => FeeRateRepository::class,
+        FeeWaiverRepositoryInterface::class => FeeWaiverRepository::class,
+        FeeDueRepositoryInterface::class => FeeDueRepository::class,
+        FeePaymentRepositoryInterface::class => FeePaymentRepository::class,
+        FeeReportRepositoryInterface::class => FeeReportRepository::class,
     ];
 }

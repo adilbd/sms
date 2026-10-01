@@ -79,9 +79,15 @@ class Classes extends Model
         return $this->hasManyThrough(Attendance::class, Section::class, 'class_id')->withTrashedParents();
     }
 
-    public function feeStructures(): HasMany
+    public function feeRates(): HasMany
     {
-        return $this->hasMany(FeeStructure::class, 'class_id');
+        return $this->hasMany(FeeRate::class, 'class_id');
+    }
+
+    /** Fee dues of the class's enrolments (a due belongs to an enrolment, which has the class). */
+    public function feeDues(): HasManyThrough
+    {
+        return $this->hasManyThrough(FeeDue::class, StudentEnrolment::class, 'class_id', 'enrolment_id');
     }
 
     public function examSubjects(): HasMany

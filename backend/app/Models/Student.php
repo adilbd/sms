@@ -121,9 +121,19 @@ class Student extends Model
         return $this->hasMany(ExamResult::class);
     }
 
+    public function feeDues(): HasMany
+    {
+        return $this->hasMany(FeeDue::class);
+    }
+
     public function feePayments(): HasMany
     {
         return $this->hasMany(FeePayment::class);
+    }
+
+    public function feeWaivers(): HasMany
+    {
+        return $this->hasMany(StudentFeeWaiver::class);
     }
 
     public function displayName(): string

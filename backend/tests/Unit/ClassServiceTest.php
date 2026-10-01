@@ -71,7 +71,7 @@ class ClassServiceTest extends TestCase
         $this->assertConflict(fn () => app(ClassService::class)->delete($class));
     }
 
-    public function test_delete_is_refused_when_class_has_fee_structures(): void
+    public function test_delete_is_refused_when_class_has_fee_rates_or_dues(): void
     {
         $class = new Classes;
 
@@ -80,7 +80,7 @@ class ClassServiceTest extends TestCase
             $mock->shouldReceive('hasStudents')->once()->andReturn(false);
             $mock->shouldReceive('hasAttendances')->once()->andReturn(false);
             $mock->shouldReceive('hasExamSchedules')->once()->andReturn(false);
-            $mock->shouldReceive('hasFeeStructures')->once()->with($class)->andReturn(true);
+            $mock->shouldReceive('hasFeeRatesOrDues')->once()->with($class)->andReturn(true);
             $mock->shouldNotReceive('delete');
         });
 
@@ -96,7 +96,7 @@ class ClassServiceTest extends TestCase
             $mock->shouldReceive('hasStudents')->once()->andReturn(false);
             $mock->shouldReceive('hasAttendances')->once()->andReturn(false);
             $mock->shouldReceive('hasExamSchedules')->once()->andReturn(false);
-            $mock->shouldReceive('hasFeeStructures')->once()->andReturn(false);
+            $mock->shouldReceive('hasFeeRatesOrDues')->once()->andReturn(false);
             $mock->shouldReceive('hasSubjectAssignments')->once()->with($class)->andReturn(true);
             $mock->shouldNotReceive('delete');
         });
@@ -113,7 +113,7 @@ class ClassServiceTest extends TestCase
             $mock->shouldReceive('hasStudents')->once()->andReturn(false);
             $mock->shouldReceive('hasAttendances')->once()->andReturn(false);
             $mock->shouldReceive('hasExamSchedules')->once()->andReturn(false);
-            $mock->shouldReceive('hasFeeStructures')->once()->andReturn(false);
+            $mock->shouldReceive('hasFeeRatesOrDues')->once()->andReturn(false);
             $mock->shouldReceive('hasSubjectAssignments')->once()->andReturn(false);
             $mock->shouldReceive('deleteCurriculum')->once()->with($class);
             $mock->shouldReceive('delete')->once()->with($class);

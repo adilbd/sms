@@ -68,18 +68,16 @@ class RolePermissionSeeder extends Seeder
             'view-classes', 'view-subjects',
         ]);
 
-        // Students and guardians no longer hold view-exams/view-results/view-attendance:
-        // those list every exam, result and class's attendance. They read their own
-        // through /api/my/*.
+        // Students and guardians no longer hold view-exams/view-results/view-attendance/
+        // view-fees: those list every exam, result, class's attendance and student's fees.
+        // They read their own through /api/my/*.
         Role::findOrCreate('student', 'web')->syncPermissions([
             'view-subjects',
         ]);
 
-        // Guardians read their own children through GET /api/my/children, not through
-        // view-students (which would list every student in the school).
-        Role::findOrCreate('parent', 'web')->syncPermissions([
-            'view-fees',
-        ]);
+        // Guardians read their own children and their fees through /api/my/children, not
+        // through view-students or view-fees (which would list every student's).
+        Role::findOrCreate('parent', 'web')->syncPermissions([]);
 
         // Create super admin user
         $admin = User::firstOrCreate(

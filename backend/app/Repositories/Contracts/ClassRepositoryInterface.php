@@ -25,7 +25,10 @@ interface ClassRepositoryInterface extends RepositoryInterface
 
     public function hasExamSchedules(Classes $class): bool;
 
-    public function hasFeeStructures(Classes $class): bool;
+    /**
+     * Whether the class has fee rates, or fee dues in any of its enrolments.
+     */
+    public function hasFeeRatesOrDues(Classes $class): bool;
 
     public function hasSubjectAssignments(Classes $class): bool;
 

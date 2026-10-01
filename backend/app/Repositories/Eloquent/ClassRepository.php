@@ -41,9 +41,9 @@ class ClassRepository extends EloquentRepository implements ClassRepositoryInter
         return $class->examSubjects()->exists();
     }
 
-    public function hasFeeStructures(Classes $class): bool
+    public function hasFeeRatesOrDues(Classes $class): bool
     {
-        return $class->feeStructures()->exists();
+        return $class->feeRates()->exists() || $class->feeDues()->exists();
     }
 
     public function hasSubjectAssignments(Classes $class): bool

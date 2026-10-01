@@ -26,9 +26,9 @@ class AcademicYearRepository extends EloquentRepository implements AcademicYearR
         return $academicYear->exams()->withTrashed()->exists();
     }
 
-    public function hasFeeStructures(AcademicYear $academicYear): bool
+    public function hasFeeRatesOrDues(AcademicYear $academicYear): bool
     {
-        return $academicYear->feeStructures()->exists();
+        return $academicYear->feeRates()->exists() || $academicYear->feeDues()->exists();
     }
 
     public function hasClassTeacherRows(AcademicYear $academicYear): bool
