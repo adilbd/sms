@@ -8,6 +8,7 @@ use App\Models\User;
 use App\Repositories\Contracts\AcademicYearRepositoryInterface;
 use App\Repositories\Contracts\StudentRepositoryInterface;
 use App\Repositories\Contracts\UserRepositoryInterface;
+use App\Support\LoginTrust;
 use App\Support\UniqueViolation;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Collection;
@@ -237,6 +238,7 @@ class StudentService
 
                         if (filled($guardianPassword)) {
                             $this->users->revokeAllTokens($guardian);
+                            LoginTrust::invalidate($guardian);
                         }
                     }
                 }
@@ -289,6 +291,7 @@ class StudentService
             if ($student->user_id && $login = $this->users->find($student->user_id)) {
                 $this->users->update($login, ['is_active' => false]);
                 $this->users->revokeAllTokens($login);
+                LoginTrust::invalidate($login);
             }
 
             // The enrolment stays as history but frees its seat and roll number.
@@ -393,6 +396,7 @@ class StudentService
 
         if (filled($password)) {
             $this->users->revokeAllTokens($user);
+            LoginTrust::invalidate($user);
         }
 
         return $user;
@@ -425,6 +429,7 @@ class StudentService
 
         if (filled($password) || ! $attributes['is_active']) {
             $this->users->revokeAllTokens($login);
+            LoginTrust::invalidate($login);
         }
     }
 
@@ -442,6 +447,7 @@ class StudentService
 
         if (! $active) {
             $this->users->revokeAllTokens($guardian);
+            LoginTrust::invalidate($guardian);
         }
     }
 

@@ -262,6 +262,80 @@ class AttendanceApiTest extends TestCase
         $this->sheet('&date=2025-10-08', $this->admin)->assertUnprocessable()->assertJsonValidationErrors(['date']);
     }
 
+    public function test_an_out_of_year_date_from_a_non_class_teacher_is_403_not_422(): void
+    {
+        $other = $this->classTeacherOf(Section::factory()->create(['class_id' => $this->class10->id, 'shift_id' => $this->shift->id]));
+        $outsider = $this->assignedTeacher($this->section9, $this->bangla);
+
+        foreach ([$other, $outsider] as $teacher) {
+            // 2025 has no academic year at all; 2026-01-15 is a year with the date before its start.
+            $this->sheet('&date=2025-10-08', $teacher)->assertForbidden();
+            $this->save(['date' => '2025-10-08', 'entries' => $this->entries()], $teacher)->assertForbidden();
+            $this->as($teacher)->getJson("/api/attendance/report?section_id={$this->section9->id}&month=2027-01")->assertForbidden();
+        }
+
+        $this->year->update(['start_date' => '2026-02-01']);
+        $this->sheet('&date=2026-01-15', $outsider)->assertForbidden();
+
+        // The class teacher and an admin still get the date error.
+        $this->sheet('&date=2025-10-08', $this->classTeacher)->assertUnprocessable()->assertJsonValidationErrors(['date']);
+        $this->sheet('&date=2025-10-08', $this->admin)->assertUnprocessable()->assertJsonValidationErrors(['date']);
+        $this->sheet('&date=2026-01-15', $this->classTeacher)->assertUnprocessable();
+    }
+
+    // --- enrolment start ---------------------------------------------------------------
+
+    public function test_a_mid_year_joiners_percentage_only_counts_school_days_since_joining(): void
+    {
+        // Salma joined on Monday 2026-10-05: school days from then are the 5th to the 8th.
+        $this->salma->update(['enrolled_on' => '2026-10-05']);
+        $this->mark($this->salma, '2026-10-05', 'present');
+        $this->mark($this->salma, '2026-10-06', 'late');
+        // Rahim has no start date, so he counts from the first of the month.
+        $this->mark($this->rahim, '2026-10-05', 'present');
+
+        $students = $this->sheetReport()->assertOk()->json('data.students');
+
+        $this->assertSame('Salma', $students[2]['student']['name_en']);
+        $this->assertSame('50.00', $students[2]['percentage']);
+        $this->assertSame('14.29', $students[0]['percentage']);
+
+        // The year-to-date figure of the student endpoint starts at the joining date too.
+        $ytd = $this->as($this->classTeacher)->getJson("/api/attendance/students/{$this->salma->student_id}?month=2026-10")
+            ->assertOk()->assertJsonPath('data.school_days', ['2026-10-05', '2026-10-06', '2026-10-07', '2026-10-08'])
+            ->assertJsonPath('data.percentage', '50.00')
+            ->json('data.year_to_date');
+        $this->assertSame(4, $ytd['school_days']);
+        $this->assertSame('50.00', $ytd['percentage']);
+    }
+
+    public function test_a_student_who_joins_after_the_month_is_not_in_its_report(): void
+    {
+        $this->salma->update(['enrolled_on' => '2026-10-05']);
+
+        $names = array_column(array_column($this->sheetReport('2026-09')->assertOk()->json('data.students'), 'student'), 'name_en');
+
+        $this->assertSame(['Rahim', 'Karim'], $names);
+    }
+
+    public function test_a_past_date_sheet_lists_who_was_enrolled_then_and_includes_students_who_left_later(): void
+    {
+        $this->salma->update(['enrolled_on' => '2026-10-07']);
+        $leaver = $this->enrol($this->section9, 'science', null, 4, ['name_en' => 'Leaver', 'status' => Student::STATUS_LEFT, 'leaving_date' => '2026-10-07']);
+        $leaver->update(['status' => StudentEnrolment::STATUS_LEFT]);
+
+        $on = fn (string $date) => array_column($this->sheet("&date={$date}", $this->admin)->assertOk()->json('data.students'), 'name_en');
+
+        $this->assertSame(['Rahim', 'Karim', 'Leaver'], $on('2026-10-06'));
+        $this->assertSame(['Rahim', 'Karim', 'Salma', 'Leaver'], $on('2026-10-07'));
+        $this->assertSame(['Rahim', 'Karim', 'Salma'], $on('2026-10-08'));
+
+        // A student who is not on the sheet of that date cannot be marked for it.
+        $this->save(['date' => '2026-10-06', 'entries' => [['student_id' => $this->salma->student_id, 'status' => 'present']]], $this->admin)
+            ->assertUnprocessable()->assertJsonValidationErrors(['entries.0.student_id']);
+        $this->save(['date' => '2026-10-06', 'entries' => [['student_id' => $leaver->student_id, 'status' => 'present']]], $this->admin)->assertOk();
+    }
+
     public function test_a_listed_holiday_is_rejected_and_shown_on_the_sheet(): void
     {
         Holiday::factory()->create(['date' => '2026-10-07', 'name_en' => 'Mid-term break', 'academic_year_id' => $this->year->id]);

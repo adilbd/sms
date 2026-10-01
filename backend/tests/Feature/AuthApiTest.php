@@ -220,7 +220,7 @@ class AuthApiTest extends TestCase
 
         $this->loginFrom('10.9.0.1', '20260001', 'student-pass')->assertOk();
 
-        $this->assertTrue(Cache::has('login-trusted:'.$user->id.':'.sha1('10.9.0.1')));
+        $this->assertTrue(Cache::has('login-trusted:'.$user->id.':0:'.sha1('10.9.0.1')));
     }
 
     public function test_the_per_account_lock_returns_retry_after_and_lifts_when_cleared(): void

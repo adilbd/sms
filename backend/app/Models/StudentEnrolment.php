@@ -42,11 +42,14 @@ class StudentEnrolment extends Model
         'group',
         'optional_subject_id',
         'roll_number',
+        'enrolled_on',
         'status',
     ];
 
     protected $casts = [
         'roll_number' => 'integer',
+        // The day the enrolment began (Asia/Dhaka calendar date); null means the start of the year.
+        'enrolled_on' => 'date:Y-m-d',
     ];
 
     /** Newest academic year first (by the calendar year, not by row id). */

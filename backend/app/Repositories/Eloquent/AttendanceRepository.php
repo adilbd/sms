@@ -10,11 +10,12 @@ use Illuminate\Database\Eloquent\Collection;
 
 class AttendanceRepository implements AttendanceRepositoryInterface
 {
-    public function sheetEnrolments(int $sectionId, int $academicYearId, string $date): Collection
+    public function candidateEnrolments(int $sectionId, int $academicYearId, string $date): Collection
     {
         return StudentEnrolment::query()
             ->where('student_enrolments.section_id', $sectionId)
-            ->activeIn($academicYearId)
+            ->where('student_enrolments.academic_year_id', $academicYearId)
+            ->whereHas('student')
             ->with([
                 'student',
                 'attendances' => fn ($q) => $q->where('date', $date),

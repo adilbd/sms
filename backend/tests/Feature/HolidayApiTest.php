@@ -60,9 +60,16 @@ class HolidayApiTest extends TestCase
         $this->as($this->admin)->putJson("/api/holidays/{$existing->id}", ['date' => '2026-02-21'])->assertOk();
     }
 
+    public function test_per_page_is_limited_to_100(): void
+    {
+        $this->as($this->admin)->getJson('/api/holidays?per_page=101')->assertUnprocessable()->assertJsonValidationErrors(['per_page']);
+        $this->as($this->admin)->getJson('/api/holidays?per_page=0')->assertUnprocessable()->assertJsonValidationErrors(['per_page']);
+        $this->as($this->admin)->getJson('/api/holidays?per_page=100')->assertOk();
+    }
+
     public function test_index_lists_by_date_and_filters_by_academic_year(): void
     {
-        $other = AcademicYear::factory()->create(['year' => 2027, 'name' => '2027', 'code' => '2027', 'start_date' => '2027-01-01', 'end_date' => '2027-12-31']);
+        $other = AcademicYear::factory()->create(['year' => 2027]);
         Holiday::factory()->create(['date' => '2026-12-16', 'academic_year_id' => $this->year->id]);
         Holiday::factory()->create(['date' => '2026-02-21', 'academic_year_id' => $this->year->id]);
         Holiday::factory()->create(['date' => '2027-02-21', 'academic_year_id' => $other->id]);
@@ -123,7 +130,7 @@ class HolidayApiTest extends TestCase
 
     public function test_an_academic_year_with_holidays_cannot_be_deleted(): void
     {
-        $year = AcademicYear::factory()->create(['year' => 2027, 'name' => '2027', 'code' => '2027', 'start_date' => '2027-01-01', 'end_date' => '2027-12-31']);
+        $year = AcademicYear::factory()->create(['year' => 2027]);
         Holiday::factory()->create(['date' => '2027-02-21', 'academic_year_id' => $year->id]);
 
         $this->as($this->admin)->deleteJson("/api/academic-years/{$year->id}")

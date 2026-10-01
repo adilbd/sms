@@ -4,8 +4,8 @@ namespace App\Services;
 
 use App\Models\User;
 use App\Repositories\Contracts\UserRepositoryInterface;
+use App\Support\LoginTrust;
 use Illuminate\Http\Exceptions\ThrottleRequestsException;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Validation\ValidationException;
@@ -22,8 +22,6 @@ class AuthService
     /** Failed passwords a minute per IP, across every identifier. Successes never count. */
     private const MAX_IP_FAILURES = 30;
 
-    private const TRUST_DAYS = 30;
-
     public function __construct(private UserRepositoryInterface $users) {}
 
     /**
@@ -39,13 +37,12 @@ class AuthService
 
         $user = $this->users->findForLogin($login);
         $key = $user ? 'login-user:'.$user->id : null;
-        $trustKey = $user ? self::trustKey($user, $ip) : null;
 
         // Failures are also counted per resolved account, so spelling variants of one login
         // (which the route limiter sees as different identifiers) and many IPs share a
         // single bucket. An IP that has signed in as this user before skips the lock, so an
         // attacker hammering the account from elsewhere can't keep its owner out.
-        if ($key && ! Cache::has($trustKey)) {
+        if ($user && ! LoginTrust::isTrusted($user, $ip)) {
             $this->ensureNotLocked($key, self::MAX_ACCOUNT_FAILURES);
         }
 
@@ -68,17 +65,12 @@ class AuthService
         }
 
         RateLimiter::clear($key);
-        Cache::put($trustKey, true, now()->addDays(self::TRUST_DAYS));
+        LoginTrust::trust($user, $ip);
 
         return [
             'user' => $user,
             'token' => $this->users->issueToken($user, $deviceName ?: 'auth-token'),
         ];
-    }
-
-    private static function trustKey(User $user, string $ip): string
-    {
-        return 'login-trusted:'.$user->id.':'.sha1($ip);
     }
 
     private function ensureNotLocked(string $key, int $max): void
@@ -106,6 +98,7 @@ class AuthService
         }
 
         $this->users->update($user, ['password' => $newPassword]);
+        LoginTrust::invalidate($user);
 
         // Other devices must sign in again with the new password; this one stays signed in.
         $this->users->revokeOtherTokens($user);

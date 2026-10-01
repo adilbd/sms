@@ -10,6 +10,8 @@ use Illuminate\Support\Facades\Schema;
  * the user's is_active (which also follows the staff status). Without it, returning a
  * member to active could not tell "login switched off" from "login off because they left".
  * Existing logins are backfilled: on when the linked user is active and holds teacher/office.
+ * Only logins that are currently active are backfilled; a login that was already deactivated
+ * stays off, as the earlier is_active state is not recoverable.
  */
 return new class extends Migration
 {

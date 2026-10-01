@@ -169,7 +169,7 @@ class ExamApiTest extends TestCase
             ->assertUnprocessable()->assertJsonValidationErrors(['code']);
 
         // The same code in another year is fine.
-        $other = AcademicYear::factory()->create(['year' => 2027, 'start_date' => '2027-01-01', 'end_date' => '2027-12-31']);
+        $other = AcademicYear::factory()->create(['year' => 2027]);
         $this->as($this->admin)->postJson('/api/exams', $this->payload([
             'academic_year_id' => $other->id, 'code' => 'HY-2026', 'start_date' => '2027-06-01', 'end_date' => '2027-06-15',
         ]))->assertCreated();
@@ -225,7 +225,7 @@ class ExamApiTest extends TestCase
     {
         $half = $this->createExam();
         $annual = $this->createExam([$this->class9], ['code' => 'AN-26', 'type' => 'annual', 'name_en' => 'Annual', 'name_bn' => 'বার্ষিক']);
-        $other = AcademicYear::factory()->create(['year' => 2025, 'start_date' => '2025-01-01', 'end_date' => '2025-12-31']);
+        $other = AcademicYear::factory()->create(['year' => 2025]);
         $old = Exam::factory()->create(['academic_year_id' => $other->id, 'code' => 'OLD']);
 
         $this->as($this->admin)->getJson('/api/exams')
@@ -490,7 +490,7 @@ class ExamApiTest extends TestCase
         $this->as($this->admin)->deleteJson("/api/subjects/{$this->physics->id}")->assertStatus(409);
 
         // Even a soft-deleted exam still holds the year's restrict foreign key.
-        $other = AcademicYear::factory()->create(['year' => 2027, 'start_date' => '2027-01-01', 'end_date' => '2027-12-31']);
+        $other = AcademicYear::factory()->create(['year' => 2027]);
         $old = Exam::factory()->create(['academic_year_id' => $other->id]);
         $old->delete();
         $this->as($this->admin)->deleteJson("/api/academic-years/{$other->id}")->assertStatus(409);

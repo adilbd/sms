@@ -8,6 +8,7 @@ use App\Models\User;
 use App\Repositories\Contracts\ShiftRepositoryInterface;
 use App\Repositories\Contracts\StaffRepositoryInterface;
 use App\Repositories\Contracts\UserRepositoryInterface;
+use App\Support\LoginTrust;
 use App\Support\Mobile;
 use App\Support\UniqueViolation;
 use App\Support\Username;
@@ -122,7 +123,6 @@ class StaffService
         }
 
         try {
-
             $staff = $this->withUniqueLogin(fn () => DB::transaction(function () use ($staff, $data, $shiftIds, $educations, $trainings, $merged, $oldPhotoPath, $newPhotoPath, $removePhoto, $login) {
                 // Read this staff member's current shifts (when none were sent).
                 // shiftIdsFor() takes a locking read of its own (see StaffRepository),
@@ -346,6 +346,7 @@ class StaffService
     {
         $this->users->update($user, ['is_active' => false]);
         $this->users->revokeAllTokens($user);
+        LoginTrust::invalidate($user);
     }
 
     /**
@@ -453,6 +454,7 @@ class StaffService
 
         if (filled($password) || ! $allowed) {
             $this->users->revokeAllTokens($user);
+            LoginTrust::invalidate($user);
         }
 
         return $staff;

@@ -98,6 +98,7 @@
                   <option value="promote">{{ isFinal ? 'Graduate' : 'Promote' }}</option>
                   <option value="retain">Retain</option>
                   <option value="leave">Leave school</option>
+                  <option value="skip">Skip (leave untouched)</option>
                 </select>
                 <p class="text-xs text-red-600">{{ rowError(i, 'student_id') }}</p>
               </td>
@@ -152,6 +153,7 @@
         <li v-if="isFinal">Graduate: <strong>{{ counts.promote }}</strong></li>
         <li>Retain: <strong>{{ counts.retain }}</strong></li>
         <li>Leave school: <strong>{{ counts.leave }}</strong></li>
+        <li>Skip (untouched): <strong>{{ counts.skip }}</strong></li>
       </ul>
       <div v-if="targetCounts.length" class="text-sm">
         <p class="font-medium">New enrolments in {{ toYearName }}</p>
@@ -174,9 +176,10 @@
         <li>Retained: <strong>{{ result.summary.retained }}</strong></li>
         <li>Left: <strong>{{ result.summary.left }}</strong></li>
         <li>Graduated: <strong>{{ result.summary.graduated }}</strong></li>
+        <li>Skipped: <strong>{{ result.summary.skipped }}</strong></li>
       </ul>
       <ul v-if="result.target_sections.length" class="text-sm list-disc ml-5">
-        <li v-for="target in result.target_sections" :key="target.id">{{ target.name }}: {{ target.enrolled_after }} students enrolled</li>
+        <li v-for="target in result.target_sections" :key="target.id">{{ resultSectionLabel(target) }}: {{ target.enrolled_after }} students enrolled</li>
       </ul>
       <div class="flex gap-2">
         <button class="btn btn-secondary" @click="reset">Promote another section</button>
@@ -214,6 +217,9 @@ const form = reactive({
 const sections = computed(() => allSections.value.filter((s) => s.is_active))
 const sectionLabel = (section) =>
   `${section.class?.name ?? ''} - ${section.name}${section.shift ? ` (${section.shift.name_en})` : ''}`
+// "Class 7 – Section A (Morning)", from the names the apply response carries.
+const resultSectionLabel = (target) =>
+  `${target.class_name ? `${target.class_name} – ` : ''}${target.name}${target.shift_name ? ` (${target.shift_name})` : ''}`
 const sectionById = (id) => allSections.value.find((s) => s.id === Number(id))
 
 const yearName = (id) => years.value.find((y) => y.id === Number(id))?.name ?? ''
@@ -227,7 +233,7 @@ const promoteTargets = computed(() =>
 )
 const retainTargets = computed(() => sections.value.filter((s) => s.class_id === preview.value?.class.id))
 
-const enrols = (row) => !(row.action === 'leave' || (isFinal.value && row.action === 'promote'))
+const enrols = (row) => !(row.action === 'leave' || row.action === 'skip' || (isFinal.value && row.action === 'promote'))
 const targetsFor = (row) => (row.action === 'retain' ? retainTargets.value : promoteTargets.value)
 
 const effectiveTarget = (row) => {
@@ -279,7 +285,7 @@ const settleRow = (row) => {
   return loadOptions(row)
 }
 const onRowChange = (row) => {
-  if (row.action === 'leave') row.target_section_id = ''
+  if (row.action === 'leave' || row.action === 'skip') row.target_section_id = ''
   // The target class can change (promote vs retain), so the old choice may no longer apply.
   if (!targetsFor(row).some((s) => s.id === Number(row.target_section_id))) row.target_section_id = ''
   settleRow(row)
@@ -296,7 +302,8 @@ const buildRow = (item) => {
     roll_number: item.roll_number,
     exam_result: item.exam_result,
     already_enrolled_in_target: item.already_enrolled_in_target === true,
-    action: item.suggested_action === 'retain' ? 'retain' : 'promote',
+    // The server suggests skip for a student already enrolled in the target year.
+    action: ['retain', 'skip'].includes(item.suggested_action) ? item.suggested_action : 'promote',
     target_section_id: '',
     // Carried over by default; reset on entering Class 9 or 11.
     group: item.group ?? '',
@@ -321,9 +328,9 @@ const retainFailed = () => {
 }
 
 const counts = computed(() => {
-  const c = { promote: 0, retain: 0, leave: 0 }
+  const c = { promote: 0, retain: 0, leave: 0, skip: 0 }
   rows.value.forEach((row) => {
-    if (!row.already_enrolled_in_target) c[row.action]++
+    c[row.action]++
   })
   return c
 })

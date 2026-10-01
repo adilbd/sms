@@ -16,7 +16,7 @@ class IndexHolidayRequest extends FormRequest
     {
         return [
             'academic_year_id' => 'sometimes|nullable|integer|min:1',
-            'per_page' => 'sometimes|nullable|integer',
+            'per_page' => 'sometimes|nullable|integer|min:1|max:100',
         ];
     }
 }

@@ -12,6 +12,7 @@ use App\Repositories\Contracts\ClassSubjectRepositoryInterface;
 use App\Repositories\Contracts\StudentEnrolmentRepositoryInterface;
 use App\Support\AcademicGroup;
 use App\Support\UniqueViolation;
+use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
@@ -34,7 +35,7 @@ class EnrolmentService
      * section row is locked first, so two requests filling the last seat queue up and
      * the second one sees it taken.
      *
-     * @param  array{section_id: int, group?: ?string, optional_subject_id?: ?int, roll_number?: ?int}  $data
+     * @param  array{section_id: int, group?: ?string, optional_subject_id?: ?int, roll_number?: ?int, enrolled_on?: ?string}  $data  `enrolled_on` only applies to a new enrolment (default: today in Asia/Dhaka); promotion passes the target year's start date.
      */
     public function save(Student $student, AcademicYear $year, array $data): StudentEnrolment
     {
@@ -56,7 +57,11 @@ class EnrolmentService
 
                 return $existing
                     ? $this->enrolments->update($existing, $attributes)
-                    : $this->enrolments->create($attributes + ['student_id' => $student->id, 'academic_year_id' => $year->id]);
+                    : $this->enrolments->create($attributes + [
+                        'student_id' => $student->id,
+                        'academic_year_id' => $year->id,
+                        'enrolled_on' => $data['enrolled_on'] ?? CarbonImmutable::now('Asia/Dhaka')->toDateString(),
+                    ]);
             });
         } catch (UniqueConstraintViolationException $e) {
             // The roll check runs before the write; a concurrent request can still win.

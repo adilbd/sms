@@ -98,10 +98,15 @@ class EnrolmentServiceTest extends TestCase
                 'status' => StudentEnrolment::STATUS_ACTIVE,
                 'student_id' => 5,
                 'academic_year_id' => 1,
+                // Today in Asia/Dhaka: 20:00 UTC on 30 Sep is already 1 Oct there.
+                'enrolled_on' => '2026-10-01',
             ])->andReturn(new StudentEnrolment);
         });
+        \Illuminate\Support\Carbon::setTestNow('2026-09-30 20:00:00');
 
         app(EnrolmentService::class)->save($this->student, $this->year, ['section_id' => $section->id, 'roll_number' => 12]);
+
+        \Illuminate\Support\Carbon::setTestNow();
     }
 
     public function test_rejects_an_inactive_section(): void

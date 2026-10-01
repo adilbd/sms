@@ -32,6 +32,8 @@ class RolePermissionSeeder extends Seeder
             // Subject permissions
             'view-subjects', 'create-subjects', 'edit-subjects', 'delete-subjects',
             // Attendance permissions
+            // edit-attendance and delete-attendance are kept (admins hold them) but no route uses them:
+            // the daily sheet is saved with mark-attendance.
             'view-attendance', 'mark-attendance', 'edit-attendance', 'delete-attendance',
             // Exam permissions
             'view-exams', 'create-exams', 'edit-exams', 'delete-exams', 'publish-exams',

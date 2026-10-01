@@ -35,6 +35,9 @@ class PromotionService
 
     private const GRADUATE = 'graduate';
 
+    /** Leaves the student untouched: no enrolment is created or changed, and no seat is taken. */
+    private const SKIP = 'skip';
+
     public function __construct(
         private PromotionRepositoryInterface $promotions,
         private StudentEnrolmentRepositoryInterface $enrolmentRows,
@@ -95,6 +98,8 @@ class PromotionService
                         'is_pass' => $result->is_pass,
                     ] : null,
                     'suggested_action' => match (true) {
+                        // Already placed in the target year (by hand, or an earlier run): leave them be.
+                        $enrolled !== null && in_array((int) $enrolment->student_id, $enrolled, true) => self::SKIP,
                         $isFinal => self::GRADUATE,
                         $result !== null && ! $result->is_pass => self::RETAIN,
                         default => self::PROMOTE,
@@ -114,7 +119,7 @@ class PromotionService
      * (`section_capacity` names an over-full section in every case).
      *
      * @param  array<string, mixed>  $data  Validated: from/to academic year, section_id, class_id?, default_target_section_id?, exceptions[].
-     * @return array{summary: array<string, int>, target_sections: list<array{id: int, name: string, enrolled_after: int}>}
+     * @return array{summary: array<string, int>, target_sections: list<array{id: int, name: string, class_name: ?string, shift_name: ?string, enrolled_after: int}>}
      */
     public function apply(array $data): array
     {
@@ -208,6 +213,12 @@ class PromotionService
             }
 
             $plan = ['enrolment' => $enrolment, 'action' => $action, 'index' => $index, 'target' => null, 'group' => null, 'optional' => null];
+
+            if ($action === self::SKIP) {
+                $plans[] = $plan;
+
+                continue;
+            }
 
             if (in_array((int) $studentId, $enrolledIds, true)) {
                 if ($index !== null) {
@@ -368,7 +379,7 @@ class PromotionService
      */
     private function write(array $plans, AcademicYear $fromYear, AcademicYear $toYear, array $newSeats, array $sections, string $today): array
     {
-        $summary = ['promoted' => 0, 'retained' => 0, 'left' => 0, 'graduated' => 0];
+        $summary = ['promoted' => 0, 'retained' => 0, 'left' => 0, 'graduated' => 0, 'skipped' => 0];
 
         foreach ($plans as $plan) {
             /** @var StudentEnrolment $enrolment */
@@ -377,12 +388,18 @@ class PromotionService
             $student = $enrolment->student;
 
             switch ($plan['action']) {
+                case self::SKIP:
+                    $summary['skipped']++;
+                    break;
+
                 case self::PROMOTE:
                 case self::RETAIN:
                     $this->enrolments->save($student, $toYear, [
                         'section_id' => $plan['target']->id,
                         'group' => $plan['group'],
                         'optional_subject_id' => $plan['optional'],
+                        // The new year's enrolment starts with the year, not on the day the batch ran.
+                        'enrolled_on' => $toYear->start_date->toDateString(),
                     ]);
                     $retained = $plan['action'] === self::RETAIN;
                     $this->enrolmentRows->update($enrolment, [
@@ -408,6 +425,8 @@ class PromotionService
             $targets[] = [
                 'id' => $sectionId,
                 'name' => $sections[$sectionId]->name,
+                'class_name' => $sections[$sectionId]->class?->name,
+                'shift_name' => $sections[$sectionId]->shift?->name_en,
                 'enrolled_after' => $this->enrolmentRows->countActiveInSection($sectionId, $toYear->id),
             ];
         }

@@ -45,7 +45,13 @@ class SubjectSeeder extends Seeder
             // the unique code.
             $subject = Subject::withTrashed()->where('code', $code)->first() ?? new Subject(['code' => $code]);
 
-            $subject->fill(['name' => $name, 'name_bn' => $nameBn, 'type' => $type, 'total_marks' => 100, 'pass_marks' => 33]);
+            $subject->fill(['name' => $name, 'name_bn' => $nameBn, 'type' => $type]);
+
+            // The marks are only a starting point: a re-run must not overwrite an admin's edits.
+            if (! $subject->exists) {
+                $subject->fill(['total_marks' => 100, 'pass_marks' => 33]);
+            }
+
             $subject->save();
         }
     }

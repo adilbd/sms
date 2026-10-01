@@ -58,6 +58,26 @@ class StudentEnrolmentTest extends TestCase
         $this->assertSame(2, StudentEnrolment::count());
     }
 
+    public function test_a_new_enrolment_starts_today_in_dhaka_and_a_resave_keeps_the_date(): void
+    {
+        // 20:30 UTC on 31 Dec is already 1 January in Dhaka.
+        \Illuminate\Support\Carbon::setTestNow('2026-12-31 20:30:00');
+        $student = Student::factory()->create();
+
+        $enrolment = $this->service()->save($student, $this->year, ['section_id' => $this->section->id]);
+        $this->assertSame('2027-01-01', $enrolment->enrolled_on->toDateString());
+
+        \Illuminate\Support\Carbon::setTestNow('2027-02-10 06:00:00');
+        $again = $this->service()->save($student, $this->year, ['section_id' => $this->section->id, 'roll_number' => 3]);
+        $this->assertSame('2027-01-01', $again->enrolled_on->toDateString());
+
+        // An explicit start (promotion passes the target year's start date) wins.
+        $other = $this->service()->save(Student::factory()->create(), $this->year, ['section_id' => $this->section->id, 'enrolled_on' => '2026-01-01']);
+        $this->assertSame('2026-01-01', $other->enrolled_on->toDateString());
+
+        \Illuminate\Support\Carbon::setTestNow();
+    }
+
     public function test_a_seat_frees_up_when_a_student_leaves(): void
     {
         $leaver = Student::factory()->create();
