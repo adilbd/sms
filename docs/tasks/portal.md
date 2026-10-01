@@ -120,3 +120,14 @@ This is Task 7 of 7 in `/Users/adil/.claude/plans/make-the-plan-for-radiant-flur
   - `banglaDate.js` matches it.
   - Cash shows as "নগদ টাকা".
 - [x] **Menu.** `MenuSeeder` adds the portal link once, and re-running it adds no duplicate.
+
+## Docker and browser check
+- [x] A guardian signs in with `+8801999000001` at `/portal/login`, which is noindex with one `<h1>`. The switcher shows both children, তানভীর আহমেদ and করিম হোসেন. The header shows আমার পোর্টাল and লগআউট. There are no console errors.
+- [x] Tanvir's outstanding fees show ৳৭,৯৯০.০০, matching `/api/my/children/1/fees` (`7990.00`). Switching to Karim works. Another family's child (`?student=41`) returns 403. Responses carry `no-store, private`.
+- [x] Receipt `২০২৬-০০০০০৩` shows "১ অক্টোবর ২০২৬, অপরাহ্ন ৯:০৭" and the method "নগদ টাকা".
+- [x] Review should-fix: changing the password now ends other portal sessions (`AuthenticateSession` plus `logoutOtherDevices`).
+
+## Follow-ups (from review)
+- The portal password is written twice (`changePassword`, then `logoutOtherDevices` rehashes it). If the second write fails, other sessions stay signed in.
+- `PortalPageRequest` narrows `page` to `a4` on every portal page. Move the rule into the two print requests before any portal list uses `?page=N` for pagination.
+- The admin SPA ignores `?from=portal`, so staff redirected from the portal don't see a note.
