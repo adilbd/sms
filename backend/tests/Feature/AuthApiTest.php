@@ -5,6 +5,8 @@ namespace Tests\Feature;
 use App\Models\User;
 use Database\Seeders\RolePermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\RateLimiter;
 use Tests\TestCase;
 
 class AuthApiTest extends TestCase
@@ -193,29 +195,132 @@ class AuthApiTest extends TestCase
         $this->postJson('/api/login', ['login' => 'someone@example.com', 'password' => 'x'])->assertUnprocessable();
     }
 
+    private function loginFrom(string $ip, string $login, string $password)
+    {
+        return $this->withServerVariables(['REMOTE_ADDR' => $ip])
+            ->postJson('/api/login', ['login' => $login, 'password' => $password]);
+    }
+
+    private function failFromManyIps(string $login, int $count, string $prefix = '10.0'): void
+    {
+        for ($i = 0; $i < $count; $i++) {
+            $this->loginFrom("{$prefix}.".intdiv($i, 200).'.'.($i % 200 + 1), $login, 'wrong')->assertUnprocessable();
+        }
+    }
+
+    private function assertRetryAfter($response): void
+    {
+        $response->assertStatus(429)->assertJsonStructure(['message'])->assertJsonMissingPath('errors');
+        $this->assertGreaterThan(0, (int) $response->headers->get('Retry-After'));
+    }
+
+    public function test_a_successful_login_marks_the_ip_as_trusted_for_that_user(): void
+    {
+        $user = $this->studentLogin();
+
+        $this->loginFrom('10.9.0.1', '20260001', 'student-pass')->assertOk();
+
+        $this->assertTrue(Cache::has('login-trusted:'.$user->id.':'.sha1('10.9.0.1')));
+    }
+
+    public function test_the_per_account_lock_returns_retry_after_and_lifts_when_cleared(): void
+    {
+        $user = $this->studentLogin();
+        $this->failFromManyIps('20260001', 10);
+
+        $this->assertRetryAfter($this->loginFrom('10.8.0.1', '20260001', 'student-pass'));
+
+        RateLimiter::clear('login-user:'.$user->id);
+        $this->loginFrom('10.8.0.1', '20260001', 'student-pass')->assertOk();
+    }
+
+    public function test_a_trusted_ip_signs_in_while_the_account_is_locked_elsewhere(): void
+    {
+        $this->studentLogin();
+        $this->loginFrom('10.7.0.1', '20260001', 'student-pass')->assertOk();
+
+        $this->failFromManyIps('20260001', 10);
+
+        $this->assertRetryAfter($this->loginFrom('10.8.0.1', '20260001', 'student-pass'));
+        $this->loginFrom('10.7.0.1', '20260001', 'student-pass')->assertOk();
+    }
+
+    public function test_trust_is_per_user(): void
+    {
+        $this->studentLogin();
+        $this->guardianLogin();
+        $this->loginFrom('10.7.0.1', '20260001', 'student-pass')->assertOk();
+
+        $this->failFromManyIps('01711111111', 10);
+
+        $this->assertRetryAfter($this->loginFrom('10.7.0.1', '01711111111', 'guardian-pass'));
+    }
+
+    public function test_trust_expires_after_30_days(): void
+    {
+        $this->studentLogin();
+        $this->loginFrom('10.7.0.1', '20260001', 'student-pass')->assertOk();
+        $this->failFromManyIps('20260001', 10);
+
+        $this->travel(29)->days();
+        $this->loginFrom('10.7.0.1', '20260001', 'student-pass')->assertOk();
+        $this->travel(31)->days();
+        // The failure bucket has decayed by now, so lock it again before checking trust is gone.
+        $this->failFromManyIps('20260001', 10, '10.6');
+        $this->assertRetryAfter($this->loginFrom('10.7.0.1', '20260001', 'student-pass'));
+    }
+
+    public function test_failures_from_a_trusted_ip_still_count_toward_its_ip_limit(): void
+    {
+        $this->studentLogin();
+        $this->loginFrom('10.7.0.1', '20260001', 'student-pass')->assertOk();
+
+        for ($i = 0; $i < 30; $i++) {
+            $this->loginFrom('10.7.0.1', "nobody{$i}@example.com", 'x')->assertUnprocessable();
+        }
+
+        $this->assertRetryAfter($this->loginFrom('10.7.0.1', '20260001', 'student-pass'));
+    }
+
     public function test_login_is_throttled_per_ip_across_identifiers(): void
     {
-        for ($i = 0; $i < 20; $i++) {
+        for ($i = 0; $i < 30; $i++) {
             $this->postJson('/api/login', ['login' => "nobody{$i}@example.com", 'password' => 'x'])->assertUnprocessable();
         }
 
-        $this->postJson('/api/login', ['login' => 'admin@sms.com', 'password' => 'password'])->assertStatus(429);
+        $this->assertRetryAfter($this->postJson('/api/login', ['login' => 'admin@sms.com', 'password' => 'password']));
+    }
+
+    public function test_successful_logins_never_count_toward_the_ip_limit(): void
+    {
+        for ($i = 0; $i < 40; $i++) {
+            User::factory()->create(['email' => "user{$i}@example.com", 'password' => 'good-pass-1'])
+                ->assignRole('student');
+
+            $this->postJson('/api/login', ['login' => "user{$i}@example.com", 'password' => 'good-pass-1'])->assertOk();
+        }
+    }
+
+    public function test_the_route_limiter_429_has_retry_after(): void
+    {
+        for ($i = 0; $i < 5; $i++) {
+            $this->postJson('/api/login', ['login' => 'someone@example.com', 'password' => 'x'])->assertUnprocessable();
+        }
+
+        $this->assertRetryAfter($this->postJson('/api/login', ['login' => 'someone@example.com', 'password' => 'x']));
     }
 
     public function test_failures_are_throttled_per_account_across_ips_and_spellings(): void
     {
-        // Distinct IPs and identifiers that all resolve to one account.
-        $logins = ['20260001', ' 20260001', '20260001 ', '20260001', '20260001'];
         $this->studentLogin();
+        $logins = ['20260001', ' 20260001', '20260001 ', '20260001', '20260001'];
 
-        foreach ($logins as $i => $login) {
-            $this->withServerVariables(['REMOTE_ADDR' => "10.0.0.{$i}"])
-                ->postJson('/api/login', ['login' => $login, 'password' => 'wrong'])->assertUnprocessable();
+        // Distinct IPs; the identifier spellings keep the route limiter's buckets apart.
+        for ($i = 0; $i < 10; $i++) {
+            $this->loginFrom("10.0.0.{$i}", $logins[$i % 5], 'wrong')->assertUnprocessable();
         }
 
-        $this->withServerVariables(['REMOTE_ADDR' => '10.0.0.99'])
-            ->postJson('/api/login', ['login' => '20260001', 'password' => 'student-pass'])
-            ->assertStatus(429);
+        $this->assertRetryAfter($this->loginFrom('10.0.0.99', '20260001', 'student-pass'));
     }
 
     public function test_a_successful_login_resets_the_account_failure_count(): void
