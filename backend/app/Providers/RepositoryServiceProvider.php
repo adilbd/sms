@@ -7,6 +7,7 @@ use App\Repositories\Contracts\AttendanceRepositoryInterface;
 use App\Repositories\Contracts\ClassRepositoryInterface;
 use App\Repositories\Contracts\ClassSubjectRepositoryInterface;
 use App\Repositories\Contracts\ClassTeacherRepositoryInterface;
+use App\Repositories\Contracts\DashboardRepositoryInterface;
 use App\Repositories\Contracts\ExamMarkRepositoryInterface;
 use App\Repositories\Contracts\ExamRepositoryInterface;
 use App\Repositories\Contracts\ExamResultRepositoryInterface;
@@ -37,6 +38,7 @@ use App\Repositories\Eloquent\AttendanceRepository;
 use App\Repositories\Eloquent\ClassRepository;
 use App\Repositories\Eloquent\ClassSubjectRepository;
 use App\Repositories\Eloquent\ClassTeacherRepository;
+use App\Repositories\Eloquent\DashboardRepository;
 use App\Repositories\Eloquent\ExamMarkRepository;
 use App\Repositories\Eloquent\ExamRepository;
 use App\Repositories\Eloquent\ExamResultRepository;
@@ -102,5 +104,6 @@ class RepositoryServiceProvider extends ServiceProvider
         FeeDueRepositoryInterface::class => FeeDueRepository::class,
         FeePaymentRepositoryInterface::class => FeePaymentRepository::class,
         FeeReportRepositoryInterface::class => FeeReportRepository::class,
+        DashboardRepositoryInterface::class => DashboardRepository::class,
     ];
 }

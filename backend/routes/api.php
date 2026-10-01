@@ -203,6 +203,5 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('settings/institute', [\App\Http\Controllers\Api\InstituteSettingsController::class, 'update']);
 
     // Dashboard
-    Route::get('dashboard/stats', [\App\Http\Controllers\Api\DashboardController::class, 'stats']);
-    Route::get('dashboard/recent-activities', [\App\Http\Controllers\Api\DashboardController::class, 'recentActivities']);
+    Route::get('dashboard', [\App\Http\Controllers\Api\DashboardController::class, 'index']);
 });
