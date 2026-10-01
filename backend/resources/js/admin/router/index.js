@@ -185,13 +185,19 @@ const routes = [
         path: 'attendance',
         name: 'Attendance',
         component: () => import('@/views/attendance/AttendanceList.vue'),
-        meta: { title: 'Attendance', permission: 'edit-attendance' },
+        meta: { title: 'Attendance', permission: 'view-attendance' },
       },
       {
         path: 'attendance/mark',
         name: 'MarkAttendance',
         component: () => import('@/views/attendance/MarkAttendance.vue'),
-        meta: { title: 'Mark Attendance', permission: 'edit-attendance' },
+        meta: { title: 'Mark Attendance', permission: 'mark-attendance' },
+      },
+      {
+        path: 'holidays',
+        name: 'Holidays',
+        component: () => import('@/views/attendance/Holidays.vue'),
+        meta: { title: 'Holidays', permission: 'edit-settings' },
       },
       {
         path: 'exams',

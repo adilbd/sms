@@ -24,6 +24,13 @@ interface AcademicYearRepositoryInterface extends RepositoryInterface
 
     public function hasSubjectAssignments(AcademicYear $academicYear): bool;
 
+    public function hasHolidays(AcademicYear $academicYear): bool;
+
+    /**
+     * The academic year for a calendar year (`year` is unique), or null when none exists.
+     */
+    public function findByYear(int $year): ?AcademicYear;
+
     /**
      * Deactivates every other year, inside AcademicYearService::activate()'s
      * transaction, so exactly one year stays active.

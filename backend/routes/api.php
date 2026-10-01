@@ -50,6 +50,13 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('my/children/{student}/results', [\App\Http\Controllers\Api\MyRecordsController::class, 'childResults'])
         ->where('student', '[0-9]+')
         ->middleware('role:parent');
+    // The caller's own attendance month (and a guardian's children's), student/parent roles
+    // having no broad view-attendance permission.
+    Route::get('my/attendance', [\App\Http\Controllers\Api\MyRecordsController::class, 'attendance'])
+        ->middleware('role:student');
+    Route::get('my/children/{student}/attendance', [\App\Http\Controllers\Api\MyRecordsController::class, 'childAttendance'])
+        ->where('student', '[0-9]+')
+        ->middleware('role:parent');
     // The signed-in teacher's own subjects and class-teacher sections.
     Route::get('my/assignments', [\App\Http\Controllers\Api\MyRecordsController::class, 'assignments'])
         ->middleware('role:teacher');
@@ -99,10 +106,16 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('academic-years/{academicYear}/activate', [\App\Http\Controllers\Api\AcademicYearController::class, 'activate'])
         ->where('academicYear', '[0-9]+');
 
-    // Attendance
-    Route::apiResource('attendances', \App\Http\Controllers\Api\AttendanceController::class);
-    Route::post('attendances/bulk', [\App\Http\Controllers\Api\AttendanceController::class, 'bulkStore']);
-    Route::get('attendances/report/{student}', [\App\Http\Controllers\Api\AttendanceController::class, 'studentReport']);
+    // Attendance: one sheet per section and day, saved by the class teacher or an admin.
+    Route::get('attendance/sheet', [\App\Http\Controllers\Api\AttendanceController::class, 'sheet']);
+    Route::put('attendance/sheet', [\App\Http\Controllers\Api\AttendanceController::class, 'saveSheet']);
+    Route::get('attendance/report', [\App\Http\Controllers\Api\AttendanceController::class, 'report']);
+    Route::get('attendance/students/{student}', [\App\Http\Controllers\Api\AttendanceController::class, 'student'])
+        ->where('student', '[0-9]+');
+
+    // Listed school holidays (weekly holidays are an institute setting).
+    Route::apiResource('holidays', \App\Http\Controllers\Api\HolidayController::class)
+        ->where(['holiday' => '[0-9]+']);
 
     // Exams. The extra actions have more path segments than the resource routes, so they
     // can't be captured by its {exam} wildcard.

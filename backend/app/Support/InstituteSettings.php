@@ -25,6 +25,14 @@ class InstituteSettings
 
     public const GROUP_SOCIAL = 'social';
 
+    public const GROUP_ATTENDANCE = 'attendance';
+
+    /** The weekday names `weekly_holidays` accepts (lowercase English, like Carbon's dayName). */
+    public const WEEKDAYS = ['saturday', 'sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday'];
+
+    /** What `weekly_holidays` is when unset: Friday is the weekly holiday in Bangladesh. */
+    public const DEFAULT_WEEKLY_HOLIDAYS = ['friday'];
+
     /** Bangladesh education boards (NCTB-affiliated). */
     public const EDUCATION_BOARDS = [
         'dhaka', 'rajshahi', 'cumilla', 'jashore', 'chattogram',
@@ -39,6 +47,20 @@ class InstituteSettings
 
     /** Keys whose value is a stored file path, exposed only as a computed "{key}_url". */
     public const FILE_KEYS = ['logo', 'favicon'];
+
+    /**
+     * The weekdays in a stored `weekly_holidays` value (JSON), in week order, or the
+     * default when it is unset or holds no valid day.
+     *
+     * @return list<string>
+     */
+    public static function weeklyHolidays(?string $stored): array
+    {
+        $decoded = json_decode((string) $stored, true);
+        $days = is_array($decoded) ? array_values(array_intersect(self::WEEKDAYS, $decoded)) : [];
+
+        return $days !== [] ? $days : self::DEFAULT_WEEKLY_HOLIDAYS;
+    }
 
     /**
      * @return array<string, string> key => group, in display order
@@ -78,6 +100,9 @@ class InstituteSettings
 
             'facebook_url' => self::GROUP_SOCIAL,
             'youtube_url' => self::GROUP_SOCIAL,
+
+            // Stored as a JSON list of weekday names.
+            'weekly_holidays' => self::GROUP_ATTENDANCE,
         ];
     }
 
@@ -129,6 +154,11 @@ class InstituteSettings
 
             'facebook_url' => ['sometimes', 'nullable', 'url', 'max:255'],
             'youtube_url' => ['sometimes', 'nullable', 'url', 'max:255'],
+
+            // Days with no school every week. Never empty: a school that meets six days
+            // still has one weekly holiday, and an empty list can't be sent as form data.
+            'weekly_holidays' => ['sometimes', 'array', 'min:1', 'max:7'],
+            'weekly_holidays.*' => ['string', 'distinct', Rule::in(self::WEEKDAYS)],
         ];
     }
 }

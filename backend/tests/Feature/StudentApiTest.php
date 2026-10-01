@@ -750,10 +750,12 @@ class StudentApiTest extends TestCase
     public function test_destroy_returns_409_when_the_student_has_attendance(): void
     {
         $student = Student::factory()->create();
+        $enrolment = $this->enrolStudent($student);
         DB::table('attendances')->insert([
             'student_id' => $student->id,
-            'class_id' => $this->section5->class_id,
+            'enrolment_id' => $enrolment->id,
             'section_id' => $this->section5->id,
+            'academic_year_id' => $this->year->id,
             'date' => '2026-02-01',
             'status' => 'present',
             'marked_by' => $this->admin->id,

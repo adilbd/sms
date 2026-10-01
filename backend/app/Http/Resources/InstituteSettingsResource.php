@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources;
 
+use App\Support\InstituteSettings;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Support\Facades\Storage;
@@ -47,6 +48,7 @@ class InstituteSettingsResource extends JsonResource
             'longitude' => $settings['longitude'] !== null ? (float) $settings['longitude'] : null,
             'facebook_url' => $settings['facebook_url'],
             'youtube_url' => $settings['youtube_url'],
+            'weekly_holidays' => InstituteSettings::weeklyHolidays($settings['weekly_holidays']),
         ];
     }
 

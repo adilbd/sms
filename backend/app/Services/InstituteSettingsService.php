@@ -66,6 +66,9 @@ class InstituteSettingsService
 
         $pairs = Arr::only($data, InstituteSettings::keyNames());
 
+        // List-valued keys (weekly_holidays) are stored as JSON.
+        $pairs = array_map(fn ($value) => is_array($value) ? json_encode(array_values($value)) : $value, $pairs);
+
         $newLogoPath = null;
         $newFaviconPath = null;
 
@@ -118,6 +121,17 @@ class InstituteSettingsService
         Cache::forget(self::CACHE_KEY);
 
         return $this->all();
+    }
+
+    /**
+     * The weekdays with no school (lowercase English names), `['friday']` until an admin
+     * sets them. Read by AttendanceService, never from config.
+     *
+     * @return list<string>
+     */
+    public function weeklyHolidays(): array
+    {
+        return InstituteSettings::weeklyHolidays($this->all()['weekly_holidays'] ?? null);
     }
 
     /**

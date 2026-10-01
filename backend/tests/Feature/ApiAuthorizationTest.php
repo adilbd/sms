@@ -58,10 +58,18 @@ class ApiAuthorizationTest extends TestCase
 
         // Teachers mark attendance but can't delete classes or touch fees.
         $classId = DB::table('classes')->insertGetId(['name' => 'Class 1', 'code' => 'C1']);
-        $this->actingAs($teacher, 'sanctum')->postJson('/api/attendances', [])->assertUnprocessable();
+        $this->actingAs($teacher, 'sanctum')->putJson('/api/attendance/sheet', [])->assertUnprocessable();
         $this->actingAs($teacher, 'sanctum')->deleteJson("/api/classes/{$classId}")->assertForbidden();
         $this->assertDatabaseHas('classes', ['id' => $classId, 'deleted_at' => null]);
         $this->actingAs($teacher, 'sanctum')->getJson('/api/fee-payments')->assertForbidden();
+
+        // Students and guardians read their own attendance only: no school-wide permission.
+        $this->actingAs($student, 'sanctum')->getJson('/api/attendance/report?section_id=1')->assertForbidden();
+        $this->actingAs($parent, 'sanctum')->getJson('/api/attendance/sheet?section_id=1')->assertForbidden();
+        $this->actingAs($parent, 'sanctum')->putJson('/api/attendance/sheet', [])->assertForbidden();
+        $this->actingAs($student, 'sanctum')->getJson('/api/holidays')->assertForbidden();
+        $this->actingAs($teacher, 'sanctum')->getJson('/api/holidays')->assertOk();
+        $this->actingAs($teacher, 'sanctum')->postJson('/api/holidays', [])->assertForbidden();
 
         // Students can't list other students or staff.
         $this->actingAs($student, 'sanctum')->getJson('/api/students')->assertForbidden();
@@ -96,7 +104,7 @@ class ApiAuthorizationTest extends TestCase
         $this->seed(RolePermissionSeeder::class);
         $admin = User::where('email', 'admin@sms.com')->firstOrFail();
 
-        foreach (['/api/students', '/api/classes', '/api/sections', '/api/attendances', '/api/fee-payments', '/api/staff'] as $uri) {
+        foreach (['/api/students', '/api/classes', '/api/sections', '/api/holidays', '/api/fee-payments', '/api/staff'] as $uri) {
             $this->actingAs($admin, 'sanctum')->getJson($uri)->assertOk();
         }
 

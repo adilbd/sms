@@ -130,6 +130,7 @@
 <script setup>
 import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import api from '@/services/api'
 import { useAuthStore } from '@/stores/auth'
 import { canAccess, isTeacherOnly } from '@/utils/access'
 
@@ -140,14 +141,29 @@ const authStore = useAuthStore()
 // Each entry declares what it needs (see utils/access.js); the sidebar only shows what the
 // signed-in user can open. A teacher who isn't also an admin gets the short teacher menu.
 const teacherOnly = computed(() => isTeacherOnly(authStore))
-const visible = (items) => items.filter((item) => canAccess(authStore, item.access) && !(teacherOnly.value && item.hideForTeacher))
+const visible = (items) => items.filter((item) => canAccess(authStore, item.access) && !(teacherOnly.value && item.hideForTeacher) && (item.when ? item.when() : true))
+
+// A teacher marks attendance only for the sections they lead, so the Attendance link
+// appears once /my/assignments shows at least one (admins always see it).
+const leadsSection = ref(false)
+const loadClassTeacherSections = async () => {
+  if (!teacherOnly.value) return
+
+  try {
+    const { data } = await api.get('/my/assignments')
+    leadsSection.value = data.data.class_teacher_of.length > 0
+  } catch (error) {
+    leadsSection.value = false
+  }
+}
+loadClassTeacherSections()
 
 const menuItems = computed(() => visible([
   { name: 'Dashboard', path: '/', icon: '📊' },
   { name: 'My subjects', path: '/my-subjects', icon: '🧑‍🏫', access: { role: 'teacher' } },
   { name: 'Students', path: '/students', icon: '👨‍🎓', access: { permission: 'view-students' } },
   { name: 'Staff', path: '/staff', icon: '👨‍🏫', access: { permission: 'view-teachers' } },
-  { name: 'Attendance', path: '/attendance', icon: '📋', access: { permission: 'edit-attendance' } },
+  { name: 'Attendance', path: '/attendance', icon: '📋', access: { permission: 'view-attendance' }, when: () => !teacherOnly.value || leadsSection.value },
   // A teacher's only exam page is mark entry.
   { name: teacherOnly.value ? 'Mark entry' : 'Exams', path: '/exams', icon: '📝', access: { permission: 'view-exams' } },
   { name: 'Fees', path: '/fees', icon: '💰', access: { permission: 'view-fees' } },
@@ -170,6 +186,7 @@ const academicItems = computed(() => visible([
   { name: 'Sections', path: '/sections', icon: '🧑‍🤝‍🧑', access: { permission: 'edit-classes' } },
   { name: 'Subjects', path: '/subjects', icon: '📚', access: { permission: 'view-subjects' }, hideForTeacher: true },
   { name: 'Academic Years', path: '/academic-years', icon: '📆', access: { permission: 'edit-settings' } },
+  { name: 'Holidays', path: '/holidays', icon: '🎉', access: { permission: 'edit-settings' } },
 ]))
 
 const isChildActive = (child) => route.path === child.path || route.path.startsWith(`${child.path}/`)
