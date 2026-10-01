@@ -25,7 +25,7 @@ class ExamTablesMigrationTest extends TestCase
 
     public function test_the_migrations_roll_back_to_the_old_structure_and_run_again(): void
     {
-        $this->artisan('migrate:rollback', ['--step' => 9])->assertSuccessful();
+        $this->artisan('migrate:rollback', ['--step' => 10])->assertSuccessful();
 
         foreach (['exam_marks', 'exam_subjects'] as $table) {
             $this->assertFalse(Schema::hasTable($table), $table);

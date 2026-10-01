@@ -21,6 +21,7 @@ class CurriculumServiceTest extends TestCase
             $mock->shouldReceive('lockClass')->andReturnUsing(fn ($c) => $c)->byDefault();
             $mock->shouldReceive('unusableRowIndexes')->andReturn([])->byDefault();
             $mock->shouldReceive('savedPaperGroups')->andReturn([])->byDefault();
+            $mock->shouldReceive('savedChoiceGroups')->andReturn([])->byDefault();
             $mock->shouldReceive('assignedSubjects')->andReturn([])->byDefault();
             $expect($mock);
         });
@@ -179,6 +180,7 @@ class CurriculumServiceTest extends TestCase
             $mock->shouldReceive('unusableRowIndexes')->once()->ordered()->andReturn([]);
             $mock->shouldReceive('assignedSubjects')->andReturn([]);
             $mock->shouldReceive('savedPaperGroups')->andReturn([]);
+            $mock->shouldReceive('savedChoiceGroups')->andReturn([]);
             $mock->shouldReceive('sync')->once()->with($class, $rows)->ordered();
             $mock->shouldReceive('forClass')->once()->andReturn(new Collection);
         });
@@ -195,6 +197,7 @@ class CurriculumServiceTest extends TestCase
             $mock->shouldReceive('unusableRowIndexes')->andReturn([]);
             $mock->shouldReceive('assignedSubjects')->andReturn([]);
             $mock->shouldReceive('savedPaperGroups')->andReturn([]);
+            $mock->shouldReceive('savedChoiceGroups')->andReturn([]);
             $mock->shouldNotReceive('sync');
         });
 
@@ -211,6 +214,7 @@ class CurriculumServiceTest extends TestCase
             $mock->shouldReceive('unusableRowIndexes')->andReturn([]);
             $mock->shouldReceive('assignedSubjects')->andReturn([]);
             $mock->shouldReceive('savedPaperGroups')->andReturn([]);
+            $mock->shouldReceive('savedChoiceGroups')->andReturn([]);
             $mock->shouldNotReceive('sync');
         });
 
@@ -397,5 +401,55 @@ class CurriculumServiceTest extends TestCase
         });
 
         app(CurriculumService::class)->sync(new Classes(['number' => 9]), [$this->row(1, [], 'humanities')]);
+    }
+
+    public function test_a_valid_choice_pair_is_accepted_and_passed_through(): void
+    {
+        $class = new Classes(['number' => 9]);
+        $rows = [
+            ['subject_id' => 1, 'group' => 'science', 'type' => 'compulsory', 'choice_group' => 'science-4th'],
+            ['subject_id' => 2, 'group' => 'science', 'type' => 'optional', 'choice_group' => 'science-4th'],
+        ];
+
+        $this->mockRepo(function (MockInterface $mock) use ($class, $rows) {
+            $mock->shouldReceive('sync')->once()->with($class, $rows);
+            $mock->shouldReceive('forClass')->andReturn(new Collection);
+        });
+
+        app(CurriculumService::class)->sync($class, $rows);
+    }
+
+    public function test_a_saved_choice_group_counts_when_a_row_omits_it(): void
+    {
+        $class = new Classes(['number' => 9]);
+        $this->mockRepo(function (MockInterface $mock) {
+            $mock->shouldReceive('savedChoiceGroups')->andReturn(['1|science' => 'science-4th', '2|science' => 'science-4th', '3|science' => 'science-4th']);
+        });
+
+        $errors = $this->errorsFor($class, [
+            ['subject_id' => 1, 'group' => 'science', 'type' => 'compulsory'],
+            ['subject_id' => 2, 'group' => 'science', 'type' => 'optional'],
+            ['subject_id' => 3, 'group' => 'science', 'type' => 'optional'],
+        ]);
+
+        $this->assertArrayHasKey('subjects.0.choice_group', $errors);
+        $this->assertArrayHasKey('subjects.2.choice_group', $errors);
+    }
+
+    public function test_a_choice_group_is_refused_below_class_nine_or_with_two_compulsory_rows(): void
+    {
+        $this->mockRepo(fn () => null);
+
+        $below = $this->errorsFor(new Classes(['number' => 8]), [
+            ['subject_id' => 1, 'group' => null, 'type' => 'compulsory', 'choice_group' => 'x'],
+            ['subject_id' => 2, 'group' => null, 'type' => 'compulsory', 'choice_group' => 'x'],
+        ]);
+        $this->assertArrayHasKey('subjects.0.choice_group', $below);
+
+        $both = $this->errorsFor(new Classes(['number' => 9]), [
+            ['subject_id' => 1, 'group' => 'science', 'type' => 'compulsory', 'choice_group' => 'x'],
+            ['subject_id' => 2, 'group' => 'science', 'type' => 'compulsory', 'choice_group' => 'x'],
+        ]);
+        $this->assertArrayHasKey('subjects.1.choice_group', $both);
     }
 }

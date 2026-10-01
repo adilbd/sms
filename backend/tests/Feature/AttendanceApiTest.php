@@ -582,6 +582,20 @@ class AttendanceApiTest extends TestCase
         $this->as($this->admin)->getJson('/api/attendance/students/1abc')->assertNotFound();
     }
 
+    public function test_the_student_endpoint_checks_access_before_the_missing_enrolment_404(): void
+    {
+        $subjectTeacher = $this->assignedTeacher($this->section9, $this->bangla);
+        $unenrolled = Student::factory()->create();
+
+        // No access: 403 for a student with no enrolment and for one with an enrolment alike.
+        $this->as($subjectTeacher)->getJson("/api/attendance/students/{$unenrolled->id}?month=2026-10")->assertForbidden();
+        $this->as($subjectTeacher)->getJson("/api/attendance/students/{$this->rahim->student_id}?month=2026-10")->assertForbidden();
+
+        // Someone who may use attendance still learns the student has no enrolment.
+        $this->as($this->classTeacher)->getJson("/api/attendance/students/{$unenrolled->id}?month=2026-10")->assertNotFound();
+        $this->as($this->admin)->getJson("/api/attendance/students/{$unenrolled->id}?month=2026-10")->assertNotFound();
+    }
+
     // --- own records ---------------------------------------------------------------------
 
     /** @return array{User, User, StudentEnrolment} the student login, the guardian login and the enrolment */

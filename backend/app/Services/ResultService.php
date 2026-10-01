@@ -3,7 +3,6 @@
 namespace App\Services;
 
 use App\Exceptions\ResultNotFoundException;
-use App\Models\ClassSubject;
 use App\Models\Exam;
 use App\Models\ExamMark;
 use App\Models\ExamResult;
@@ -339,9 +338,13 @@ class ResultService
         $missing = 0;
         $entries = [];
 
-        foreach ([ClassSubject::TYPE_COMPULSORY, ClassSubject::TYPE_OPTIONAL] as $type) {
-            foreach ($this->units($taken->where('type', $type)) as $unit) {
-                $entry = $this->gradeUnit($unit, $enrolment->student_id, $marks, $type === ClassSubject::TYPE_OPTIONAL);
+        // Compulsory or 4th is decided per student: the member of a choice pair the student
+        // chose as the 4th subject is optional for them and the other member compulsory.
+        foreach ([false, true] as $optional) {
+            $subjects = $taken->filter(fn (ExamSubject $subject) => $enrolment->hasAsFourth($subject) === $optional);
+
+            foreach ($this->units($subjects) as $unit) {
+                $entry = $this->gradeUnit($unit, $enrolment->student_id, $marks, $optional);
                 $missing += $entry['missing_papers'];
                 unset($entry['missing_papers']);
                 $entries[] = $entry;

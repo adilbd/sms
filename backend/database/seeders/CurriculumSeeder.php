@@ -27,6 +27,12 @@ class CurriculumSeeder extends Seeder
         'ENG2' => 'english',
     ];
 
+    /**
+     * Science students take Biology or Higher Mathematics as compulsory and the other as
+     * their 4th subject (Class 9-12): that either-or pair is a choice group.
+     */
+    private const CHOICE_GROUP = 'science-4th';
+
     /** Subjects with a practical part at SSC/HSC: written 50, MCQ 25, practical 25. */
     private const PRACTICAL_CODES = ['PHY', 'CHE', 'BIO', 'ICT', 'AGR'];
 
@@ -53,6 +59,9 @@ class CurriculumSeeder extends Seeder
                     'sort_order' => $position++,
                     ...$this->marksFor((int) $class->number, $subjects[$code]),
                     'paper_group' => self::PAPER_GROUPS[$code] ?? null,
+                    'choice_group' => $group === AcademicGroup::SCIENCE && in_array($code, ['BIO', 'HMATH'], true)
+                        ? self::CHOICE_GROUP
+                        : null,
                 ]);
             }
         }
@@ -109,7 +118,7 @@ class CurriculumSeeder extends Seeder
             ],
             default => [
                 ...$common(['BAN1', 'BAN2', 'ENG1', 'ENG2', 'ICT']),
-                ...$group(AcademicGroup::SCIENCE, ['PHY', 'CHE'], ['HMATH', 'BIO', 'AGR']),
+                ...$group(AcademicGroup::SCIENCE, ['PHY', 'CHE', 'BIO'], ['HMATH', 'AGR']),
                 ...$group(AcademicGroup::BUSINESS_STUDIES, ['ACC', 'FBK', 'BEN'], ['AGR']),
                 ...$group(AcademicGroup::HUMANITIES, ['ECO', 'HIS', 'CIV', 'GEO'], ['AGR']),
             ],

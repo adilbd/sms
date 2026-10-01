@@ -265,7 +265,7 @@ const loadOptions = async (row) => {
   if (optionCache[key]) return
   try {
     const { data } = await api.get(`/classes/${classId}/subjects`, { params: { group: row.group } })
-    optionCache[key] = data.data.filter((r) => r.type === 'optional')
+    optionCache[key] = data.data.filter((r) => r.type === 'optional' || !!r.choice_group)
   } catch (error) {
     console.error('Failed to fetch the 4th-subject choices:', error)
   }

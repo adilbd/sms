@@ -62,7 +62,7 @@ interface ExamRepositoryInterface extends RepositoryInterface
 
     /**
      * Makes $class's subjects of $exam exactly $rows (the curriculum snapshot, one array per
-     * subject with subject_id, group, type, paper_group, the six part fields and
+     * subject with subject_id, group, type, paper_group, choice_group, the six part fields and
      * sort_order): a (subject_id, group) pair that already exists is updated in place and
      * keeps its date and times, the rest are created and the others deleted.
      *
