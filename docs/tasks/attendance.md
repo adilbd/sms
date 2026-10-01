@@ -96,7 +96,7 @@ This is Task 2 of 7 in `/Users/adil/.claude/plans/make-the-plan-for-radiant-flur
 - CLAUDE.md: Asia/Dhaka for dates, "Class" not "Grade", and the Staff logins and teacher scope note.
 
 ## Acceptance criteria
-- [ ] The legacy controller and routes are gone. The new tables migrate on SQLite and MySQL, with rollback. SQLite is verified. MySQL is checked on Docker before the merge.
+- [x] The legacy controller and routes are gone. The new tables migrate on SQLite and on Docker MySQL 8 (migrate, rollback and migrate again all succeed).
 - [x] A class teacher or an admin can mark and edit a section's day. Every rule (403, future date, holiday, weekly holiday, 7-day teacher window, roster) is enforced, with per-row errors.
 - [x] Monthly reports and per-student months are correct, and percentages are sent as `decimal:2` strings.
 - [x] Holidays CRUD works, and the `weekly_holidays` setting works.
@@ -140,3 +140,16 @@ This is Task 2 of 7 in `/Users/adil/.claude/plans/make-the-plan-for-radiant-flur
   - The class, section and student delete guards use the new table.
 - [x] **Seeders:** `HolidaySeeder` and `AttendanceSeeder`, each run twice, create no duplicates.
 - [x] **Unit:** `AttendanceServiceTest` covers each rule with mocked repositories.
+
+## Browser check (Docker MySQL)
+- [x] Seeders: 6 holidays and 275 attendance rows (2026-09-27 to 2026-10-01).
+- [x] Signed in as `VHBUB-3`, class teacher of 10-A. The sidebar shows Attendance, the section picker offers only 10-A, and the date defaults to 01/10/2026 (today in Dhaka).
+- [x] Changing Karim to Late and saving stored the rows with `marked_by=vhbub-3`. The monthly report shows totals and `100.00`.
+- [x] For this teacher, the API rejects a future date, a Friday (weekly holiday) and a date 11 days ago (the 7-day window). Another section returns 403.
+
+## Carried to Task 3 (from review)
+- A student enrolled mid-year is counted against school days before they enrolled.
+- `yearForDate()` runs before the access check, so an out-of-year date returns 422 instead of 403.
+- The sheet lists enrolments active today, even for a past date.
+- `edit-attendance` and `delete-attendance` are no longer used.
+- The holidays `per_page` has no `max`.
