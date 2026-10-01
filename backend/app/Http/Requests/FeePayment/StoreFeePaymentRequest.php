@@ -3,6 +3,7 @@
 namespace App\Http\Requests\FeePayment;
 
 use App\Models\FeePayment;
+use App\Support\Money;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -30,7 +31,7 @@ class StoreFeePaymentRequest extends FormRequest
         return [
             'student_id' => ['required', 'integer', Rule::exists('students', 'id')->whereNull('deleted_at')],
             // Whether it is within the outstanding amount is checked in FeePaymentService.
-            'amount' => 'required|numeric|decimal:0,2|regex:/^\d+(\.\d{1,2})?$/|min:0.01|max:99999999.99',
+            'amount' => 'required|numeric|decimal:0,2|regex:'.Money::MONEY_PATTERN.'|min:0.01|max:99999999.99',
             'method' => ['required', 'string', Rule::in(FeePayment::METHODS)],
             // Required for bKash, Nagad and Rocket (FeePaymentService); ignored for cash.
             'transaction_id' => 'nullable|string|max:64',

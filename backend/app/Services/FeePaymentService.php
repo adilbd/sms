@@ -91,6 +91,9 @@ class FeePaymentService
         }
 
         try {
+            // Two students' first receipts of a year can deadlock on the counter row's gap
+            // lock (MySQL REPEATABLE READ), so Laravel retries the transaction up to 3 times.
+            // The closure only touches the database, so a retry is safe.
             $payment = DB::transaction(function () use ($data, $collector, $method, $transactionId, $paidAt, $amount) {
                 $student = $this->payments->lockStudent((int) $data['student_id']);
                 $dues = $this->duesToPay($student->id, $data['due_ids'] ?? null);
@@ -137,7 +140,7 @@ class FeePaymentService
                 }
 
                 return $payment;
-            });
+            }, 3);
         } catch (UniqueConstraintViolationException $e) {
             if (UniqueViolation::is($e, 'fee_payments', ['method', 'transaction_id'], 'fee_payments_method_transaction_unique')) {
                 throw $this->duplicateTransaction();

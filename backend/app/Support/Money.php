@@ -12,6 +12,9 @@ use InvalidArgumentException;
  */
 class Money
 {
+    /** A non-negative amount with up to 2 decimals; `\z` (not `$`) so a trailing newline fails. */
+    public const MONEY_PATTERN = '/^\d+(\.\d{1,2})?\z/';
+
     /**
      * "1500.5" -> 150050. A string is read digit by digit (no float round trip); a third
      * decimal rounds half up, so "0.005" is 1 paisa.

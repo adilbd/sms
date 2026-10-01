@@ -11,8 +11,10 @@ use App\Repositories\Contracts\FeePaymentRepositoryInterface;
 use App\Repositories\Contracts\UserRepositoryInterface;
 use App\Services\FeePaymentService;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Database\QueryException;
 use Illuminate\Validation\ValidationException;
 use Mockery\MockInterface;
+use PDOException;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 use Tests\TestCase;
 
@@ -372,5 +374,32 @@ class FeePaymentServiceTest extends TestCase
         } catch (HttpException $e) {
             $this->assertSame(409, $e->getStatusCode());
         }
+    }
+
+    public function test_collect_is_retried_when_the_first_attempt_deadlocks(): void
+    {
+        $this->roles(false);
+        $due = $this->due(1, '800.00');
+        $payments = $this->mock(FeePaymentRepositoryInterface::class);
+        $dues = $this->mock(FeeDueRepositoryInterface::class);
+
+        $attempts = 0;
+        $payments->shouldReceive('lockStudent')->twice()->andReturnUsing(function () use (&$attempts) {
+            if (++$attempts === 1) {
+                throw new QueryException('sqlite', 'select ... for update', [], new PDOException('Deadlock found when trying to get lock; try restarting transaction'));
+            }
+
+            return $this->student();
+        });
+        $dues->shouldReceive('openForStudent')->once()->andReturn(new Collection([$due]));
+        $payments->shouldReceive('nextReceiptNumber')->once()->andReturn(1);
+        $payments->shouldReceive('create')->once()->andReturn($this->payment());
+        $payments->shouldReceive('addAllocation')->once();
+        $dues->shouldReceive('update')->once();
+        $payments->shouldReceive('loadReceipt')->once()->andReturn($this->payment());
+
+        app(FeePaymentService::class)->collect(['student_id' => 7, 'amount' => '800', 'method' => 'cash'], $this->user());
+
+        $this->assertSame(2, $attempts);
     }
 }
