@@ -69,6 +69,22 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Trusted Proxies
+    |--------------------------------------------------------------------------
+    |
+    | Comma-separated proxy addresses/CIDRs, or '*', whose X-Forwarded-For/Proto/Port
+    | headers are trusted (applied in AppServiceProvider via App\Support\TrustedProxies).
+    | Leave empty when not behind a proxy. WARNING: '*' is only safe when the app is
+    | reachable exclusively through a proxy that overwrites or appends X-Forwarded-For;
+    | otherwise anyone can spoof their IP and bypass the login and result-lookup limiters.
+    | Prefer listing the proxy's own IPs/CIDRs.
+    |
+    */
+
+    'trusted_proxies' => env('TRUSTED_PROXIES'),
+
+    /*
+    |--------------------------------------------------------------------------
     | Application Locale Configuration
     |--------------------------------------------------------------------------
     |

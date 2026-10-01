@@ -18,13 +18,6 @@ return Application::configure(basePath: dirname(__DIR__))
         // API guests get a 401 JSON response; there is no web login route to redirect to.
         $middleware->redirectGuestsTo(fn (Request $request) => $request->is('api/*') ? null : '/admin/login');
 
-        // Behind a proxy or load balancer (Cloudflare, nginx) set TRUSTED_PROXIES so
-        // $request->ip() is the visitor's, not the proxy's: comma-separated addresses/CIDRs, or '*'.
-        // Unset (the default) trusts no proxy and X-Forwarded-* headers are ignored.
-        if (filled($proxies = env('TRUSTED_PROXIES'))) {
-            $middleware->trustProxies(at: $proxies === '*' ? '*' : array_map('trim', explode(',', $proxies)));
-        }
-
         $middleware->alias([
             'role' => \Spatie\Permission\Middleware\RoleMiddleware::class,
             'permission' => \Spatie\Permission\Middleware\PermissionMiddleware::class,

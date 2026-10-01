@@ -20,6 +20,13 @@ class PublicResultLookupTest extends TestCase
 {
     use RefreshDatabase;
 
+    protected function tearDown(): void
+    {
+        \Illuminate\Http\Middleware\TrustProxies::flushState();
+
+        parent::tearDown();
+    }
+
     private const DOB = '2012-03-15';
 
     private AcademicYear $year;
@@ -271,6 +278,36 @@ class PublicResultLookupTest extends TestCase
 
         $this->assertSame(1, RateLimiter::attempts($key));
         $this->assertSame(0, RateLimiter::attempts(\App\Services\ResultService::publicFailureKey('203.0.113.9')));
+    }
+
+    public function test_forwarded_for_is_used_when_the_client_is_a_trusted_proxy(): void
+    {
+        \App\Support\TrustedProxies::apply('127.0.0.1');
+
+        $this->withHeader('X-Forwarded-For', '203.0.113.9')->postJson('/api/public/results', $this->byId(['student_id' => '99999999']))->assertNotFound();
+
+        $this->assertSame(1, RateLimiter::attempts(\App\Services\ResultService::publicFailureKey('203.0.113.9')));
+        $this->assertSame(0, RateLimiter::attempts(\App\Services\ResultService::publicFailureKey('127.0.0.1')));
+
+        $this->withHeader('X-Forwarded-For', '203.0.113.9')->postJson('/api/login', ['login' => 'nobody@example.com', 'password' => 'wrong-password']);
+        $this->assertSame(1, RateLimiter::attempts('login-ip-fail:'.sha1('203.0.113.9')));
+        $this->assertSame(0, RateLimiter::attempts('login-ip-fail:'.sha1('127.0.0.1')));
+    }
+
+    public function test_forwarded_host_is_not_honoured_even_when_proxies_are_trusted(): void
+    {
+        \App\Support\TrustedProxies::apply('*');
+
+        $request = \Illuminate\Http\Request::create('http://localhost/up', 'GET', [], [], [], ['REMOTE_ADDR' => '127.0.0.1', 'HTTP_X_FORWARDED_FOR' => '203.0.113.9', 'HTTP_X_FORWARDED_HOST' => 'evil.example']);
+        $response = null;
+        (new \Illuminate\Http\Middleware\TrustProxies)->handle($request, function ($r) use (&$response) {
+            $response = $r;
+
+            return response('ok');
+        });
+
+        $this->assertSame('203.0.113.9', $response->ip());
+        $this->assertSame('localhost', $response->getHost());
     }
 
     public function test_successful_lookups_do_not_count_as_failures(): void
