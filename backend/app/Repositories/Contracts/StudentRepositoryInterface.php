@@ -41,5 +41,7 @@ interface StudentRepositoryInterface extends RepositoryInterface
 
     public function hasExamMarks(Student $student): bool;
 
+    public function hasExamResults(Student $student): bool;
+
     public function hasFeePayments(Student $student): bool;
 }

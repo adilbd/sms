@@ -11,6 +11,7 @@ use App\Models\StudentEnrolment;
 use App\Models\Subject;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Tests\Concerns\BuildsExams;
 use Tests\TestCase;
 
@@ -577,6 +578,40 @@ class ExamResultApiTest extends TestCase
         $byStudent = collect($children->json('data'))->keyBy('student_id');
         $this->assertContains('Accounting', array_column($byStudent[$this->biz->student_id]['exams'][0]['subjects'], 'name_en'));
         $this->assertSame(['Bangla'], array_column($byStudent[$this->ten->student_id]['exams'][0]['subjects'], 'name_en'));
+    }
+
+    public function test_my_exams_does_not_query_per_subject_or_per_child(): void
+    {
+        $guardian = $this->guardianOf($this->biz, $this->ten);
+
+        DB::enableQueryLog();
+        $this->as($guardian)->getJson('/api/my/exams')->assertOk()->assertJsonCount(2, 'data');
+        $queries = array_column(DB::getQueryLog(), 'query');
+        DB::disableQueryLog();
+
+        // "Does this student take the subject?" is decided in memory, not by an exists() each.
+        $perSubject = array_filter($queries, fn (string $sql) => str_contains($sql, 'student_enrolments') && str_contains($sql, 'exists'));
+        $this->assertSame([], array_values($perSubject));
+        $this->assertLessThan(25, count($queries));
+    }
+
+    public function test_the_4th_subject_and_group_rule_matches_between_the_scope_and_the_enrolment(): void
+    {
+        foreach ($this->exam->examSubjects()->with('subject')->get() as $subject) {
+            foreach ([$this->sciHm, $this->sci, $this->biz, $this->sciB, $this->ten] as $enrolment) {
+                $viaScope = StudentEnrolment::query()->whereKey($enrolment->id)->takingSubject($subject)->exists();
+                $this->assertSame($viaScope, $enrolment->fresh()->takes($subject));
+            }
+        }
+    }
+
+    public function test_the_tabulation_per_page_is_bounded(): void
+    {
+        $this->as($this->admin)->getJson("/api/exams/{$this->exam->id}/results?per_page=0")
+            ->assertUnprocessable()->assertJsonValidationErrors(['per_page']);
+        $this->as($this->admin)->getJson("/api/exams/{$this->exam->id}/results?per_page=101")
+            ->assertUnprocessable()->assertJsonValidationErrors(['per_page']);
+        $this->as($this->admin)->getJson("/api/exams/{$this->exam->id}/results?per_page=100")->assertOk();
     }
 
     public function test_my_exams_hides_draft_exams(): void

@@ -111,6 +111,17 @@ class ExamService
 
             $locked = $this->exams->lockExam($exam);
 
+            // The classes of a processed or published exam are the ones its results cover.
+            if ($classIds !== null && in_array($locked->status, [Exam::STATUS_PROCESSED, Exam::STATUS_PUBLISHED], true)) {
+                $held = $this->exams->classIds($locked);
+
+                abort_if(
+                    array_diff($classIds, $held) !== [] || array_diff($held, $classIds) !== [],
+                    409,
+                    'The classes of an exam with results cannot be changed. Unpublish and reprocess it first.'
+                );
+            }
+
             if ($data !== []) {
                 $applied = (clone $locked)->fill($data);
                 $this->ensureHasName($applied);
@@ -162,6 +173,13 @@ class ExamService
     {
         DB::transaction(function () use ($exam) {
             $locked = $this->exams->lockExam($exam);
+
+            // A processed or published exam has results, which a soft delete wouldn't cascade to.
+            abort_if(
+                in_array($locked->status, [Exam::STATUS_PROCESSED, Exam::STATUS_PUBLISHED], true) || $this->exams->hasResults($locked),
+                409,
+                'This exam has results and cannot be deleted.'
+            );
 
             // Marks (even one) lock the exam: a soft delete wouldn't cascade to them.
             abort_if($this->exams->hasMarks($locked), 409, 'Marks have been entered for this exam and it cannot be deleted.');

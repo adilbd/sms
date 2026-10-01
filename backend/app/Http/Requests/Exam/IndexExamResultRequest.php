@@ -20,7 +20,7 @@ class IndexExamResultRequest extends FormRequest
             'section_id' => ['sometimes', 'nullable', 'integer', Rule::exists('sections', 'id')->whereNull('deleted_at')],
             // Opt in to the per-subject breakdown on every row (the report cards print from it).
             'with_subjects' => ['sometimes', 'nullable', 'boolean'],
-            'per_page' => ['sometimes', 'nullable', 'integer'],
+            'per_page' => ['sometimes', 'nullable', 'integer', 'min:1', 'max:100'],
             'page' => ['sometimes', 'nullable', 'integer'],
         ];
     }

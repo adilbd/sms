@@ -41,14 +41,6 @@ class ExamResultRepository implements ExamResultRepositoryInterface
             ->all();
     }
 
-    public function takesSubject(StudentEnrolment $enrolment, ExamSubject $subject): bool
-    {
-        return StudentEnrolment::query()
-            ->whereKey($enrolment->id)
-            ->takingSubject($subject)
-            ->exists();
-    }
-
     public function marksFor(Exam $exam): Collection
     {
         return ExamMark::query()

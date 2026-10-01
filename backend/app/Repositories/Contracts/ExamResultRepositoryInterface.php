@@ -31,11 +31,6 @@ interface ExamResultRepositoryInterface
     public function subjectTakers(Exam $exam, ExamSubject $subject): array;
 
     /**
-     * Whether the enrolment's student takes $subject, by the same rule as subjectTakers().
-     */
-    public function takesSubject(StudentEnrolment $enrolment, ExamSubject $subject): bool;
-
-    /**
      * Every mark entered for the exam's subjects.
      */
     public function marksFor(Exam $exam): Collection;

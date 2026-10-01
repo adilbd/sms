@@ -79,14 +79,48 @@ class StudentEnrolment extends Model
     public function scopeTakingSubject(Builder $query, ExamSubject $subject): Builder
     {
         return $query->where(function (Builder $q) use ($subject) {
-            if ($subject->type === ClassSubject::TYPE_OPTIONAL) {
-                $q->where('student_enrolments.optional_subject_id', $subject->subject_id);
-            }
-
-            if ($subject->group !== null) {
-                $q->where('student_enrolments.group', $subject->group);
+            foreach (self::subjectRequirements($subject) as $column => $value) {
+                $q->where("student_enrolments.{$column}", $value);
             }
         });
+    }
+
+    /**
+     * The same rule as scopeTakingSubject(), decided in memory from this enrolment's own
+     * group and 4th subject, for callers that already hold the enrolment.
+     */
+    public function takes(ExamSubject $subject): bool
+    {
+        foreach (self::subjectRequirements($subject) as $column => $value) {
+            // Compared as strings: the driver may hand back the id as a string.
+            if ((string) $this->{$column} !== (string) $value) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * The enrolment columns that must equal a value for the student to take the subject:
+     * `optional_subject_id` for an optional subject, `group` for a group's row. Empty for a
+     * compulsory row common to the class. The one place the rule is written down.
+     *
+     * @return array<string, int|string>
+     */
+    private static function subjectRequirements(ExamSubject $subject): array
+    {
+        $requirements = [];
+
+        if ($subject->type === ClassSubject::TYPE_OPTIONAL) {
+            $requirements['optional_subject_id'] = $subject->subject_id;
+        }
+
+        if ($subject->group !== null) {
+            $requirements['group'] = $subject->group;
+        }
+
+        return $requirements;
     }
 
     public function student(): BelongsTo

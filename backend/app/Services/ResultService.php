@@ -177,7 +177,7 @@ class ResultService
 
             if ($enrolment) {
                 $subjects = $this->results->scheduleFor($enrolment->class_id, $enrolment->academic_year_id)
-                    ->filter(fn (ExamSubject $subject) => $this->results->takesSubject($enrolment, $subject));
+                    ->filter(fn (ExamSubject $subject) => $enrolment->takes($subject));
 
                 foreach ($subjects->groupBy('exam_id') as $examSubjects) {
                     $exams[] = ['exam' => $examSubjects->first()->exam, 'subjects' => $examSubjects->values()->all()];
@@ -233,6 +233,7 @@ class ResultService
         }
 
         $compulsory = array_values(array_filter($entries, fn (array $entry) => ! $entry['is_optional']));
+        // At most one optional unit exists: an enrolment has a single optional_subject_id.
         $optional = collect($entries)->firstWhere('is_optional', true);
         $outcome = Gpa::result($compulsory, $optional);
 

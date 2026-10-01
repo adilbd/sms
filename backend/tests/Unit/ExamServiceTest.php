@@ -271,6 +271,22 @@ class ExamServiceTest extends TestCase
         $this->assertConflict(fn () => app(ExamService::class)->update($exam, ['class_ids' => [9, 10]]));
     }
 
+    public function test_update_refuses_a_class_change_on_a_processed_or_published_exam(): void
+    {
+        foreach ([Exam::STATUS_PROCESSED, Exam::STATUS_PUBLISHED] as $status) {
+            $exam = $this->exam(['status' => $status]);
+
+            $this->repos([], function (MockInterface $m) {
+                $m->shouldReceive('classIds')->andReturn([9, 10]);
+                $m->shouldNotReceive('deleteClassSubjects');
+                $m->shouldNotReceive('replaceClassSubjects');
+                $m->shouldNotReceive('update');
+            });
+
+            $this->assertConflict(fn () => app(ExamService::class)->update($exam, ['class_ids' => [9]]));
+        }
+    }
+
     public function test_update_does_not_add_a_class_that_a_concurrent_request_already_added(): void
     {
         $exam = $this->exam();
@@ -289,6 +305,7 @@ class ExamServiceTest extends TestCase
     public function test_delete_is_refused_once_marks_exist(): void
     {
         $this->repos([], function (MockInterface $m) {
+            $m->shouldReceive('hasResults')->andReturn(false);
             $m->shouldReceive('hasMarks')->once()->andReturn(true);
             $m->shouldNotReceive('deleteSubjects');
             $m->shouldNotReceive('delete');
@@ -297,9 +314,27 @@ class ExamServiceTest extends TestCase
         $this->assertConflict(fn () => app(ExamService::class)->delete($this->exam()));
     }
 
+    public function test_delete_is_refused_when_results_exist_or_the_exam_is_processed(): void
+    {
+        $this->repos([], function (MockInterface $m) {
+            $m->shouldReceive('hasResults')->once()->andReturn(true);
+            $m->shouldNotReceive('delete');
+        });
+
+        $this->assertConflict(fn () => app(ExamService::class)->delete($this->exam()));
+
+        $this->repos([], function (MockInterface $m) {
+            $m->shouldNotReceive('hasMarks');
+            $m->shouldNotReceive('delete');
+        });
+
+        $this->assertConflict(fn () => app(ExamService::class)->delete($this->exam(['status' => Exam::STATUS_PUBLISHED])));
+    }
+
     public function test_delete_removes_the_subjects_then_the_exam(): void
     {
         $this->repos([], function (MockInterface $m) {
+            $m->shouldReceive('hasResults')->once()->andReturn(false);
             $m->shouldReceive('hasMarks')->once()->andReturn(false);
             $m->shouldReceive('deleteSubjects')->once()->ordered();
             $m->shouldReceive('delete')->once()->ordered();

@@ -7,6 +7,7 @@ use App\Models\Classes;
 use App\Models\ClassSubject;
 use App\Models\Exam;
 use App\Models\ExamMark;
+use App\Models\ExamResult;
 use App\Models\ExamSubject;
 use App\Models\Subject;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -43,6 +44,28 @@ class ExamApiTest extends TestCase
         $subject = $exam->examSubjects()->where('class_id', $class->id)->firstOrFail();
 
         return ExamMark::factory()->create(['exam_subject_id' => $subject->id]);
+    }
+
+    private function resultFor(Exam $exam): ExamResult
+    {
+        $enrolment = $this->enrol($this->section9, 'science', null, 1);
+
+        return ExamResult::create([
+            'exam_id' => $exam->id,
+            'student_id' => $enrolment->student_id,
+            'enrolment_id' => $enrolment->id,
+            'class_id' => $enrolment->class_id,
+            'section_id' => $enrolment->section_id,
+            'total_obtained' => 400,
+            'total_full' => 500,
+            'gpa' => 5,
+            'grade' => 'A+',
+            'is_pass' => true,
+            'failed_count' => 0,
+            'class_position' => 1,
+            'section_position' => 1,
+            'subjects' => [],
+        ]);
     }
 
     // Create
@@ -394,6 +417,46 @@ class ExamApiTest extends TestCase
         $this->assertSame(5, $exam->examSubjects()->count());
     }
 
+    public function test_destroy_is_refused_for_a_processed_or_published_exam_and_one_with_results(): void
+    {
+        foreach ([Exam::STATUS_PROCESSED, Exam::STATUS_PUBLISHED] as $status) {
+            $exam = $this->createExam(null, ['code' => "D-{$status}"]);
+            $exam->update(['status' => $status]);
+
+            $this->as($this->admin)->deleteJson("/api/exams/{$exam->id}")->assertStatus(409);
+
+            $this->assertNotSoftDeleted($exam);
+            $this->assertSame(5, $exam->examSubjects()->count());
+        }
+
+        // Results without a processed status (they should not exist, but still lock the exam).
+        $exam = $this->createExam(null, ['code' => 'D-RESULTS']);
+        $this->resultFor($exam);
+
+        $this->as($this->admin)->deleteJson("/api/exams/{$exam->id}")->assertStatus(409);
+        $this->assertNotSoftDeleted($exam);
+    }
+
+    public function test_the_classes_of_a_processed_or_published_exam_cannot_change(): void
+    {
+        foreach ([Exam::STATUS_PROCESSED, Exam::STATUS_PUBLISHED] as $status) {
+            $exam = $this->createExam([$this->class9], ['code' => "C-{$status}"]);
+            $exam->update(['status' => $status]);
+
+            $this->as($this->admin)->putJson("/api/exams/{$exam->id}", ['class_ids' => [$this->class9->id, $this->class10->id]])->assertStatus(409);
+            $this->as($this->admin)->putJson("/api/exams/{$exam->id}", ['class_ids' => [$this->class10->id]])->assertStatus(409);
+            $this->assertSame([$this->class9->id], $exam->fresh()->examSubjects()->pluck('class_id')->unique()->values()->all());
+
+            // The same classes, and edits that leave the classes alone, still work.
+            $this->as($this->admin)->putJson("/api/exams/{$exam->id}", ['class_ids' => [$this->class9->id], 'name_bn' => 'সংশোধিত'])
+                ->assertOk()->assertJsonPath('data.name_bn', 'সংশোধিত');
+            $this->as($this->admin)->putJson("/api/exams/{$exam->id}", ['end_date' => '2026-06-25'])
+                ->assertOk()->assertJsonPath('data.end_date', '2026-06-25');
+            $this->as($this->admin)->putJson("/api/exams/{$exam->id}", ['end_date' => '2026-05-01'])
+                ->assertUnprocessable()->assertJsonValidationErrors(['end_date']);
+        }
+    }
+
     // Status
 
     public function test_open_marks_entry_moves_draft_to_marks_entry_once(): void
@@ -439,6 +502,15 @@ class ExamApiTest extends TestCase
         $mark = $this->markFor($exam, $this->class9);
 
         $this->as($this->admin)->deleteJson("/api/students/{$mark->student_id}")->assertStatus(409);
+    }
+
+    public function test_a_student_with_results_cannot_be_deleted(): void
+    {
+        $exam = $this->createExam();
+        $result = $this->resultFor($exam);
+
+        $this->as($this->admin)->deleteJson("/api/students/{$result->student_id}")->assertStatus(409);
+        $this->assertNotSoftDeleted($result->student);
     }
 
     // Authorization

@@ -260,6 +260,7 @@ class StudentService
         // (see SubjectService::delete() for the same pattern).
         abort_if($this->students->hasAttendances($student), 409, 'Student has attendance records and cannot be deleted.');
         abort_if($this->students->hasExamMarks($student), 409, 'Student has exam marks and cannot be deleted.');
+        abort_if($this->students->hasExamResults($student), 409, 'Student has exam results and cannot be deleted.');
         abort_if($this->students->hasFeePayments($student), 409, 'Student has fee payments and cannot be deleted.');
 
         DB::transaction(function () use ($student) {
