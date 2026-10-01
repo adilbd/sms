@@ -114,6 +114,8 @@ Route::middleware('auth:sanctum')->group(function () {
         ->where('exam', '[0-9]+');
     Route::post('exams/{exam}/unpublish', [\App\Http\Controllers\Api\ExamResultController::class, 'unpublish'])
         ->where('exam', '[0-9]+');
+    Route::post('exams/{exam}/reopen', [\App\Http\Controllers\Api\ExamResultController::class, 'reopen'])
+        ->where('exam', '[0-9]+');
     Route::get('exams/{exam}/results', [\App\Http\Controllers\Api\ExamResultController::class, 'index'])
         ->where('exam', '[0-9]+');
     Route::get('exams/{exam}/results/{student}', [\App\Http\Controllers\Api\ExamResultController::class, 'show'])

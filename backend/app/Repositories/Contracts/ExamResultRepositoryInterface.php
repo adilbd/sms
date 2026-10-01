@@ -44,6 +44,11 @@ interface ExamResultRepositoryInterface
     public function replaceForExam(Exam $exam, array $rows): void;
 
     /**
+     * Deletes every result of $exam.
+     */
+    public function deleteForExam(Exam $exam): void;
+
+    /**
      * The exam's results in position order, with `student`, `enrolment`, `class` and
      * `section` loaded. Ordered by section position when a section is filtered, otherwise
      * by class then class position.

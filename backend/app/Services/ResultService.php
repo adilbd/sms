@@ -23,7 +23,8 @@ use Illuminate\Support\Facades\DB;
  * which subject, which papers form one unit and what counts as missing.
  *
  * Status: marks_entry/processed --process--> processed --publish--> published, and
- * unpublish goes back to processed. Saving marks (ExamMarkService) moves a processed exam
+ * unpublish goes back to processed, and reopen (processed only, clearing the results)
+ * goes back to marks_entry. Saving marks (ExamMarkService) moves a processed exam
  * back to marks_entry, so stale results can't be published. Everything that changes the
  * status takes the exam lock first (the lock order in ExamRepositoryInterface::lockExam()).
  */
@@ -115,6 +116,27 @@ class ResultService
         });
 
         return $this->exams->loadDetail($unpublished);
+    }
+
+    /**
+     * processed → marks_entry, the explicit way back to editing marks and classes. Deletes
+     * the exam's results (under the exam lock, before the status changes) so stale results
+     * can't linger. 409 from any other status; a published exam must be unpublished first.
+     */
+    public function reopen(Exam $exam): Exam
+    {
+        $reopened = DB::transaction(function () use ($exam) {
+            $locked = $this->exams->lockExam($exam);
+
+            abort_if($locked->status === Exam::STATUS_PUBLISHED, 409, 'Unpublish the results before reopening mark entry.');
+            abort_unless($locked->status === Exam::STATUS_PROCESSED, 409, 'Only an exam with processed results can be reopened for mark entry.');
+
+            $this->results->deleteForExam($locked);
+
+            return $this->exams->update($locked, ['status' => Exam::STATUS_MARKS_ENTRY]);
+        });
+
+        return $this->exams->loadDetail($reopened);
     }
 
     /**

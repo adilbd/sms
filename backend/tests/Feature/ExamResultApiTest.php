@@ -405,6 +405,71 @@ class ExamResultApiTest extends TestCase
         $this->as($this->admin)->postJson("/api/exams/{$this->exam->id}/unpublish")->assertStatus(409);
     }
 
+    public function test_reopening_a_processed_exam_clears_the_results_and_unlocks_the_classes(): void
+    {
+        $this->enterMarks();
+        $this->process()->assertOk();
+        $this->assertGreaterThan(0, ExamResult::query()->where('exam_id', $this->exam->id)->count());
+
+        $this->as($this->admin)->putJson("/api/exams/{$this->exam->id}", ['class_ids' => [$this->class9->id]])
+            ->assertStatus(409)
+            ->assertJsonPath('message', "Reopen mark entry before changing this exam's classes.");
+
+        $this->as($this->admin)->postJson("/api/exams/{$this->exam->id}/reopen")
+            ->assertOk()
+            ->assertJsonPath('data.status', 'marks_entry');
+
+        $this->assertSame(Exam::STATUS_MARKS_ENTRY, $this->exam->fresh()->status);
+        $this->assertSame(0, ExamResult::query()->where('exam_id', $this->exam->id)->count());
+        $this->as($this->admin)->postJson("/api/exams/{$this->exam->id}/publish")->assertStatus(409);
+
+        // The results guard is gone: only the (separate) marks guard applies to class 10 now.
+        $this->as($this->admin)->putJson("/api/exams/{$this->exam->id}", ['class_ids' => [$this->class9->id]])
+            ->assertStatus(409)
+            ->assertJsonPath('message', 'Marks have already been entered for a class you are removing. It cannot be removed from the exam.');
+        $this->as($this->admin)->putJson("/api/exams/{$this->exam->id}", ['name_en' => 'Renamed'])->assertOk();
+    }
+
+    public function test_a_class_can_be_removed_after_reopening_an_exam_without_marks(): void
+    {
+        $exam = $this->createExam([$this->class9, $this->class10], ['code' => 'REOPEN']);
+        $this->as($this->admin)->postJson("/api/exams/{$exam->id}/open-marks-entry")->assertOk();
+        $this->as($this->admin)->postJson("/api/exams/{$exam->id}/process")->assertOk();
+
+        $this->as($this->admin)->putJson("/api/exams/{$exam->id}", ['class_ids' => [$this->class9->id]])->assertStatus(409);
+        $this->as($this->admin)->postJson("/api/exams/{$exam->id}/reopen")->assertOk();
+
+        $this->as($this->admin)->putJson("/api/exams/{$exam->id}", ['class_ids' => [$this->class9->id]])->assertOk();
+        $this->assertSame(0, ExamResult::query()->where('exam_id', $exam->id)->count());
+    }
+
+    public function test_a_published_exam_must_be_unpublished_before_reopening(): void
+    {
+        $this->processAndPublish();
+
+        $this->as($this->admin)->putJson("/api/exams/{$this->exam->id}", ['class_ids' => [$this->class9->id]])
+            ->assertStatus(409)
+            ->assertJsonPath('message', "Unpublish the results and reopen mark entry before changing this exam's classes.");
+
+        $this->as($this->admin)->postJson("/api/exams/{$this->exam->id}/reopen")
+            ->assertStatus(409)
+            ->assertJsonPath('message', 'Unpublish the results before reopening mark entry.');
+        $this->assertSame(Exam::STATUS_PUBLISHED, $this->exam->fresh()->status);
+        $this->assertGreaterThan(0, ExamResult::query()->where('exam_id', $this->exam->id)->count());
+    }
+
+    public function test_reopening_needs_a_processed_exam(): void
+    {
+        // marks_entry
+        $this->as($this->admin)->postJson("/api/exams/{$this->exam->id}/reopen")->assertStatus(409);
+
+        $draft = Exam::factory()->create(['academic_year_id' => $this->year->id]);
+        $this->as($this->admin)->postJson("/api/exams/{$draft->id}/reopen")->assertStatus(409);
+        $this->assertSame(Exam::STATUS_DRAFT, $draft->fresh()->status);
+
+        $this->as($this->admin)->postJson('/api/exams/999999/reopen')->assertNotFound();
+    }
+
     public function test_marks_cannot_be_saved_while_published(): void
     {
         $this->processAndPublish();
@@ -638,6 +703,7 @@ class ExamResultApiTest extends TestCase
         $this->postJson("/api/exams/{$id}/process")->assertUnauthorized();
         $this->postJson("/api/exams/{$id}/publish")->assertUnauthorized();
         $this->postJson("/api/exams/{$id}/unpublish")->assertUnauthorized();
+        $this->postJson("/api/exams/{$id}/reopen")->assertUnauthorized();
         $this->getJson('/api/my/results')->assertUnauthorized();
         $this->getJson('/api/my/exams')->assertUnauthorized();
         $this->getJson('/api/my/children/1/results')->assertUnauthorized();
@@ -655,6 +721,7 @@ class ExamResultApiTest extends TestCase
         $this->as($teacher)->postJson("/api/exams/{$id}/process")->assertForbidden();
         $this->as($teacher)->postJson("/api/exams/{$id}/publish")->assertForbidden();
         $this->as($teacher)->postJson("/api/exams/{$id}/unpublish")->assertForbidden();
+        $this->as($teacher)->postJson("/api/exams/{$id}/reopen")->assertForbidden();
         $this->assertSame(Exam::STATUS_PROCESSED, $this->exam->fresh()->status);
     }
 

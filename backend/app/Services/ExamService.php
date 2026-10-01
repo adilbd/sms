@@ -118,7 +118,9 @@ class ExamService
                 abort_if(
                     array_diff($classIds, $held) !== [] || array_diff($held, $classIds) !== [],
                     409,
-                    'The classes of an exam with results cannot be changed. Unpublish and reprocess it first.'
+                    $locked->status === Exam::STATUS_PUBLISHED
+                        ? "Unpublish the results and reopen mark entry before changing this exam's classes."
+                        : "Reopen mark entry before changing this exam's classes."
                 );
             }
 

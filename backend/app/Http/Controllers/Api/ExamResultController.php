@@ -26,6 +26,7 @@ class ExamResultController extends Controller implements HasMiddleware
             'process' => 'publish-exams',
             'publish' => 'publish-exams',
             'unpublish' => 'publish-exams',
+            'reopen' => 'edit-exams',
         ]);
     }
 
@@ -54,6 +55,11 @@ class ExamResultController extends Controller implements HasMiddleware
     public function publish(Exam $exam)
     {
         return (new ExamResource($this->results->publish($exam)))->additional(['message' => 'Results published']);
+    }
+
+    public function reopen(Exam $exam)
+    {
+        return (new ExamResource($this->results->reopen($exam)))->additional(['message' => 'Mark entry reopened and the results cleared']);
     }
 
     public function unpublish(Exam $exam)

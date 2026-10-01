@@ -22,6 +22,7 @@
           {{ exam.status === 'processed' ? 'Process again' : 'Process results' }}
         </button>
         <button v-if="exam?.status === 'processed'" type="button" class="btn btn-primary" :disabled="busy" @click="publish">Publish</button>
+        <button v-if="exam?.status === 'processed'" type="button" class="btn btn-secondary" :disabled="busy" @click="reopen">Reopen mark entry</button>
         <button v-if="exam?.status === 'published'" type="button" class="btn btn-secondary" :disabled="busy" @click="unpublish">Unpublish</button>
       </div>
     </div>
@@ -244,6 +245,14 @@ const publish = () => act(
   'publish',
   'Publish these results? Students and guardians will be able to see them.',
   () => {},
+)
+
+const reopen = () => act(
+  'reopen',
+  'Reopen mark entry? The processed results will be cleared and must be processed again.',
+  () => {
+    summary.value = null
+  },
 )
 
 const unpublish = () => act(

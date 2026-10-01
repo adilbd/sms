@@ -228,6 +228,48 @@ class ResultServiceTest extends TestCase
         app(ResultService::class)->unpublish($this->exam(Exam::STATUS_PUBLISHED));
     }
 
+    public function test_reopen_clears_the_results_under_the_lock_then_sets_marks_entry(): void
+    {
+        $processed = $this->exam(Exam::STATUS_PROCESSED);
+        $order = [];
+
+        $this->repos(function (MockInterface $m) use ($processed, &$order) {
+            $m->shouldReceive('lockExam')->once()->andReturnUsing(function () use ($processed, &$order) {
+                $order[] = 'lock';
+
+                return $processed;
+            });
+            $m->shouldReceive('update')->once()->with($processed, ['status' => Exam::STATUS_MARKS_ENTRY])->andReturnUsing(function () use ($processed, &$order) {
+                $order[] = 'update';
+
+                return $processed;
+            });
+        }, function (MockInterface $m) use (&$order) {
+            $m->shouldReceive('deleteForExam')->once()->andReturnUsing(function () use (&$order) {
+                $order[] = 'delete';
+            });
+        });
+
+        app(ResultService::class)->reopen($this->exam(Exam::STATUS_PROCESSED));
+
+        $this->assertSame(['lock', 'delete', 'update'], $order);
+    }
+
+    public function test_reopen_is_refused_unless_processed(): void
+    {
+        foreach ([Exam::STATUS_DRAFT, Exam::STATUS_MARKS_ENTRY, Exam::STATUS_PUBLISHED] as $status) {
+            $locked = $this->exam($status);
+            $this->repos(function (MockInterface $m) use ($locked) {
+                $m->shouldReceive('lockExam')->once()->andReturn($locked);
+                $m->shouldNotReceive('update');
+            }, function (MockInterface $m) {
+                $m->shouldNotReceive('deleteForExam');
+            });
+
+            $this->assertStatus(409, fn () => app(ResultService::class)->reopen($this->exam($status)));
+        }
+    }
+
     // Reads
 
     public function test_a_breakdown_without_a_result_is_a_404(): void

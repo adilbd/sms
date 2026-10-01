@@ -48,6 +48,11 @@ class ExamResultRepository implements ExamResultRepositoryInterface
             ->get();
     }
 
+    public function deleteForExam(Exam $exam): void
+    {
+        ExamResult::query()->where('exam_id', $exam->id)->delete();
+    }
+
     public function replaceForExam(Exam $exam, array $rows): void
     {
         ExamResult::query()->where('exam_id', $exam->id)->delete();
