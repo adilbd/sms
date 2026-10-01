@@ -106,3 +106,10 @@ This is Task 1 of 7 in `/Users/adil/.claude/plans/make-the-plan-for-radiant-flur
 - [x] **Mark sheets.** A teacher's `GET /api/exams/{exam}/subjects` lists only their assigned subjects. The mark sheet for an unassigned subject returns 403.
 - [x] **Seeder.** `StaffLoginSeeder` run twice creates no duplicates.
 - [x] **Unit tests.** `StaffServiceTest` covers the login rules with mocks. `TeacherScopeTest` covers the scope resolution.
+
+## Browser check (Docker MySQL)
+- [x] Migrating added `login_enabled`, and the seeder created the `vhbub-3` and `vhbub-9` teacher logins and the `vhbub-52` office login.
+- [x] `VHBUB-3` signs in through the admin login form. The sidebar shows only Dashboard, My subjects, Students and Mark entry.
+- [x] After assigning `VHBUB-3` Bangla 1st Paper in 10-A, the teacher's student list shows only the 5 students in 10-A. Opening a Class 6 student returns 403.
+- [x] Opening `/admin/institute` directly as a teacher redirects to the Dashboard. There are no console errors.
+- Follow-up for Task 3: the admin router has no catch-all, so an unknown `/admin/...` path renders blank. This was already the case on `main`.
