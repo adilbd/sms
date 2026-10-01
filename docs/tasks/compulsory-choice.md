@@ -62,7 +62,7 @@ This is Task 4 of 7 in `/Users/adil/.claude/plans/make-the-plan-for-radiant-flur
 - [x] A student with Higher Math as 4th, or with no choice, keeps the current behaviour.
 - [x] Mark sheets, results, report cards and promotion all follow the choice.
 - [x] `studentView` checks access before the 404.
-- [ ] The migration works on SQLite and MySQL, including rollback. SQLite is verified. MySQL is checked on Docker before the merge.
+- [x] The migration works on SQLite and on Docker MySQL 8, including rollback and a re-run.
 - [x] The full suite, Pint, `npm run build` and smoke all pass. CLAUDE.md is updated.
 
 ## Test cases
@@ -85,3 +85,13 @@ This is Task 4 of 7 in `/Users/adil/.claude/plans/make-the-plan-for-radiant-flur
 - [x] **Exams:** the snapshot copies `choice_group`, and reprocessing an exam applies the choice.
 - [x] **Backfill:** it sets `choice_group` only on the exact Biology + Higher Math Science rows, and a second run changes nothing.
 - [x] **`studentView`:** a staff member without access gets 403 both for a student with no enrolment and for one with an enrolment.
+
+## Docker and browser check
+- [x] The backfill paired exactly Class 9 and 10 Science Biology (compulsory) and Higher Math (optional) as `science-4th`, 4 rows in total. The Docker Class 11 and 12 curriculum didn't have that exact pair, so it was left alone.
+- [x] On Nayeem Khan's student form (Class 9 Science), the 4th-subject select lists Biology, Higher Mathematics and Agriculture Studies. Choosing Biology shows "Choosing Biology makes Higher Mathematics compulsory". Saving stored BIO.
+- The Docker Half-Yearly exam was generated before this change, so it has no `choice_group`. Mark-sheet placement is covered by `CompulsoryChoiceTest`.
+
+## Follow-ups (from review)
+- In HSC (Class 11–12), Biology and Higher Math each have 1st and 2nd papers, but a pair member can't be in a paper group, so this can't be expressed yet.
+- MarkEntry and ExamSchedule still label Higher Math "4th". Show "Either/or" when `choice_group` is set.
+- `ExamSubject::choiceSubjectIds()` queries from the model. Optionally move it to the repository.
