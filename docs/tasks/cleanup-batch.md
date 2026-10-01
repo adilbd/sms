@@ -59,7 +59,7 @@ This is Task 3 of 7 in `/Users/adil/.claude/plans/make-the-plan-for-radiant-flur
 ## Acceptance criteria
 - [x] The full suite passes 3 times in a row with no flaky failure.
 - [x] Every item above is done, with a test where it's behaviour.
-- [ ] The `enrolled_on` migration works on SQLite and MySQL, including rollback. SQLite is verified. MySQL is checked on Docker before the merge.
+- [x] The `enrolled_on` migration works on SQLite and on Docker MySQL 8, including rollback and re-run.
 - [x] Pint, `npm run build` and smoke pass. CLAUDE.md is updated.
 
 ## Test cases
@@ -81,3 +81,10 @@ This is Task 3 of 7 in `/Users/adil/.claude/plans/make-the-plan-for-radiant-flur
   - The backfill is correct.
 - [x] **Attendance check order.** An out-of-year date from a non-class-teacher returns 403.
 - [x] **`SubjectSeeder`.** A re-run keeps an admin-edited pass mark.
+
+## Docker and browser check
+- [x] **Bug found and fixed on this branch.** The first `enrolled_on` backfill used `created_at`, which set every 2026 enrolment to 2026-10-01 (the seed date) and hid past attendance. It now uses `App\Support\EnrolmentStart`: the admission date, clamped to the year. After the fix, 2026 enrolments are 2026-01-05, promoted 2027 enrolments are 2027-01-01, and the 10-A sheet for 2026-09-30 lists all 5 students again.
+- [x] An unknown `/admin/this-does-not-exist` redirects to the Dashboard.
+
+## Carried to Task 4 (from review)
+- `AttendanceService::studentView` returns 404 for a student with no enrolment before it checks access, which reveals whether a student is enrolled. Check access first, and share the 403 helper with `authorizeSection`.
