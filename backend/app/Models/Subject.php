@@ -48,6 +48,12 @@ class Subject extends Model
         return $this->hasMany(ClassSubject::class);
     }
 
+    /** Enrolments that chose this subject as the student's 4th subject. */
+    public function enrolments(): HasMany
+    {
+        return $this->hasMany(StudentEnrolment::class, 'optional_subject_id');
+    }
+
     public function examSchedules(): HasMany
     {
         return $this->hasMany(ExamSchedule::class);

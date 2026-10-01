@@ -12,7 +12,12 @@ class AcademicYearRepository extends EloquentRepository implements AcademicYearR
 
     public function hasStudents(AcademicYear $academicYear): bool
     {
-        return $academicYear->students()->exists();
+        return $academicYear->enrolments()->exists();
+    }
+
+    public function findActive(): ?AcademicYear
+    {
+        return AcademicYear::query()->where('is_active', true)->orderByDesc('year')->first();
     }
 
     public function hasExams(AcademicYear $academicYear): bool

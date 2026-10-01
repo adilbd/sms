@@ -3,10 +3,10 @@
 namespace Tests\Feature;
 
 use App\Models\AcademicYear;
+use App\Models\StudentEnrolment;
 use App\Models\User;
 use Database\Seeders\RolePermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 class AcademicYearApiTest extends TestCase
@@ -129,21 +129,7 @@ class AcademicYearApiTest extends TestCase
     public function test_destroy_returns_409_when_year_is_referenced_by_students(): void
     {
         $year = AcademicYear::factory()->create();
-        $userId = User::factory()->create()->id;
-        $classId = DB::table('classes')->insertGetId(['number' => 1, 'name' => 'Class 1', 'code' => 'CC1']);
-        $sectionId = DB::table('sections')->insertGetId(['class_id' => $classId, 'name' => 'A', 'code' => 'A']);
-
-        DB::table('students')->insert([
-            'user_id' => $userId,
-            'admission_number' => 'ADM-2',
-            'class_id' => $classId,
-            'section_id' => $sectionId,
-            'academic_year_id' => $year->id,
-            'admission_date' => '2026-01-01',
-            'date_of_birth' => '2015-01-01',
-            'gender' => 'male',
-            'address' => 'x', 'city' => 'x', 'state' => 'x', 'pincode' => '1000',
-        ]);
+        StudentEnrolment::factory()->create(['academic_year_id' => $year->id]);
 
         $this->actingAs($this->admin, 'sanctum')
             ->deleteJson("/api/academic-years/{$year->id}")

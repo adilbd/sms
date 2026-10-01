@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\Classes;
 use App\Models\Section;
+use App\Models\StudentEnrolment;
 use App\Models\User;
 use Database\Seeders\RolePermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -151,6 +152,20 @@ class ClassApiTest extends TestCase
             ->deleteJson("/api/classes/{$class->id}")
             ->assertStatus(409)
             ->assertJsonPath('message', 'Class has sections and cannot be deleted.');
+
+        $this->assertNotSoftDeleted($class);
+    }
+
+    public function test_destroy_returns_409_when_class_has_enrolments(): void
+    {
+        $class = Classes::factory()->create();
+        // The section belongs to another class, so only the enrolment points at $class.
+        StudentEnrolment::factory()->create(['class_id' => $class->id]);
+
+        $this->actingAs($this->admin, 'sanctum')
+            ->deleteJson("/api/classes/{$class->id}")
+            ->assertStatus(409)
+            ->assertJsonPath('message', 'Class has students and cannot be deleted.');
 
         $this->assertNotSoftDeleted($class);
     }

@@ -7,10 +7,10 @@ use App\Models\ClassSection;
 use App\Models\Section;
 use App\Models\Shift;
 use App\Models\Staff;
+use App\Models\StudentEnrolment;
 use App\Models\User;
 use Database\Seeders\RolePermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 class SectionApiTest extends TestCase
@@ -164,19 +164,7 @@ class SectionApiTest extends TestCase
     public function test_destroy_returns_409_when_section_has_students(): void
     {
         $section = Section::factory()->create();
-        $userId = User::factory()->create()->id;
-
-        DB::table('students')->insert([
-            'user_id' => $userId,
-            'admission_number' => 'ADM-1',
-            'class_id' => $section->class_id,
-            'section_id' => $section->id,
-            'academic_year_id' => \App\Models\AcademicYear::factory()->create()->id,
-            'admission_date' => '2026-01-01',
-            'date_of_birth' => '2015-01-01',
-            'gender' => 'male',
-            'address' => 'x', 'city' => 'x', 'state' => 'x', 'pincode' => '1000',
-        ]);
+        StudentEnrolment::factory()->create(['section_id' => $section->id]);
 
         $this->actingAs($this->admin, 'sanctum')
             ->deleteJson("/api/sections/{$section->id}")

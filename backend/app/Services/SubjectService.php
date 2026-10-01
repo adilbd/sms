@@ -60,6 +60,12 @@ class SubjectService
             'Subject is part of a class curriculum and cannot be deleted.'
         );
 
+        abort_if(
+            $this->subjects->isUsedAsOptionalSubject($subject),
+            409,
+            "Subject is a student's 4th subject and cannot be deleted."
+        );
+
         $this->subjects->delete($subject);
     }
 

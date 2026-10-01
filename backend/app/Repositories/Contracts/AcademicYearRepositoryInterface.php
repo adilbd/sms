@@ -6,7 +6,15 @@ use App\Models\AcademicYear;
 
 interface AcademicYearRepositoryInterface extends RepositoryInterface
 {
+    /**
+     * Whether any student is enrolled in the year (student_enrolments).
+     */
     public function hasStudents(AcademicYear $academicYear): bool;
+
+    /**
+     * The one active academic year, or null when none is active yet.
+     */
+    public function findActive(): ?AcademicYear;
 
     public function hasExams(AcademicYear $academicYear): bool;
 

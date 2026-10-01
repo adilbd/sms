@@ -15,7 +15,10 @@ use App\Repositories\Contracts\SectionRepositoryInterface;
 use App\Repositories\Contracts\SettingRepositoryInterface;
 use App\Repositories\Contracts\ShiftRepositoryInterface;
 use App\Repositories\Contracts\StaffRepositoryInterface;
+use App\Repositories\Contracts\StudentEnrolmentRepositoryInterface;
+use App\Repositories\Contracts\StudentRepositoryInterface;
 use App\Repositories\Contracts\SubjectRepositoryInterface;
+use App\Repositories\Contracts\UserRepositoryInterface;
 use App\Repositories\Eloquent\AcademicYearRepository;
 use App\Repositories\Eloquent\ClassRepository;
 use App\Repositories\Eloquent\ClassSubjectRepository;
@@ -29,7 +32,10 @@ use App\Repositories\Eloquent\SectionRepository;
 use App\Repositories\Eloquent\SettingRepository;
 use App\Repositories\Eloquent\ShiftRepository;
 use App\Repositories\Eloquent\StaffRepository;
+use App\Repositories\Eloquent\StudentEnrolmentRepository;
+use App\Repositories\Eloquent\StudentRepository;
 use App\Repositories\Eloquent\SubjectRepository;
+use App\Repositories\Eloquent\UserRepository;
 use Illuminate\Support\ServiceProvider;
 
 /**
@@ -54,5 +60,8 @@ class RepositoryServiceProvider extends ServiceProvider
         AcademicYearRepositoryInterface::class => AcademicYearRepository::class,
         ClassTeacherRepositoryInterface::class => ClassTeacherRepository::class,
         ClassSubjectRepositoryInterface::class => ClassSubjectRepository::class,
+        UserRepositoryInterface::class => UserRepository::class,
+        StudentRepositoryInterface::class => StudentRepository::class,
+        StudentEnrolmentRepositoryInterface::class => StudentEnrolmentRepository::class,
     ];
 }

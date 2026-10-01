@@ -96,8 +96,8 @@ check "GET /api/public/school"              200 "${BASE_URL}/api/public/school"
 check "GET /api/subjects, no token/Accept"  401 "${BASE_URL}/api/subjects"
 
 TOKEN="$(curl -s --max-time 10 -H 'Accept: application/json' -H 'Content-Type: application/json' \
-  -d '{"email":"admin@sms.com","password":"password"}' "${BASE_URL}/api/login" \
-  | php -r '$d = json_decode(stream_get_contents(STDIN), true); echo $d["token"] ?? "";')"
+  -d '{"login":"admin@sms.com","password":"password"}' "${BASE_URL}/api/login" \
+  | php -r '$d = json_decode(stream_get_contents(STDIN), true); echo $d["data"]["token"] ?? "";')"
 if [ -n "${TOKEN}" ]; then
   echo "  ok   POST /api/login (seeded admin) -> token"
   check "GET /api/subjects as admin"        200 -H "Authorization: Bearer ${TOKEN}" -H 'Accept: application/json' "${BASE_URL}/api/subjects"

@@ -4,7 +4,7 @@ use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\StudentController;
 use Illuminate\Support\Facades\Route;
 
-Route::post('/login', [AuthController::class, 'login']);
+Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:login');
 
 // Public content for the mobile app (no auth). Same data source as the Blade site.
 Route::prefix('public')->middleware('throttle:60,1')->group(function () {
@@ -25,8 +25,18 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/me', [AuthController::class, 'me']);
     Route::post('/change-password', [AuthController::class, 'changePassword']);
 
-    // Students
-    Route::apiResource('students', StudentController::class);
+    // Students. The enrolments route is registered before the resource (see the
+    // class-teacher routes below).
+    Route::get('students/{student}/enrolments', [StudentController::class, 'enrolments'])
+        ->where('student', '[0-9]+');
+    Route::apiResource('students', StudentController::class)
+        ->where(['student' => '[0-9]+']);
+
+    // Own records for the student and guardian roles (no broad students permission).
+    Route::get('my/student', [\App\Http\Controllers\Api\MyRecordsController::class, 'student'])
+        ->middleware('role:student');
+    Route::get('my/children', [\App\Http\Controllers\Api\MyRecordsController::class, 'children'])
+        ->middleware('role:parent');
 
     // Classes. The curriculum routes are registered before the resource, like the
     // class-teacher routes below.
@@ -57,9 +67,6 @@ Route::middleware('auth:sanctum')->group(function () {
     // Shifts
     Route::apiResource('shifts', \App\Http\Controllers\Api\ShiftController::class)
         ->where(['shift' => '[0-9]+']);
-
-    // Parents
-    Route::apiResource('parents', \App\Http\Controllers\Api\ParentController::class);
 
     // Academic Years
     Route::apiResource('academic-years', \App\Http\Controllers\Api\AcademicYearController::class)

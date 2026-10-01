@@ -28,7 +28,7 @@ class ClassRepository extends EloquentRepository implements ClassRepositoryInter
 
     public function hasStudents(Classes $class): bool
     {
-        return $class->students()->exists();
+        return $class->enrolments()->exists();
     }
 
     public function hasAttendances(Classes $class): bool

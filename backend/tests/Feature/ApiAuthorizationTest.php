@@ -68,6 +68,14 @@ class ApiAuthorizationTest extends TestCase
         $this->actingAs($student, 'sanctum')->getJson('/api/staff')->assertForbidden();
         $this->actingAs($student, 'sanctum')->getJson('/api/exams')->assertOk();
 
+        // Parents can't list students (they read their own children instead) ...
+        $this->actingAs($parent, 'sanctum')->getJson('/api/students')->assertForbidden();
+        $this->actingAs($parent, 'sanctum')->getJson('/api/my/children')->assertOk();
+        $this->actingAs($parent, 'sanctum')->getJson('/api/my/student')->assertForbidden();
+        // ... and students read only their own record.
+        $this->actingAs($student, 'sanctum')->getJson('/api/my/children')->assertForbidden();
+        $this->actingAs($student, 'sanctum')->getJson('/api/my/student')->assertNotFound();
+
         // Parents can see fees but not collect them.
         $this->actingAs($parent, 'sanctum')->getJson('/api/fee-payments')->assertOk();
         $this->actingAs($parent, 'sanctum')->postJson('/api/fee-payments', [])->assertForbidden();

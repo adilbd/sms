@@ -3,10 +3,15 @@
 namespace App\Providers;
 
 use App\Services\InstituteSettingsService;
+use App\Support\Mobile;
 use App\View\Composers\HeaderMenuComposer;
 use App\View\Composers\InstituteComposer;
+use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
+use Illuminate\Support\Str;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -26,6 +31,21 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        // 5 sign-in attempts a minute per login identifier and IP, plus 20 a minute per IP
+        // overall. The identifier is normalized (case, +88 prefix), but a database may
+        // still treat other spellings (accents, scripts) as the same login, so the IP
+        // limit stops varying the identifier from dodging the first one, and
+        // AuthService::login() also counts failures per resolved user.
+        RateLimiter::for('login', function (Request $request) {
+            $login = $request->input('login', $request->input('email'));
+            $login = is_string($login) ? Str::lower((string) Mobile::normalize($login)) : '';
+
+            return [
+                Limit::perMinute(5)->by($login.'|'.$request->ip()),
+                Limit::perMinute(20)->by('login-ip:'.$request->ip()),
+            ];
+        });
+
         View::composer('layouts.public', HeaderMenuComposer::class);
         View::composer(['layouts.public', 'public.*', 'components.seo', 'admin'], InstituteComposer::class);
     }
