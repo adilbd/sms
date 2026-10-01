@@ -15,6 +15,7 @@ use App\Models\Section;
 use App\Services\ClassTeacherService;
 use App\Services\SectionService;
 use App\Services\SubjectAssignmentService;
+use App\Services\TeacherScope;
 use Illuminate\Routing\Controllers\HasMiddleware;
 
 class SectionController extends Controller implements HasMiddleware
@@ -23,6 +24,7 @@ class SectionController extends Controller implements HasMiddleware
         private SectionService $sections,
         private ClassTeacherService $classTeachers,
         private SubjectAssignmentService $subjectAssignments,
+        private TeacherScope $teacherScope,
     ) {}
 
     public static function middleware(): array
@@ -39,9 +41,17 @@ class SectionController extends Controller implements HasMiddleware
     {
         $perPage = min(max((int) $request->query('per_page', 15), 1), 100);
 
-        return SectionResource::collection(
-            $this->sections->list($request->safe()->only(['search', 'class_id', 'shift_id', 'group', 'is_active']), $perPage)
-        );
+        $filters = $request->safe()->only(['search', 'class_id', 'shift_id', 'group', 'is_active']);
+
+        // A teacher only lists the sections they teach or lead (built from the signed-in
+        // user, never from input).
+        $sectionIds = $this->teacherScope->sectionIdsFor($request->user());
+
+        if ($sectionIds !== null) {
+            $filters['scope_section_ids'] = $sectionIds;
+        }
+
+        return SectionResource::collection($this->sections->list($filters, $perPage));
     }
 
     public function store(StoreSectionRequest $request)

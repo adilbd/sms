@@ -29,6 +29,11 @@ class StaffRepository extends EloquentRepository implements StaffRepositoryInter
             ->exists();
     }
 
+    public function findByUserId(int $userId): ?Staff
+    {
+        return Staff::query()->where('user_id', $userId)->first();
+    }
+
     public function syncShifts(Staff $staff, array $shiftIds): void
     {
         $staff->shifts()->sync($shiftIds);
@@ -109,7 +114,7 @@ class StaffRepository extends EloquentRepository implements StaffRepositoryInter
     protected function query(): Builder
     {
         return parent::query()
-            ->with(['shifts', 'educations', 'trainings'])
+            ->with(['shifts', 'educations', 'trainings', 'user.roles'])
             ->orderBy('sort_order')->orderBy('id');
     }
 

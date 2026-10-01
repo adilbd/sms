@@ -19,9 +19,14 @@ class ExamScheduleService
 {
     public function __construct(private ExamRepositoryInterface $exams) {}
 
-    public function list(Exam $exam, ?int $classId = null): Collection
+    /**
+     * $onlyAssigned limits the list to a teacher's (class, subject) assignments; null for no limit.
+     *
+     * @param  list<array{class_id: int, subject_id: int}>|null  $onlyAssigned
+     */
+    public function list(Exam $exam, ?int $classId = null, ?array $onlyAssigned = null): Collection
     {
-        return $this->exams->subjectsFor($exam, $classId);
+        return $this->exams->subjectsFor($exam, $classId, $onlyAssigned);
     }
 
     /**

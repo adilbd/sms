@@ -37,6 +37,13 @@ interface StudentRepositoryInterface extends RepositoryInterface
      */
     public function hasActiveChildren(User $guardian): bool;
 
+    /**
+     * Whether $student has an enrolment in $academicYearId in one of $sectionIds.
+     *
+     * @param  list<int>  $sectionIds
+     */
+    public function isEnrolledInSections(Student $student, int $academicYearId, array $sectionIds): bool;
+
     public function hasAttendances(Student $student): bool;
 
     public function hasExamMarks(Student $student): bool;

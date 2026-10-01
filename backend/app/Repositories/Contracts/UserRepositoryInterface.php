@@ -16,6 +16,21 @@ interface UserRepositoryInterface extends RepositoryInterface
     public function findByUsername(string $username): ?User;
 
     /**
+     * The user whose (lowercased) email equals $email, or null.
+     */
+    public function findByEmail(string $email): ?User;
+
+    /**
+     * @return list<string>
+     */
+    public function roleNames(User $user): array;
+
+    /**
+     * Makes $role the user's only role.
+     */
+    public function syncRole(User $user, string $role): void;
+
+    /**
      * Creates the user and assigns $role in one call.
      *
      * @param  array<string, mixed>  $attributes

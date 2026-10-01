@@ -17,6 +17,15 @@ class ClassTeacherRepository implements ClassTeacherRepositoryInterface
             ->get();
     }
 
+    public function forStaffAndYear(int $staffId, int $academicYearId): Collection
+    {
+        return ClassSection::where('staff_id', $staffId)
+            ->where('academic_year_id', $academicYearId)
+            ->with(['section.class', 'section.shift'])
+            ->orderBy('section_id')
+            ->get();
+    }
+
     public function upsert(Section $section, int $academicYearId, int $staffId): ClassSection
     {
         $classSection = ClassSection::updateOrCreate(

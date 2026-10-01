@@ -50,6 +50,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('my/children/{student}/results', [\App\Http\Controllers\Api\MyRecordsController::class, 'childResults'])
         ->where('student', '[0-9]+')
         ->middleware('role:parent');
+    // The signed-in teacher's own subjects and class-teacher sections.
+    Route::get('my/assignments', [\App\Http\Controllers\Api\MyRecordsController::class, 'assignments'])
+        ->middleware('role:teacher');
     Route::get('my/exams', [\App\Http\Controllers\Api\MyRecordsController::class, 'exams'])
         ->middleware('role:student|parent');
 

@@ -552,4 +552,43 @@ class StudentServiceTest extends TestCase
             $this->assertSame(404, $e->getStatusCode());
         }
     }
+
+    public function test_ensure_in_sections_lets_an_unrestricted_caller_through(): void
+    {
+        $this->mock(StudentRepositoryInterface::class, fn (MockInterface $mock) => $mock->shouldNotReceive('isEnrolledInSections'));
+
+        app(StudentService::class)->ensureInSections(new Student, null);
+
+        $this->addToAssertionCount(1);
+    }
+
+    public function test_ensure_in_sections_checks_the_active_year_enrolment(): void
+    {
+        $student = new Student;
+
+        $this->mock(AcademicYearRepositoryInterface::class, fn (MockInterface $mock) => $mock->shouldReceive('findActive')->andReturn($this->year));
+        $this->mock(StudentRepositoryInterface::class, function (MockInterface $mock) use ($student) {
+            $mock->shouldReceive('isEnrolledInSections')->with($student, 1, [5, 6])->andReturn(true);
+            $mock->shouldReceive('isEnrolledInSections')->with($student, 1, [8])->andReturn(false);
+        });
+
+        app(StudentService::class)->ensureInSections($student, [5, 6]);
+
+        try {
+            app(StudentService::class)->ensureInSections($student, [8]);
+            $this->fail('Expected a 403 HttpException.');
+        } catch (\Symfony\Component\HttpKernel\Exception\HttpException $e) {
+            $this->assertSame(403, $e->getStatusCode());
+        }
+    }
+
+    public function test_ensure_in_sections_is_forbidden_without_an_active_year(): void
+    {
+        $this->mock(AcademicYearRepositoryInterface::class, fn (MockInterface $mock) => $mock->shouldReceive('findActive')->andReturn(null));
+        $this->mock(StudentRepositoryInterface::class, fn (MockInterface $mock) => $mock->shouldNotReceive('isEnrolledInSections'));
+
+        $this->expectException(\Symfony\Component\HttpKernel\Exception\HttpException::class);
+
+        app(StudentService::class)->ensureInSections(new Student, []);
+    }
 }

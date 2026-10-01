@@ -6,7 +6,7 @@
         <router-link v-if="canSeeSensitive" to="/students/promotion" class="btn btn-secondary">
           Promote a section
         </router-link>
-        <router-link to="/students/create" class="btn btn-primary">
+        <router-link v-if="authStore.hasPermission('create-students')" to="/students/create" class="btn btn-primary">
           ➕ Add Student
         </router-link>
       </div>
@@ -111,10 +111,10 @@
                   <router-link :to="`/students/${student.id}`" class="text-primary-600 hover:text-primary-800" title="View">
                     👁️
                   </router-link>
-                  <router-link :to="`/students/${student.id}/edit`" class="text-primary-600 hover:text-primary-800" title="Edit">
+                  <router-link v-if="authStore.hasPermission('edit-students')" :to="`/students/${student.id}/edit`" class="text-primary-600 hover:text-primary-800" title="Edit">
                     ✏️
                   </router-link>
-                  <button @click="deleteStudent(student)" class="text-red-600 hover:text-red-800" title="Delete">
+                  <button v-if="authStore.hasPermission('delete-students')" @click="deleteStudent(student)" class="text-red-600 hover:text-red-800" title="Delete">
                     🗑️
                   </button>
                 </div>
@@ -152,10 +152,12 @@
 
 <script setup>
 import { computed, onMounted, reactive, ref } from 'vue'
+import { useRoute } from 'vue-router'
 import api from '@/services/api'
 import { useAuthStore } from '@/stores/auth'
 
 const authStore = useAuthStore()
+const route = useRoute()
 // The API omits guardian mobiles (and ignores them in search) without edit-students.
 const canSeeSensitive = computed(() => authStore.hasPermission('edit-students'))
 
@@ -277,6 +279,8 @@ const getInitials = (name) => {
 
 onMounted(async () => {
   await fetchLookups()
+  // "View students" on My subjects links here with the section to show.
+  if (route.query.section_id) filters.section_id = Number(route.query.section_id)
   fetchStudents()
 })
 </script>
