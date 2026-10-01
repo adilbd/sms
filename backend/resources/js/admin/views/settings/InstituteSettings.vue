@@ -197,6 +197,21 @@
         </div>
       </section>
 
+      <section class="card space-y-4">
+        <h2 class="text-lg font-semibold text-gray-900">Attendance</h2>
+        <fieldset>
+          <legend class="block text-sm font-medium text-gray-700 mb-2">Weekly holidays</legend>
+          <div class="flex flex-wrap gap-x-6 gap-y-2">
+            <label v-for="day in WEEKDAYS" :key="day" class="flex items-center gap-2 text-sm text-gray-700">
+              <input v-model="form.weekly_holidays" type="checkbox" :value="day" />
+              {{ label(day) }}
+            </label>
+          </div>
+          <p class="text-xs text-gray-500 mt-2">No attendance is taken on these days. Listed holidays are managed under Academic &gt; Holidays.</p>
+          <p v-if="weeklyHolidayError" class="text-sm text-red-600 mt-1">{{ weeklyHolidayError }}</p>
+        </fieldset>
+      </section>
+
       <div class="flex items-center justify-end gap-3">
         <p v-if="successMessage" class="text-sm text-green-800">{{ successMessage }}</p>
         <button type="submit" class="btn btn-primary" :disabled="saving">
@@ -235,7 +250,19 @@ const TEXT_FIELDS = [
   'facebook_url', 'youtube_url',
 ]
 
-const form = reactive(Object.fromEntries(TEXT_FIELDS.map((key) => [key, ''])))
+// Mirrors App\Support\InstituteSettings::WEEKDAYS (the Bangladeshi week starts on Saturday).
+const WEEKDAYS = ['saturday', 'sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday']
+
+const form = reactive({
+  ...Object.fromEntries(TEXT_FIELDS.map((key) => [key, ''])),
+  weekly_holidays: ['friday'],
+})
+
+// The list can be rejected as a whole or on one entry (errors are keyed weekly_holidays.N).
+const weeklyHolidayError = computed(() => {
+  const key = Object.keys(errors.value).find((k) => k.startsWith('weekly_holidays'))
+  return key ? errors.value[key][0] : ''
+})
 
 const errors = ref({})
 const saving = ref(false)
@@ -262,6 +289,7 @@ const applySettings = (settings) => {
   TEXT_FIELDS.forEach((key) => {
     form[key] = settings[key] ?? ''
   })
+  form.weekly_holidays = [...(settings.weekly_holidays ?? ['friday'])]
   existingLogoUrl.value = settings.logo_url
   existingFaviconUrl.value = settings.favicon_url
 }
@@ -325,6 +353,12 @@ onBeforeUnmount(() => {
 const save = async () => {
   errors.value = {}
   successMessage.value = ''
+
+  if (form.weekly_holidays.length === 0) {
+    errors.value = { weekly_holidays: ['Choose at least one weekly holiday.'] }
+    return
+  }
+
   saving.value = true
 
   const payload = new FormData()
@@ -332,6 +366,7 @@ const save = async () => {
   // Always send every field (even blank) so clearing a field in the form clears the
   // setting too; Laravel's ConvertEmptyStringsToNull middleware turns '' into null.
   TEXT_FIELDS.forEach((key) => payload.append(key, form[key] ?? ''))
+  form.weekly_holidays.forEach((day) => payload.append('weekly_holidays[]', day))
   if (logoFile.value) payload.append('logo', logoFile.value)
   if (faviconFile.value) payload.append('favicon', faviconFile.value)
   if (removeLogoFlag.value) payload.append('remove_logo', '1')

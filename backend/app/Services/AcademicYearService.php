@@ -62,6 +62,8 @@ class AcademicYearService
         abort_if($this->years->hasClassTeacherRows($academicYear), 409, 'Academic year has class teacher assignments and cannot be deleted.');
         abort_if($this->years->hasSubjectAssignments($academicYear), 409, 'Academic year has subject assignments and cannot be deleted.');
 
+        abort_if($this->years->hasHolidays($academicYear), 409, 'Academic year has holidays and cannot be deleted.');
+
         $this->years->delete($academicYear);
     }
 

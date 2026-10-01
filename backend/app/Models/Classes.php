@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 /**
@@ -71,9 +72,11 @@ class Classes extends Model
         return $this->hasMany(StudentEnrolment::class, 'class_id');
     }
 
-    public function attendances(): HasMany
+    public function attendances(): HasManyThrough
     {
-        return $this->hasMany(Attendance::class, 'class_id');
+        // Through the class's sections (attendance is recorded per section), including
+        // soft-deleted ones: their attendance rows still hold the foreign key.
+        return $this->hasManyThrough(Attendance::class, Section::class, 'class_id')->withTrashedParents();
     }
 
     public function feeStructures(): HasMany

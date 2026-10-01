@@ -52,6 +52,11 @@ class AcademicYear extends Model
         return $this->hasMany(ClassSection::class);
     }
 
+    public function holidays(): HasMany
+    {
+        return $this->hasMany(Holiday::class);
+    }
+
     public function subjectAssignments(): HasMany
     {
         return $this->hasMany(SubjectAssignment::class);

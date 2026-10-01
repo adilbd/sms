@@ -3,149 +3,62 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Models\Attendance;
-use Illuminate\Http\Request;
+use App\Http\Requests\Attendance\IndexAttendanceReportRequest;
+use App\Http\Requests\Attendance\IndexAttendanceSheetRequest;
+use App\Http\Requests\Attendance\MonthAttendanceRequest;
+use App\Http\Requests\Attendance\SaveAttendanceSheetRequest;
+use App\Http\Resources\AttendanceReportResource;
+use App\Http\Resources\AttendanceSheetResource;
+use App\Http\Resources\StudentAttendanceResource;
+use App\Models\Student;
+use App\Services\AttendanceService;
 use Illuminate\Routing\Controllers\HasMiddleware;
+use Illuminate\Routing\Controllers\Middleware;
 
+/**
+ * Daily attendance by section. Reading needs `view-attendance` and saving
+ * `mark-attendance`; the class-teacher-or-admin rule is in AttendanceService.
+ */
 class AttendanceController extends Controller implements HasMiddleware
 {
+    public function __construct(private AttendanceService $attendance) {}
+
     public static function middleware(): array
     {
-        return static::resourcePermissions('attendance', [
-            'store' => 'mark-attendance',
-            'bulkStore' => 'mark-attendance',
-            'studentReport' => 'view-attendance',
-        ]);
-    }
-
-    public function index(Request $request)
-    {
-        $query = Attendance::with(['student.user', 'class', 'section', 'markedBy']);
-
-        if ($request->has('class_id')) {
-            $query->where('class_id', $request->class_id);
-        }
-
-        if ($request->has('section_id')) {
-            $query->where('section_id', $request->section_id);
-        }
-
-        if ($request->has('date')) {
-            $query->whereDate('date', $request->date);
-        }
-
-        if ($request->has('student_id')) {
-            $query->where('student_id', $request->student_id);
-        }
-
-        return $query->paginate($request->per_page ?? 15);
-    }
-
-    public function store(Request $request)
-    {
-        $validated = $request->validate([
-            'student_id' => 'required|exists:students,id',
-            'class_id' => 'required|exists:classes,id',
-            'section_id' => 'required|exists:sections,id',
-            'date' => 'required|date',
-            'status' => 'required|in:present,absent,late,half_day,holiday',
-            'remarks' => 'nullable|string',
-        ]);
-
-        $validated['marked_by'] = auth()->id();
-
-        $attendance = Attendance::updateOrCreate(
-            [
-                'student_id' => $validated['student_id'],
-                'date' => $validated['date'],
-            ],
-            $validated
-        );
-
-        return response()->json([
-            'message' => 'Attendance marked successfully',
-            'data' => $attendance->load(['student.user', 'class', 'section']),
-        ], 201);
-    }
-
-    public function bulkStore(Request $request)
-    {
-        $validated = $request->validate([
-            'class_id' => 'required|exists:classes,id',
-            'section_id' => 'required|exists:sections,id',
-            'date' => 'required|date',
-            'attendances' => 'required|array',
-            'attendances.*.student_id' => 'required|exists:students,id',
-            'attendances.*.status' => 'required|in:present,absent,late,half_day,holiday',
-            'attendances.*.remarks' => 'nullable|string',
-        ]);
-
-        $createdAttendances = [];
-        foreach ($validated['attendances'] as $attendanceData) {
-            $attendance = Attendance::updateOrCreate(
-                [
-                    'student_id' => $attendanceData['student_id'],
-                    'date' => $validated['date'],
-                ],
-                [
-                    'class_id' => $validated['class_id'],
-                    'section_id' => $validated['section_id'],
-                    'status' => $attendanceData['status'],
-                    'remarks' => $attendanceData['remarks'] ?? null,
-                    'marked_by' => auth()->id(),
-                ]
-            );
-            $createdAttendances[] = $attendance;
-        }
-
-        return response()->json([
-            'message' => 'Bulk attendance marked successfully',
-            'data' => $createdAttendances,
-        ], 201);
-    }
-
-    public function studentReport($studentId)
-    {
-        $attendances = Attendance::where('student_id', $studentId)
-            ->orderBy('date', 'desc')
-            ->get();
-
-        $stats = [
-            'total' => $attendances->count(),
-            'present' => $attendances->where('status', 'present')->count(),
-            'absent' => $attendances->where('status', 'absent')->count(),
-            'late' => $attendances->where('status', 'late')->count(),
-            'half_day' => $attendances->where('status', 'half_day')->count(),
-            'percentage' => $attendances->count() > 0
-                ? round(($attendances->where('status', 'present')->count() / $attendances->count()) * 100, 2)
-                : 0,
+        return [
+            new Middleware('permission:view-attendance', only: ['sheet', 'report', 'student']),
+            new Middleware('permission:mark-attendance', only: ['saveSheet']),
         ];
-
-        return response()->json([
-            'stats' => $stats,
-            'attendances' => $attendances,
-        ]);
     }
 
-    public function update(Request $request, Attendance $attendance)
+    public function sheet(IndexAttendanceSheetRequest $request)
     {
-        $validated = $request->validate([
-            'status' => 'sometimes|in:present,absent,late,half_day,holiday',
-            'remarks' => 'nullable|string',
-        ]);
+        $data = $request->validated();
 
-        $attendance->update($validated);
-
-        return response()->json([
-            'message' => 'Attendance updated successfully',
-            'data' => $attendance->load(['student.user', 'class', 'section']),
-        ]);
+        return new AttendanceSheetResource(
+            $this->attendance->sheet($request->user(), (int) $data['section_id'], $data['date'] ?? null)
+        );
     }
 
-    public function destroy(Attendance $attendance)
+    public function saveSheet(SaveAttendanceSheetRequest $request)
     {
-        $attendance->delete();
-        return response()->json(['message' => 'Attendance deleted successfully']);
+        return (new AttendanceSheetResource($this->attendance->save($request->user(), $request->validated())))
+            ->additional(['message' => 'Attendance saved successfully']);
+    }
+
+    public function report(IndexAttendanceReportRequest $request)
+    {
+        $data = $request->validated();
+
+        return new AttendanceReportResource(
+            $this->attendance->report($request->user(), (int) $data['section_id'], $data['month'] ?? null)
+        );
+    }
+
+    public function student(MonthAttendanceRequest $request, Student $student)
+    {
+        return new StudentAttendanceResource(
+            $this->attendance->studentMonth($request->user(), $student, $request->validated('month'))
+        );
     }
 }
-

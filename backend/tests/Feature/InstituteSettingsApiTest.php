@@ -254,4 +254,39 @@ class InstituteSettingsApiTest extends TestCase
 
         $this->assertNotNull(Cache::get('settings.institute'));
     }
+
+    public function test_weekly_holidays_default_to_friday_and_can_be_changed(): void
+    {
+        $this->actingAs($this->admin, 'sanctum')->getJson('/api/settings/institute')
+            ->assertOk()->assertJsonPath('data.weekly_holidays', ['friday']);
+
+        $this->actingAs($this->admin, 'sanctum')
+            ->putJson('/api/settings/institute', ['weekly_holidays' => ['saturday', 'friday']])
+            ->assertOk()->assertJsonPath('data.weekly_holidays', ['saturday', 'friday']);
+
+        $this->assertSame('["saturday","friday"]', Setting::where('key', 'weekly_holidays')->value('value'));
+        $this->actingAs($this->admin, 'sanctum')->getJson('/api/settings/institute')
+            ->assertJsonPath('data.weekly_holidays', ['saturday', 'friday']);
+
+        // Form data (the SPA sends multipart) carries the list as weekly_holidays[].
+        $this->actingAs($this->admin, 'sanctum')
+            ->post('/api/settings/institute', ['_method' => 'PUT', 'weekly_holidays' => ['friday']], ['Accept' => 'application/json'])
+            ->assertOk()->assertJsonPath('data.weekly_holidays', ['friday']);
+
+        // Other keys do not reset it.
+        $this->actingAs($this->admin, 'sanctum')->putJson('/api/settings/institute', ['motto' => 'Learn'])
+            ->assertJsonPath('data.weekly_holidays', ['friday']);
+    }
+
+    public function test_weekly_holidays_are_validated(): void
+    {
+        foreach ([[], ['funday'], ['friday', 'friday'], 'friday', ['friday', ['x']], range(1, 8)] as $value) {
+            $response = $this->actingAs($this->admin, 'sanctum')
+                ->putJson('/api/settings/institute', ['weekly_holidays' => $value])
+                ->assertUnprocessable();
+
+            // Keyed on the list or on one of its entries.
+            $this->assertStringStartsWith('weekly_holidays', array_key_first($response->json('errors')));
+        }
+    }
 }

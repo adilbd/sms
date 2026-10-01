@@ -3,11 +3,14 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Attendance\MonthAttendanceRequest;
 use App\Http\Requests\MyRecords\IndexMyAssignmentsRequest;
 use App\Http\Resources\ExamResultResource;
 use App\Http\Resources\MyAssignmentsResource;
 use App\Http\Resources\MyExamScheduleResource;
+use App\Http\Resources\StudentAttendanceResource;
 use App\Http\Resources\StudentResource;
+use App\Services\AttendanceService;
 use App\Services\ResultService;
 use App\Services\StudentService;
 use App\Services\TeacherScope;
@@ -24,6 +27,7 @@ class MyRecordsController extends Controller
         private StudentService $students,
         private ResultService $results,
         private TeacherScope $teacherScope,
+        private AttendanceService $attendance,
     ) {}
 
     public function student(Request $request)
@@ -58,6 +62,18 @@ class MyRecordsController extends Controller
     public function childResults(Request $request, int $student)
     {
         return ExamResultResource::collectionWithSubjects($this->results->childResults($request->user(), $student));
+    }
+
+    public function attendance(MonthAttendanceRequest $request)
+    {
+        return new StudentAttendanceResource($this->attendance->ownMonth($request->user(), $request->validated('month')));
+    }
+
+    public function childAttendance(MonthAttendanceRequest $request, int $student)
+    {
+        return new StudentAttendanceResource(
+            $this->attendance->childMonth($request->user(), $student, $request->validated('month'))
+        );
     }
 
     public function exams(Request $request)

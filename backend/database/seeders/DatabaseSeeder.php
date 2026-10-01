@@ -25,8 +25,10 @@ class DatabaseSeeder extends Seeder
             SubjectSeeder::class,
             CurriculumSeeder::class,
             AcademicYearSeeder::class,
+            HolidaySeeder::class,
             SectionSeeder::class,
             StudentSeeder::class,
+            AttendanceSeeder::class,
             ExamSeeder::class,
             MenuSeeder::class,
         ]);

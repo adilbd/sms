@@ -147,11 +147,8 @@ These endpoints were written before this guideline and don't follow it yet:
 
 | Endpoint | What's different |
 |----------|------------------|
-| `index` on attendances | Returns Laravel's flat paginator (`current_page`, `total`, ... at the top level, not under `meta`) |
-| `store` / `update` on attendances | `{message, data}` with a raw model instead of a resource |
 | `destroy` on all resources except subjects, posts, classes, sections, academic-years, shifts, students and exams | 200 with `{message}` instead of 204 |
-| `attendances/report/{student}` | `{stats, attendances}` without the `data` wrapper |
-| Stub controllers (fees, dashboard) | `index` returns `{data: []}`. Other actions return a custom 501 body, and some routes have no method at all. `/api/staff` (formerly the teachers stub) now follows this guideline in full; see the Staff and Shifts modules note in `CLAUDE.md`. `classes`/`sections`/`academic-years` now follow it in full too; see the Academic structure note in `CLAUDE.md`. `students`, `login`, `me`, `logout`, `change-password` and `/api/my/*` follow it in full as well; see the Students note in `CLAUDE.md`. The parents stub was removed. `/api/exams` and its schedule and mark-entry routes follow this guideline in full; the exam stubs (including the broken `exams/{exam}/publish` and `exam-results/...` routes) are gone, see the Exams and marks note in `CLAUDE.md`. |
+| Stub controllers (fees, dashboard) | `index` returns `{data: []}`. Other actions return a custom 501 body, and some routes have no method at all. `/api/staff` (formerly the teachers stub) now follows this guideline in full; see the Staff and Shifts modules note in `CLAUDE.md`. `classes`/`sections`/`academic-years` now follow it in full too; see the Academic structure note in `CLAUDE.md`. `students`, `login`, `me`, `logout`, `change-password` and `/api/my/*` follow it in full as well; see the Students note in `CLAUDE.md`. `/api/attendance/*`, `/api/holidays` and `/api/my/attendance` follow it in full (the legacy attendances routes are gone); see the Attendance note in `CLAUDE.md`. The parents stub was removed. `/api/exams` and its schedule and mark-entry routes follow this guideline in full; the exam stubs (including the broken `exams/{exam}/publish` and `exam-results/...` routes) are gone, see the Exams and marks note in `CLAUDE.md`. |
 
 **How to migrate:** when you change a legacy endpoint, convert it completely **in the same change**:
 1. Update the controller.

@@ -178,6 +178,19 @@ class AcademicYearServiceTest extends TestCase
         $this->assertConflict(fn () => app(AcademicYearService::class)->delete($year));
     }
 
+    public function test_delete_is_refused_when_year_has_holidays(): void
+    {
+        $year = new AcademicYear(['is_active' => false]);
+
+        $this->mock(AcademicYearRepositoryInterface::class, function (MockInterface $mock) use ($year) {
+            $mock->shouldReceive('hasStudents', 'hasExams', 'hasFeeStructures', 'hasClassTeacherRows', 'hasSubjectAssignments')->andReturn(false);
+            $mock->shouldReceive('hasHolidays')->once()->with($year)->andReturn(true);
+            $mock->shouldNotReceive('delete');
+        });
+
+        $this->assertConflict(fn () => app(AcademicYearService::class)->delete($year));
+    }
+
     public function test_delete_removes_an_unused_inactive_year(): void
     {
         $year = new AcademicYear(['is_active' => false]);
@@ -188,6 +201,7 @@ class AcademicYearServiceTest extends TestCase
             $mock->shouldReceive('hasFeeStructures')->once()->andReturn(false);
             $mock->shouldReceive('hasClassTeacherRows')->once()->andReturn(false);
             $mock->shouldReceive('hasSubjectAssignments')->once()->andReturn(false);
+            $mock->shouldReceive('hasHolidays')->once()->andReturn(false);
             $mock->shouldReceive('delete')->once()->with($year);
         });
 

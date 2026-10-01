@@ -148,6 +148,12 @@ class StudentEnrolment extends Model
         return $this->belongsTo(Subject::class, 'optional_subject_id');
     }
 
+    /** Daily attendance rows of this enrolment (see App\Models\Attendance). */
+    public function attendances(): HasMany
+    {
+        return $this->hasMany(Attendance::class, 'enrolment_id');
+    }
+
     /** Marks entered under this enrolment (see App\Models\ExamMark). */
     public function examMarks(): HasMany
     {

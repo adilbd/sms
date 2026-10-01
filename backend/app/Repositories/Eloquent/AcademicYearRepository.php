@@ -41,6 +41,16 @@ class AcademicYearRepository extends EloquentRepository implements AcademicYearR
         return $academicYear->subjectAssignments()->exists();
     }
 
+    public function hasHolidays(AcademicYear $academicYear): bool
+    {
+        return $academicYear->holidays()->exists();
+    }
+
+    public function findByYear(int $year): ?AcademicYear
+    {
+        return AcademicYear::query()->where('year', $year)->first();
+    }
+
     public function deactivateAllExcept(AcademicYear $academicYear): void
     {
         AcademicYear::where('id', '!=', $academicYear->id)
