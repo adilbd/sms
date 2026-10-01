@@ -100,8 +100,11 @@ class ApiAuthorizationTest extends TestCase
         $this->actingAs($student, 'sanctum')->getJson('/api/academic-years')->assertOk();
         $this->actingAs($teacher, 'sanctum')->postJson('/api/academic-years', [])->assertForbidden();
 
-        // Dashboard stats are admin-only (view-reports).
-        $this->actingAs($teacher, 'sanctum')->getJson('/api/dashboard/stats')->assertForbidden();
+        // The dashboard is for staff roles only; the old stub routes are gone.
+        $this->actingAs($student, 'sanctum')->getJson('/api/dashboard')->assertForbidden();
+        $this->actingAs($parent, 'sanctum')->getJson('/api/dashboard')->assertForbidden();
+        $this->actingAs($teacher, 'sanctum')->getJson('/api/dashboard')->assertOk();
+        $this->actingAs($teacher, 'sanctum')->getJson('/api/dashboard/stats')->assertNotFound();
     }
 
     public function test_admin_keeps_full_access(): void
