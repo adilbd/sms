@@ -5,6 +5,7 @@ use App\Http\Controllers\Web\GalleryController;
 use App\Http\Controllers\Web\PageController;
 use App\Http\Controllers\Web\PostController;
 use App\Http\Controllers\Web\PublicController;
+use App\Http\Controllers\Web\ResultController;
 use App\Http\Controllers\Web\SeoController;
 use App\Http\Controllers\Web\StaffController;
 use Illuminate\Support\Facades\Route;
@@ -39,6 +40,11 @@ Route::get('/administration/ex-heads', [StaffController::class, 'exHeads'])->nam
 Route::get('/administration/ex-teachers', [StaffController::class, 'exTeachers'])->name('staff.ex_teachers');
 Route::get('/administration/ex-staff', [StaffController::class, 'exEmployees'])->name('staff.ex_employees');
 Route::get('/administration/staff/{staff}', [StaffController::class, 'show'])->name('staff.show')->where('staff', '[0-9]+');
+
+// Public result lookup. The marksheet is a POST so the date of birth never reaches a URL.
+Route::get('/results', [ResultController::class, 'index'])->name('results.index');
+Route::get('/results/archive', [ResultController::class, 'archive'])->name('results.archive');
+Route::post('/results', [ResultController::class, 'show'])->middleware('throttle:result-lookup')->name('results.show');
 
 Route::get('/sitemap.xml', [SeoController::class, 'sitemap'])->name('sitemap');
 Route::get('/robots.txt', [SeoController::class, 'robots'])->name('robots');

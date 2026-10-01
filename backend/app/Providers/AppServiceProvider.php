@@ -41,6 +41,10 @@ class AppServiceProvider extends ServiceProvider
             return Limit::perMinute(5)->by($login.'|'.$request->ip());
         });
 
+        // 10 public result lookups a minute per IP, successes included. The hourly cap on
+        // failed lookups per IP lives in ResultService::publicLookup().
+        RateLimiter::for('result-lookup', fn (Request $request) => Limit::perMinute(10)->by((string) $request->ip()));
+
         View::composer('layouts.public', HeaderMenuComposer::class);
         View::composer(['layouts.public', 'public.*', 'components.seo', 'admin'], InstituteComposer::class);
     }

@@ -8,15 +8,17 @@ use Illuminate\Database\Seeder;
 
 /**
  * The Bangla header menu, modelled on vhbub's menu and trimmed to targets this app
- * actually has (no staff, results, login, gallery, downloads or attendance lookups).
- * Only seeds the "header" location when it's empty, so re-running it never overwrites
- * an admin's edits. See docs/tasks/bangla-cms-menu.md.
+ * actually has (no login, downloads or attendance lookups). Only seeds the "header"
+ * location when it's empty, so re-running it never overwrites an admin's edits; the one
+ * exception is the ফলাফল (Results) item, added once to an existing menu. See docs/tasks/bangla-cms-menu.md.
  */
 class MenuSeeder extends Seeder
 {
     public function run(): void
     {
         if (MenuItem::where('location', MenuItem::LOCATION_HEADER)->exists()) {
+            $this->ensureResultsItem();
+
             return;
         }
 
@@ -57,10 +59,39 @@ class MenuSeeder extends Seeder
             ['label' => 'সংবাদ', 'type' => MenuItem::TYPE_ROUTE, 'route_name' => 'news.index'],
             ['label' => 'ইভেন্ট', 'type' => MenuItem::TYPE_ROUTE, 'route_name' => 'events.index'],
             ['label' => 'গ্যালারি', 'type' => MenuItem::TYPE_ROUTE, 'route_name' => 'gallery.index'],
+            ['label' => 'ফলাফল', 'type' => MenuItem::TYPE_ROUTE, 'route_name' => 'results.index'],
             ['label' => 'যোগাযোগ', 'type' => MenuItem::TYPE_ROUTE, 'route_name' => 'contact'],
         ];
 
         $this->createLevel($tree, null, $pageIds);
+    }
+
+    /**
+     * A menu seeded before the public result lookup existed gets the ফলাফল item once, at
+     * the end of the top level. Matched by route, so re-running never adds a second one,
+     * and nothing else in an admin's edited menu is touched.
+     */
+    private function ensureResultsItem(): void
+    {
+        $exists = MenuItem::where('location', MenuItem::LOCATION_HEADER)
+            ->where('type', MenuItem::TYPE_ROUTE)
+            ->where('route_name', 'results.index')
+            ->exists();
+
+        if ($exists) {
+            return;
+        }
+
+        $last = MenuItem::where('location', MenuItem::LOCATION_HEADER)->whereNull('parent_id')->max('sort_order');
+
+        MenuItem::create([
+            'location' => MenuItem::LOCATION_HEADER,
+            'parent_id' => null,
+            'label' => 'ফলাফল',
+            'type' => MenuItem::TYPE_ROUTE,
+            'route_name' => 'results.index',
+            'sort_order' => ($last ?? -1) + 1,
+        ]);
     }
 
     private function createLevel(array $nodes, ?int $parentId, $pageIds): void

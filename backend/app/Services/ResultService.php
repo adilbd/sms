@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Exceptions\ResultNotFoundException;
 use App\Models\ClassSubject;
 use App\Models\Exam;
 use App\Models\ExamMark;
@@ -14,7 +15,10 @@ use App\Repositories\Contracts\ExamResultRepositoryInterface;
 use App\Support\Gpa;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Http\Exceptions\ThrottleRequestsException;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Validation\ValidationException;
 
 /**
  * Turns an exam's marks into results (GPA, grades, merit positions), publishes them, and
@@ -30,6 +34,9 @@ use Illuminate\Support\Facades\DB;
  */
 class ResultService
 {
+    /** Failed public lookups an hour per IP. Successful ones never count. */
+    public const MAX_PUBLIC_FAILURES = 30;
+
     public function __construct(
         private ExamRepositoryInterface $exams,
         private ExamResultRepositoryInterface $results,
@@ -159,6 +166,93 @@ class ResultService
         abort_if($result === null, 404, 'Record not found.');
 
         return $result;
+    }
+
+    /**
+     * The published exams for the public result pages, newest year first. Never a draft,
+     * marks-entry or processed exam.
+     */
+    public function publishedExams(): Collection
+    {
+        return $this->results->publishedExams();
+    }
+
+    /**
+     * The public lookup behind the website and /api/public/results: one published exam's
+     * result for the student who matches the date of birth and either the student ID or the
+     * section, group and roll. Whatever is wrong (the exam isn't published, the ID or roll
+     * is unknown, the student wasn't enrolled that year, the date of birth differs) the
+     * answer is the same ResultNotFoundException, so nothing here tells a visitor what
+     * exists. Each failed lookup counts toward the IP's hourly limit (like AuthService
+     * counts failed passwords); a successful one doesn't, and a locked IP gets a 429 with
+     * Retry-After before anything is looked up.
+     *
+     * @param  array{exam_id: int|string, date_of_birth: string, student_id?: ?string, section_id?: int|string|null, group?: ?string, roll?: int|string|null}  $input
+     *
+     * @throws ValidationException when the group doesn't fit the section's class (needed from Class 9, not allowed below)
+     */
+    public function publicLookup(array $input, string $ip): ExamResult
+    {
+        $key = self::publicFailureKey($ip);
+
+        if (RateLimiter::tooManyAttempts($key, self::MAX_PUBLIC_FAILURES)) {
+            throw new ThrottleRequestsException(
+                'Too many lookups. Please try again later.',
+                null,
+                ['Retry-After' => (string) RateLimiter::availableIn($key)],
+            );
+        }
+
+        $criteria = filled($input['student_id'] ?? null)
+            ? ['student_code' => (string) $input['student_id']]
+            : $this->rollCriteria($input);
+
+        $exam = $this->results->findPublishedExam((int) $input['exam_id']);
+        $result = ($exam !== null && $criteria !== null)
+            ? $this->results->findForPublicLookup($exam, $criteria, $input['date_of_birth'])
+            : null;
+
+        if ($result === null) {
+            RateLimiter::hit($key, 3600);
+
+            throw new ResultNotFoundException;
+        }
+
+        return $result;
+    }
+
+    public static function publicFailureKey(string $ip): string
+    {
+        return 'result-lookup-fail:'.sha1($ip);
+    }
+
+    /**
+     * The section/group/roll criteria, or null when the section doesn't exist. The group is
+     * required for a class that has groups and not allowed for one that hasn't (checked
+     * against the section's class, so the form request can't know it).
+     *
+     * @return array{section_id: int, group: ?string, roll_number: int}|null
+     */
+    private function rollCriteria(array $input): ?array
+    {
+        $section = $this->results->findSectionWithClass((int) ($input['section_id'] ?? 0));
+
+        if ($section === null) {
+            return null;
+        }
+
+        $group = filled($input['group'] ?? null) ? (string) $input['group'] : null;
+        $hasGroups = $section->class->hasGroups();
+
+        if ($hasGroups && $group === null) {
+            throw ValidationException::withMessages(['group' => ['Choose a group for this class.']]);
+        }
+
+        if (! $hasGroups && $group !== null) {
+            throw ValidationException::withMessages(['group' => ['This class has no groups.']]);
+        }
+
+        return ['section_id' => $section->id, 'group' => $group, 'roll_number' => (int) $input['roll']];
     }
 
     /**

@@ -35,7 +35,7 @@ class MenuItem extends Model
      * Routes an item may point to. Limited to public routes that take no parameters.
      */
     public const ROUTES = [
-        'home', 'about', 'admissions', 'news.index', 'events.index', 'gallery.index', 'contact',
+        'home', 'about', 'admissions', 'news.index', 'events.index', 'gallery.index', 'results.index', 'contact',
         'staff.head', 'staff.assistant_head', 'staff.teachers', 'staff.employees',
         'staff.ex_heads', 'staff.ex_teachers', 'staff.ex_employees',
     ];
