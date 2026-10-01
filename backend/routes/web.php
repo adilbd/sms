@@ -3,6 +3,8 @@
 use App\Http\Controllers\Web\ContactController;
 use App\Http\Controllers\Web\GalleryController;
 use App\Http\Controllers\Web\PageController;
+use App\Http\Controllers\Web\PortalAuthController;
+use App\Http\Controllers\Web\PortalController;
 use App\Http\Controllers\Web\PostController;
 use App\Http\Controllers\Web\PublicController;
 use App\Http\Controllers\Web\ResultController;
@@ -45,6 +47,30 @@ Route::get('/administration/staff/{staff}', [StaffController::class, 'show'])->n
 Route::get('/results', [ResultController::class, 'index'])->name('results.index');
 Route::get('/results/archive', [ResultController::class, 'archive'])->name('results.archive');
 Route::post('/results', [ResultController::class, 'show'])->middleware('throttle:result-lookup')->name('results.show');
+
+// Student and guardian portal: session (web guard) login, private and never indexed.
+// The login pages get the private headers only; everything else sits behind the `portal`
+// middleware group (private headers plus the student/parent session gate).
+Route::prefix('portal')->name('portal.')->group(function () {
+    Route::middleware(\App\Http\Middleware\PortalHeaders::class)->group(function () {
+        Route::get('/login', [PortalAuthController::class, 'show'])->name('login');
+        Route::post('/login', [PortalAuthController::class, 'login'])->middleware('throttle:login')->name('login.store');
+        // Any web session may sign out (a staff one included); still CSRF-protected.
+        Route::post('/logout', [PortalAuthController::class, 'logout'])->name('logout');
+    });
+
+    Route::middleware('portal')->group(function () {
+        Route::get('/', [PortalController::class, 'dashboard'])->name('dashboard');
+        Route::get('/profile', [PortalController::class, 'profile'])->name('profile');
+        Route::put('/profile/password', [PortalController::class, 'changePassword'])->name('password');
+        Route::get('/results', [PortalController::class, 'results'])->name('results');
+        Route::get('/results/{exam}', [PortalController::class, 'result'])->where('exam', '[0-9]+')->name('result');
+        Route::get('/attendance', [PortalController::class, 'attendance'])->name('attendance');
+        Route::get('/fees', [PortalController::class, 'fees'])->name('fees');
+        Route::get('/fees/receipts/{payment}', [PortalController::class, 'receipt'])->where('payment', '[0-9]+')->name('receipt');
+        Route::get('/exams', [PortalController::class, 'exams'])->name('exams');
+    });
+});
 
 Route::get('/sitemap.xml', [SeoController::class, 'sitemap'])->name('sitemap');
 Route::get('/robots.txt', [SeoController::class, 'robots'])->name('robots');

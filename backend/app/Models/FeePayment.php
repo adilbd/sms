@@ -28,6 +28,17 @@ class FeePayment extends Model
 
     public const METHODS = [self::METHOD_CASH, self::METHOD_BKASH, self::METHOD_NAGAD, self::METHOD_ROCKET];
 
+    /**
+     * Bangla labels. Cash is "নগদ টাকা" so it isn't mistaken for the Nagad service, which is
+     * "নগদ (মোবাইল)". Mirrors PAYMENT_METHODS in resources/js/admin/constants/fees.js.
+     */
+    public const METHOD_LABELS_BN = [
+        self::METHOD_CASH => 'নগদ টাকা',
+        self::METHOD_BKASH => 'বিকাশ',
+        self::METHOD_NAGAD => 'নগদ (মোবাইল)',
+        self::METHOD_ROCKET => 'রকেট',
+    ];
+
     /** Methods that need a transaction ID. */
     public const MOBILE_METHODS = [self::METHOD_BKASH, self::METHOD_NAGAD, self::METHOD_ROCKET];
 

@@ -18,6 +18,7 @@ use App\Repositories\Contracts\UserRepositoryInterface;
 use App\Support\SchoolDays;
 use App\Support\UniqueViolation;
 use Carbon\CarbonImmutable;
+use Carbon\CarbonPeriod;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
@@ -221,6 +222,7 @@ class AttendanceService
             'month' => $month,
             'student' => $this->studentSummary($student, $enrolment->roll_number),
             'school_days' => $monthDays,
+            'non_school_days' => $this->nonSchoolDays($first, $last),
             ...$this->summarise($monthDays, $monthRecords, $active),
             'year_to_date' => [
                 'school_days' => $active ? count($yearToDate) : count($ytd['days']),
@@ -228,6 +230,32 @@ class AttendanceService
                 'percentage' => $ytd['percentage'],
             ],
         ];
+    }
+
+    /**
+     * The month's holidays and weekly holidays by date, for a calendar view. Not part of
+     * the API resource; the portal's month grid reads it.
+     *
+     * @return array<string, array{type: string, name_en: ?string, name_bn: ?string}>
+     */
+    private function nonSchoolDays(string $first, string $last): array
+    {
+        $holidays = $this->holidays->between($first, $last)->keyBy('date');
+        $weekly = $this->institute->weeklyHolidays();
+        $out = [];
+
+        foreach (CarbonPeriod::create($first, $last) as $day) {
+            $date = $day->toDateString();
+
+            if ($holidays->has($date)) {
+                $holiday = $holidays->get($date);
+                $out[$date] = ['type' => 'holiday', 'name_en' => $holiday->name_en, 'name_bn' => $holiday->name_bn];
+            } elseif (in_array(SchoolDays::weekday($date), $weekly, true)) {
+                $out[$date] = ['type' => 'weekly', 'name_en' => ucfirst(SchoolDays::weekday($date)), 'name_bn' => null];
+            }
+        }
+
+        return $out;
     }
 
     /**

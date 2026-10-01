@@ -10,7 +10,7 @@ export const FEE_KINDS = [
 export const KIND_LABELS = Object.fromEntries(FEE_KINDS.map((kind) => [kind.value, kind.label]))
 
 export const PAYMENT_METHODS = [
-  { value: 'cash', label: 'Cash', bn: 'নগদ' },
+  { value: 'cash', label: 'Cash', bn: 'নগদ টাকা' },
   { value: 'bkash', label: 'bKash', bn: 'বিকাশ' },
   { value: 'nagad', label: 'Nagad', bn: 'নগদ (মোবাইল)' },
   { value: 'rocket', label: 'Rocket', bn: 'রকেট' },

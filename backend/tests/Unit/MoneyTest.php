@@ -72,4 +72,12 @@ class MoneyTest extends TestCase
         $this->assertSame('0.30', Money::fromPaisa($total));
         $this->assertSame(30, Money::toPaisa(0.1 + 0.2));
     }
+
+    public function test_display_groups_thousands_and_writes_bangla_digits(): void
+    {
+        $this->assertSame('৳১,৫০০.৫০', Money::display('1500.5'));
+        $this->assertSame('৳1,500.50', Money::display('1500.5', false));
+        $this->assertSame('৳০.০০', Money::display('0'));
+        $this->assertSame('৳১,২৩৪,৫৬৭.০০', Money::display('1234567'));
+    }
 }

@@ -125,6 +125,7 @@ const routeOptions = [
   { value: 'events.index', label: 'ইভেন্ট (Events)' },
   { value: 'gallery.index', label: 'গ্যালারি (Gallery)' },
   { value: 'results.index', label: 'ফলাফল (Results)' },
+  { value: 'portal.login', label: 'লগইন / পোর্টাল (Portal)' },
   { value: 'contact', label: 'যোগাযোগ (Contact)' },
   { value: 'staff.head', label: 'প্রধান শিক্ষক (Head Teacher)' },
   { value: 'staff.assistant_head', label: 'সহকারী প্রধান শিক্ষক (Assistant Head)' },

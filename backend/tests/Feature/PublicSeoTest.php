@@ -246,6 +246,25 @@ class PublicSeoTest extends TestCase
         $this->assertSame(1, substr_count($html, '<h1'));
     }
 
+    public function test_the_portal_login_has_a_full_head_one_h1_and_is_noindex_and_unlisted(): void
+    {
+        $response = $this->get('/portal/login')->assertOk();
+        $html = $response->getContent();
+
+        $this->assertMatchesRegularExpression('/<title>[^<]+<\/title>/', $html);
+        $this->assertMatchesRegularExpression('/<meta name="description" content="[^"]{20,160}">/u', $html);
+        foreach (['og:title', 'og:description', 'og:url', 'og:type', 'og:image', 'twitter:card'] as $tag) {
+            $this->assertStringContainsString($tag, $html, "Missing {$tag}");
+        }
+        $this->assertStringContainsString('<meta name="robots" content="noindex, nofollow">', $html);
+        $this->assertStringNotContainsString('rel="canonical"', $html);
+        $this->assertSame(1, substr_count($html, '<h1'));
+        $this->assertStringContainsString('no-store', $response->headers->get('Cache-Control'));
+        $response->assertHeader('X-Robots-Tag', 'noindex');
+
+        $this->get('/sitemap.xml')->assertDontSee('/portal', false);
+    }
+
     public function test_home_has_organization_schema(): void
     {
         $blocks = $this->jsonLd($this->get('/')->getContent());

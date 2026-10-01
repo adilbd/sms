@@ -50,6 +50,6 @@ class AppServiceProvider extends ServiceProvider
         RateLimiter::for('result-lookup', fn (Request $request) => Limit::perMinute(10)->by((string) $request->ip()));
 
         View::composer('layouts.public', HeaderMenuComposer::class);
-        View::composer(['layouts.public', 'public.*', 'components.seo', 'admin'], InstituteComposer::class);
+        View::composer(['layouts.public', 'public.*', 'portal.*', 'components.seo', 'admin'], InstituteComposer::class);
     }
 }

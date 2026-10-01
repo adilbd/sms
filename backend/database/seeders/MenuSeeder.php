@@ -9,8 +9,8 @@ use Illuminate\Database\Seeder;
 /**
  * The Bangla header menu, modelled on vhbub's menu and trimmed to targets this app
  * actually has (no login, downloads or attendance lookups). Only seeds the "header"
- * location when it's empty, so re-running it never overwrites an admin's edits; the one
- * exception is the ফলাফল (Results) item, added once to an existing menu. See docs/tasks/bangla-cms-menu.md.
+ * location when it's empty, so re-running it never overwrites an admin's edits; the exceptions
+ * are the ফলাফল (Results) and লগইন / পোর্টাল items, each added once to an existing menu. See docs/tasks/bangla-cms-menu.md.
  */
 class MenuSeeder extends Seeder
 {
@@ -18,6 +18,7 @@ class MenuSeeder extends Seeder
     {
         if (MenuItem::where('location', MenuItem::LOCATION_HEADER)->exists()) {
             $this->ensureResultsItem();
+            $this->ensurePortalItem();
 
             return;
         }
@@ -61,6 +62,7 @@ class MenuSeeder extends Seeder
             ['label' => 'গ্যালারি', 'type' => MenuItem::TYPE_ROUTE, 'route_name' => 'gallery.index'],
             ['label' => 'ফলাফল', 'type' => MenuItem::TYPE_ROUTE, 'route_name' => 'results.index'],
             ['label' => 'যোগাযোগ', 'type' => MenuItem::TYPE_ROUTE, 'route_name' => 'contact'],
+            ['label' => 'লগইন / পোর্টাল', 'type' => MenuItem::TYPE_ROUTE, 'route_name' => 'portal.login'],
         ];
 
         $this->createLevel($tree, null, $pageIds);
@@ -90,6 +92,33 @@ class MenuSeeder extends Seeder
             'label' => 'ফলাফল',
             'type' => MenuItem::TYPE_ROUTE,
             'route_name' => 'results.index',
+            'sort_order' => ($last ?? -1) + 1,
+        ]);
+    }
+
+    /**
+     * Same as ensureResultsItem(): the student/guardian portal link, added once at the end
+     * of the top level of a menu seeded before the portal existed.
+     */
+    private function ensurePortalItem(): void
+    {
+        $exists = MenuItem::where('location', MenuItem::LOCATION_HEADER)
+            ->where('type', MenuItem::TYPE_ROUTE)
+            ->where('route_name', 'portal.login')
+            ->exists();
+
+        if ($exists) {
+            return;
+        }
+
+        $last = MenuItem::where('location', MenuItem::LOCATION_HEADER)->whereNull('parent_id')->max('sort_order');
+
+        MenuItem::create([
+            'location' => MenuItem::LOCATION_HEADER,
+            'parent_id' => null,
+            'label' => 'লগইন / পোর্টাল',
+            'type' => MenuItem::TYPE_ROUTE,
+            'route_name' => 'portal.login',
             'sort_order' => ($last ?? -1) + 1,
         ]);
     }

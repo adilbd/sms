@@ -102,6 +102,7 @@ import { useAuthStore } from '@/stores/auth'
 import { METHOD_LABELS, PAYMENT_METHODS } from '@/constants/fees'
 import { banglaNumber } from '@/utils/banglaNumber'
 import { groupThousands } from '@/utils/money'
+import { banglaDateTime } from '@/utils/banglaDate'
 import { dhakaDateTime, headName, periodLabel, studentName } from '@/utils/fees'
 
 const route = useRoute()
@@ -124,7 +125,7 @@ const pick = (banglaName, englishName) => (bn.value ? banglaName || englishName 
 const money = (value) => `৳${d(groupThousands(value))}`
 
 const periodText = (period) => d(periodLabel(period, bn.value))
-const dateText = computed(() => d(dhakaDateTime(payment.value?.paid_at)))
+const dateText = computed(() => (bn.value ? banglaDateTime(payment.value?.paid_at) : dhakaDateTime(payment.value?.paid_at)))
 const methodText = computed(() => {
   const method = PAYMENT_METHODS.find((m) => m.value === payment.value?.method)
 

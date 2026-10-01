@@ -93,7 +93,7 @@ class SeoController extends Controller
     public function robots()
     {
         $lines = app()->isProduction()
-            ? ['User-agent: *', 'Allow: /', 'Disallow: /admin', 'Disallow: /api', '', 'Sitemap: '.route('sitemap')]
+            ? ['User-agent: *', 'Allow: /', 'Disallow: /admin', 'Disallow: /api', 'Disallow: /portal', '', 'Sitemap: '.route('sitemap')]
             // Keep non-production environments (staging, local) out of search indexes.
             : ['User-agent: *', 'Disallow: /'];
 

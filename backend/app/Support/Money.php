@@ -68,4 +68,15 @@ class Money
 
         return intdiv($paisa * $hundredths + 5000, 10000);
     }
+
+    /**
+     * An amount for people: "1500.5" -> "৳১,৫০০.৫০" (Bangla digits) or "৳1,500.50".
+     */
+    public static function display(string|int|float $amount, bool $bangla = true): string
+    {
+        $paisa = self::toPaisa($amount);
+        $text = ($paisa < 0 ? '-' : '').number_format(intdiv(abs($paisa), 100)).'.'.str_pad((string) (abs($paisa) % 100), 2, '0', STR_PAD_LEFT);
+
+        return '৳'.($bangla ? BanglaNumber::format($text) : $text);
+    }
 }
