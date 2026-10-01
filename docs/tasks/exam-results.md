@@ -111,7 +111,8 @@ This is Task 3 of 3 in `/Users/adil/.claude/plans/make-the-plan-for-radiant-flur
 - [x] Processing writes correct results for every enrolment, replaces them on re-run, and returns the summary.
 - [x] Status transitions: process from marks_entry/processed, publish only from processed, unpublish back to processed, and saving marks while processed sets the exam back to marks_entry. Mark entry is locked while published.
 - [x] The tabulation and breakdown APIs follow the guideline. `/api/my/*` shows only the caller's own published results.
-- [ ] Report cards print one per page, with correct data and Bangla text rendering. The page builds and its data comes from the tested API, but it hasn't been checked in a browser yet; check it after `php artisan migrate` on Docker.
+- [x] Report cards print one per page, with correct data and Bangla text rendering. Checked in Chrome on Docker MySQL (10-A, 5 cards): the print CSS hides the admin chrome, Noto Sans Bengali loads, the Bangla shaping is correct, the shift shows, and there are no console errors. Hand check: 40 points ÷ 11 compulsory units = 3.64 A-, with a D 4th subject adding no bonus.
+- [x] The browser check found two bugs, both fixed on this branch: the legacy 40 pass mark is now the Bangladesh 33%, with a data fix for the old rows, and the report card shift is now shown.
 - [x] The four Task 2 nits are fixed.
 - [x] The migration works on SQLite and MySQL, including rollback.
 - [x] The full suite, Pint, `npm run build` and smoke all pass.
