@@ -4,11 +4,14 @@ namespace App\Http\Controllers\Web;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Portal\PortalChangePasswordRequest;
+use App\Http\Requests\Portal\PortalMarksheetRequest;
 use App\Http\Requests\Portal\PortalPageRequest;
+use App\Http\Requests\Portal\PortalReceiptRequest;
 use App\Services\AuthService;
 use App\Services\PortalService;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 
 /**
  * The student and guardian portal pages (/portal). Every page reads through PortalService,
@@ -46,6 +49,10 @@ class PortalController extends Controller
             $request->validated('new_password'),
         );
 
+        // Keep this session, end every other one for the account (AuthenticateSession checks the hash).
+        Auth::guard('web')->logoutOtherDevices($request->validated('new_password'));
+        $request->session()->regenerate();
+
         return redirect()->route('portal.profile')->with('status', 'password-changed');
     }
 
@@ -58,7 +65,7 @@ class PortalController extends Controller
         ]);
     }
 
-    public function result(PortalPageRequest $request, int $exam)
+    public function result(PortalMarksheetRequest $request, int $exam)
     {
         [$user, $student] = $this->context($request);
 
@@ -92,7 +99,7 @@ class PortalController extends Controller
         ]);
     }
 
-    public function receipt(PortalPageRequest $request, int $payment)
+    public function receipt(PortalReceiptRequest $request, int $payment)
     {
         [, $student] = $this->context($request);
 

@@ -205,6 +205,7 @@ class PortalTest extends TestCase
     public function test_a_staff_session_cannot_open_portal_pages(string $uri): void
     {
         $this->web($this->teacher)->get($uri)->assertForbidden();
+        $this->flushSession();
         $this->web($this->admin)->get($uri)->assertForbidden();
     }
 
@@ -518,6 +519,54 @@ class PortalTest extends TestCase
         $this->assertFalse(LoginTrust::isTrusted($login, '10.0.0.9'));
         $this->assertSame(0, $login->tokens()->count());
         $this->web($login)->get('/portal/profile')->assertSee('পাসওয়ার্ড পরিবর্তন হয়েছে');
+    }
+
+    public function test_changing_the_password_ends_the_other_sessions_but_keeps_this_one(): void
+    {
+        $login = $this->login('20260001', 'student');
+        $this->enrolled($login);
+
+        // Session B: signed in earlier from another device.
+        $this->post('/portal/login', ['login' => '20260001', 'password' => 'secret-pass'])->assertRedirect('/portal');
+        $this->get('/portal/profile')->assertOk();
+        $sessionB = session()->all();
+        $this->flushSession();
+        Auth::guard('web')->forgetUser();
+
+        // Session A changes the password.
+        $this->post('/portal/login', ['login' => '20260001', 'password' => 'secret-pass'])->assertRedirect('/portal');
+        $this->get('/portal/profile')->assertOk();
+        $this->put('/portal/profile/password', [
+            'current_password' => 'secret-pass', 'new_password' => 'brand-new-pass', 'new_password_confirmation' => 'brand-new-pass',
+        ])->assertRedirect('/portal/profile');
+        $this->get('/portal/profile')->assertOk();
+        $this->assertAuthenticated('web');
+        $sessionA = session()->all();
+
+        // Session A is still signed in on its next request ...
+        $this->flushSession();
+        Auth::guard('web')->forgetUser();
+        $this->withSession($sessionA)->get('/portal/profile')->assertOk();
+
+        // ... and session B is sent to the portal login.
+        $this->flushSession();
+        Auth::guard('web')->forgetUser();
+        $this->withSession($sessionB)->get('/portal/profile')->assertRedirect('/portal/login');
+    }
+
+    public function test_print_options_are_validated_per_page(): void
+    {
+        $login = $this->login('20260001', 'student');
+        $this->enrolled($login);
+
+        $this->web($login)->getJson('/portal/results/1?page=a5')->assertUnprocessable()->assertJsonValidationErrors('page');
+        $this->web($login)->getJson('/portal/fees/receipts/1?page=legal')->assertUnprocessable()->assertJsonValidationErrors('page');
+    }
+
+    public function test_a_staff_web_session_can_sign_out(): void
+    {
+        $this->web($this->teacher)->post('/portal/logout')->assertRedirect('/portal/login');
+        $this->assertGuest('web');
     }
 
     public function test_a_wrong_current_password_or_a_short_one_is_422_as_json_and_an_error_in_the_form(): void

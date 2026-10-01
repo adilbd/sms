@@ -112,7 +112,8 @@ class AuthService
         $this->users->update($user, ['password' => $newPassword]);
         LoginTrust::invalidate($user);
 
-        // Other devices must sign in again with the new password; this one stays signed in.
+        // Other devices must sign in again with the new password; every API token is revoked (a portal session has no current token;
+        // the web controller keeps its own session and ends the others).
         $this->users->revokeOtherTokens($user);
     }
 }

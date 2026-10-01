@@ -55,10 +55,11 @@ Route::prefix('portal')->name('portal.')->group(function () {
     Route::middleware(\App\Http\Middleware\PortalHeaders::class)->group(function () {
         Route::get('/login', [PortalAuthController::class, 'show'])->name('login');
         Route::post('/login', [PortalAuthController::class, 'login'])->middleware('throttle:login')->name('login.store');
+        // Any web session may sign out (a staff one included); still CSRF-protected.
+        Route::post('/logout', [PortalAuthController::class, 'logout'])->name('logout');
     });
 
     Route::middleware('portal')->group(function () {
-        Route::post('/logout', [PortalAuthController::class, 'logout'])->name('logout');
         Route::get('/', [PortalController::class, 'dashboard'])->name('dashboard');
         Route::get('/profile', [PortalController::class, 'profile'])->name('profile');
         Route::put('/profile/password', [PortalController::class, 'changePassword'])->name('password');

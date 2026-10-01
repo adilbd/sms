@@ -16,7 +16,7 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware) {
         // API guests get a 401 JSON response; there is no web login route to redirect to.
-        $middleware->redirectGuestsTo(fn (Request $request) => $request->is('api/*') ? null : '/admin/login');
+        $middleware->redirectGuestsTo(fn (Request $request) => $request->is('api/*') ? null : ($request->is('portal', 'portal/*') ? '/portal/login' : '/admin/login'));
 
         $middleware->alias([
             'role' => \Spatie\Permission\Middleware\RoleMiddleware::class,
@@ -26,6 +26,7 @@ return Application::configure(basePath: dirname(__DIR__))
         // The student/guardian portal: private headers plus the web-session role gate.
         $middleware->group('portal', [
             \App\Http\Middleware\PortalHeaders::class,
+            \Illuminate\Session\Middleware\AuthenticateSession::class,
             \App\Http\Middleware\PortalAuth::class,
         ]);
     })
