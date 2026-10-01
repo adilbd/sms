@@ -345,56 +345,103 @@ class GpaTest extends TestCase
 
     // Merit positions
 
-    private function row(int $key, bool $pass, string $gpa, string $total): array
+    private function row(int $key, string $gpa, int $passed, string $total): array
     {
-        return ['key' => $key, 'is_pass' => $pass, 'gpa' => $gpa, 'total' => $total];
+        return ['key' => $key, 'gpa' => $gpa, 'passed_count' => $passed, 'total' => $total];
     }
 
     public function test_ties_share_a_position_and_the_next_one_skips(): void
     {
         $positions = Gpa::positions([
-            $this->row(1, true, '5.00', '900.00'),
-            $this->row(2, true, '4.50', '800.00'),
-            $this->row(3, true, '4.50', '800.00'),
-            $this->row(4, true, '4.00', '700.00'),
+            $this->row(1, '5.00', 8, '900.00'),
+            $this->row(2, '4.50', 8, '800.00'),
+            $this->row(3, '4.50', 8, '800.00'),
+            $this->row(4, '4.00', 8, '700.00'),
         ]);
 
         $this->assertSame([1 => 1, 2 => 2, 3 => 2, 4 => 4], $positions);
     }
 
-    public function test_the_order_is_pass_then_gpa_then_total(): void
+    public function test_the_order_is_gpa_then_passed_subjects_then_total(): void
     {
         $positions = Gpa::positions([
-            $this->row(1, true, '4.00', '700.00'),
-            $this->row(2, true, '4.00', '750.00'),
-            $this->row(3, true, '5.00', '600.00'),
+            $this->row(1, '4.00', 7, '700.00'),
+            $this->row(2, '4.00', 8, '650.00'),
+            $this->row(3, '4.00', 8, '750.00'),
+            $this->row(4, '5.00', 6, '600.00'),
         ]);
 
-        $this->assertSame([3 => 1, 2 => 2, 1 => 3], $positions);
+        $this->assertSame([4 => 1, 3 => 2, 2 => 3, 1 => 4], $positions);
     }
 
-    public function test_a_failed_student_ranks_after_every_passed_student(): void
+    public function test_a_student_with_a_failed_subject_ranks_below_one_who_passed_all_despite_a_higher_total(): void
     {
-        // The failed student has the highest total, and even a stored GPA above the others.
+        // 700 with 1 failed subject (GPA 0.00) against 690 with every subject passed.
         $positions = Gpa::positions([
-            $this->row(1, false, '0.00', '950.00'),
-            $this->row(2, true, '1.00', '350.00'),
-            $this->row(3, true, '1.00', '340.00'),
-            $this->row(4, false, '0.00', '400.00'),
+            $this->row(1, '0.00', 7, '700.00'),
+            $this->row(2, '1.00', 8, '690.00'),
         ]);
 
-        $this->assertSame([2 => 1, 3 => 2, 1 => 3, 4 => 4], $positions);
+        $this->assertSame([2 => 1, 1 => 2], $positions);
     }
 
-    public function test_failed_students_tie_on_total(): void
+    public function test_failed_students_rank_by_subjects_passed_before_total(): void
     {
         $positions = Gpa::positions([
-            $this->row(1, false, '0.00', '300.00'),
-            $this->row(2, false, '0.00', '300.00'),
-            $this->row(3, true, '2.00', '400.00'),
+            $this->row(1, '0.00', 5, '700.00'),
+            $this->row(2, '0.00', 7, '690.00'),
         ]);
 
-        $this->assertSame([3 => 1, 1 => 2, 2 => 2], $positions);
+        $this->assertSame([2 => 1, 1 => 2], $positions);
+    }
+
+    public function test_equal_gpa_and_passed_count_fall_back_to_the_total(): void
+    {
+        $positions = Gpa::positions([
+            $this->row(1, '3.00', 8, '600.00'),
+            $this->row(2, '3.00', 8, '650.00'),
+        ]);
+
+        $this->assertSame([2 => 1, 1 => 2], $positions);
+    }
+
+    public function test_a_failed_4th_subject_lowers_passed_count_but_not_the_gpa(): void
+    {
+        $compulsory = array_fill(0, 4, $this->graded('A', '4.00'));
+
+        $passed4th = Gpa::result($compulsory, $this->graded('C', '2.00'));
+        $failed4th = Gpa::result($compulsory, $this->graded('F', '0.00', '10.00'));
+
+        $this->assertSame(5, $passed4th['passed_count']);
+        $this->assertSame(4, $failed4th['passed_count']);
+        $this->assertSame($passed4th['gpa'], $failed4th['gpa']);
+        $this->assertTrue($failed4th['is_pass']);
+
+        $positions = Gpa::positions([
+            ['key' => 1, 'gpa' => $failed4th['gpa'], 'passed_count' => $failed4th['passed_count'], 'total' => '400.00'],
+            ['key' => 2, 'gpa' => $passed4th['gpa'], 'passed_count' => $passed4th['passed_count'], 'total' => '400.00'],
+        ]);
+        $this->assertSame([2 => 1, 1 => 2], $positions);
+    }
+
+    public function test_passed_count_counts_every_unit_that_is_not_an_f(): void
+    {
+        $result = Gpa::result([$this->graded('A', '4.00'), $this->graded('F', '0.00', '10.00'), $this->graded('D', '1.00')]);
+
+        $this->assertSame(2, $result['passed_count']);
+        $this->assertSame(1, $result['failed_count']);
+    }
+
+    public function test_a_combined_pair_counts_as_one_passed_or_failed_unit(): void
+    {
+        $paper = fn (float $written) => ['absent' => false, 'parts' => ['written' => ['obtained' => $written, 'full' => 50, 'pass' => 17]]];
+
+        $passed = Gpa::unit([$paper(40), $paper(40)]);
+        $failed = Gpa::unit([$paper(5), $paper(5)]);
+
+        $this->assertSame(1, Gpa::result([$passed])['passed_count']);
+        $this->assertSame(0, Gpa::result([$failed])['passed_count']);
+        $this->assertSame(1, Gpa::result([$failed])['failed_count']);
     }
 
     public function test_input_order_never_affects_a_position(): void

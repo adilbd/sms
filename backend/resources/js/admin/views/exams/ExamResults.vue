@@ -114,6 +114,7 @@
               <th class="text-right">Total</th>
               <th class="text-right">GPA</th>
               <th>Grade</th>
+              <th class="text-right">Subjects passed</th>
               <th class="text-right">Failed</th>
               <th>Report card</th>
             </tr>
@@ -131,6 +132,7 @@
               <td class="text-right">{{ Number(row.total_obtained) }} / {{ Number(row.total_full) }}</td>
               <td class="text-right font-medium">{{ row.gpa }}</td>
               <td><span :class="['badge', row.is_pass ? 'badge-success' : 'badge-danger']">{{ row.grade }}</span></td>
+              <td class="text-right">{{ row.passed_count }}</td>
               <td class="text-right">{{ row.failed_count }}</td>
               <td>
                 <router-link :to="`/exams/${route.params.id}/report-cards/${row.student_id}`" class="text-sm text-primary-600 hover:text-primary-800">Print</router-link>

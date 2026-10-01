@@ -273,6 +273,7 @@ class ResultService
                 'grade' => $outcome['grade'],
                 'is_pass' => $outcome['is_pass'],
                 'failed_count' => $outcome['failed_count'],
+                'passed_count' => $outcome['passed_count'],
                 'class_position' => null,
                 'section_position' => null,
                 'subjects' => $entries,
@@ -392,8 +393,8 @@ class ResultService
     {
         $rank = fn (array $subset) => Gpa::positions(array_map(fn (array $row) => [
             'key' => $row['result']['enrolment_id'],
-            'is_pass' => $row['result']['is_pass'],
             'gpa' => $row['result']['gpa'],
+            'passed_count' => $row['result']['passed_count'],
             'total' => $row['result']['total_obtained'],
         ], $subset));
 

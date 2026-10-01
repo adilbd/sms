@@ -190,6 +190,7 @@ class ExamResultApiTest extends TestCase
             ->assertJsonPath('data.grade', 'A')
             ->assertJsonPath('data.is_pass', true)
             ->assertJsonPath('data.failed_count', 0)
+            ->assertJsonPath('data.passed_count', 3)
             ->assertJsonPath('data.total_obtained', '286.00')
             ->assertJsonPath('data.total_full', '400.00')
             ->assertJsonPath('data.class_position', 2)
@@ -237,6 +238,7 @@ class ExamResultApiTest extends TestCase
             ->assertJsonPath('data.grade', 'F')
             ->assertJsonPath('data.is_pass', false)
             ->assertJsonPath('data.failed_count', 2)
+            ->assertJsonPath('data.passed_count', 0)
             ->assertJsonPath('data.total_obtained', '0.00')
             ->assertJsonPath('data.subjects.0.is_absent', true)
             ->assertJsonPath('data.subjects.0.papers.0.is_missing', true);
@@ -256,6 +258,7 @@ class ExamResultApiTest extends TestCase
             ->assertJsonPath('data.gpa', '4.50')
             ->assertJsonPath('data.is_pass', true)
             ->assertJsonPath('data.failed_count', 0)
+            ->assertJsonPath('data.passed_count', 2)
             ->assertJsonPath('data.subjects.2.grade', 'F');
     }
 
@@ -284,6 +287,7 @@ class ExamResultApiTest extends TestCase
             ->assertJsonPath('data.gpa', '0.00')
             ->assertJsonPath('data.grade', 'F')
             ->assertJsonPath('data.failed_count', 1)
+            ->assertJsonPath('data.passed_count', 1)
             ->assertJsonPath('data.subjects.1.grade', 'F')
             ->assertJsonPath('data.subjects.1.percentage', '74.00');
     }
@@ -510,7 +514,7 @@ class ExamResultApiTest extends TestCase
         $response = $this->as($this->admin)->getJson("/api/exams/{$this->exam->id}/results?class_id={$this->class9->id}")
             ->assertOk()
             ->assertJsonStructure([
-                'data' => [['id', 'student_id', 'student' => ['id', 'student_code', 'name_en', 'name_bn'], 'roll_number', 'group', 'gpa', 'grade', 'is_pass', 'failed_count', 'class_position', 'section_position', 'total_obtained']],
+                'data' => [['id', 'student_id', 'student' => ['id', 'student_code', 'name_en', 'name_bn'], 'roll_number', 'group', 'gpa', 'grade', 'is_pass', 'failed_count', 'passed_count', 'class_position', 'section_position', 'total_obtained']],
                 'links',
                 'meta' => ['total', 'per_page', 'current_page'],
             ])

@@ -151,6 +151,7 @@ class ResultServiceTest extends TestCase
             $rows[100]['gpa'], $rows[100]['grade'], $rows[100]['is_pass'], $rows[100]['failed_count'],
             $rows[100]['total_obtained'], $rows[100]['total_full'],
         ]);
+        $this->assertSame([2, 1, 1], [$rows[100]['passed_count'], $rows[101]['passed_count'], $rows[102]['passed_count']]);
         // 60 is an A- but science is missing, so it is an F: the student fails.
         $this->assertSame(['0.00', 'F', false, 1], [$rows[101]['gpa'], $rows[101]['grade'], $rows[101]['is_pass'], $rows[101]['failed_count']]);
         // Student 3 takes only maths: GPA 5.00.
@@ -167,6 +168,43 @@ class ResultServiceTest extends TestCase
             $outcome['summary']
         );
         $this->assertSame(Exam::STATUS_PROCESSED, $outcome['exam']->status);
+    }
+
+    public function test_processing_ranks_failed_students_by_subjects_passed_before_total_in_class_and_section(): void
+    {
+        $locked = $this->exam();
+        $subjects = [$this->examSubject(40, 11), $this->examSubject(41, 12), $this->examSubject(42, 13)];
+        $rows = null;
+
+        $this->repos(function (MockInterface $m) use ($locked, $subjects) {
+            $m->shouldReceive('lockExam')->once()->andReturn($locked);
+            $m->shouldReceive('classIds')->once()->andReturn([9]);
+            $m->shouldReceive('subjectsFor')->once()->andReturn(new Collection($subjects));
+            $m->shouldReceive('update')->once()->andReturnUsing(fn (Exam $exam, array $attributes) => $exam->fill($attributes));
+        }, function (MockInterface $m) use (&$rows) {
+            // Student 1 passes two subjects and fails one (total 90); student 2 passes one and
+            // fails two but has the higher total (120); student 3 passes all three.
+            $m->shouldReceive('marksFor')->once()->andReturn(new Collection([
+                $this->mark(40, 1, 40), $this->mark(41, 1, 40), $this->mark(42, 1, 10),
+                $this->mark(40, 2, 100), $this->mark(41, 2, 10), $this->mark(42, 2, 10),
+                $this->mark(40, 3, 40), $this->mark(41, 3, 40), $this->mark(42, 3, 40),
+            ]));
+            $m->shouldReceive('subjectTakers')->andReturn([100, 101, 102]);
+            $m->shouldReceive('activeEnrolments')->once()->andReturn(new Collection([
+                $this->enrolment(100, 1), $this->enrolment(101, 2), $this->enrolment(102, 3),
+            ]));
+            $m->shouldReceive('replaceForExam')->once()->with(\Mockery::any(), \Mockery::on(function (array $given) use (&$rows) {
+                $rows = collect($given)->keyBy('enrolment_id');
+
+                return true;
+            }));
+        });
+
+        app(ResultService::class)->process($this->exam());
+
+        $this->assertSame([2, 1, 3], [$rows[100]['passed_count'], $rows[101]['passed_count'], $rows[102]['passed_count']]);
+        $this->assertSame([2, 3, 1], array_map(fn ($id) => $rows[$id]['class_position'], [100, 101, 102]));
+        $this->assertSame([2, 3, 1], array_map(fn ($id) => $rows[$id]['section_position'], [100, 101, 102]));
     }
 
     public function test_a_processed_exam_can_be_processed_again(): void
