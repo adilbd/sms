@@ -154,7 +154,7 @@ This is Task 5 of 7 in `/Users/adil/.claude/plans/make-the-plan-for-radiant-flur
 - CLAUDE.md: BDT `decimal:2`, UTC timestamps with Asia/Dhaka display and date defaults, Bangla-first receipts.
 
 ## Acceptance criteria
-- [ ] The old fee tables, stubs and broken routes are gone. The new migrations work on SQLite and MySQL, including rollback. SQLite is verified. MySQL is checked on Docker before the merge.
+- [x] The old fee tables, stubs and broken routes are gone. The new migrations work on SQLite and on Docker MySQL 8, including rollback and a re-run.
 - [x] Heads, rates and waivers follow their rules.
 - [x] Generating dues is idempotent and applies waivers.
 - [x] Payments allocate oldest-first or to the chosen dues, refuse overpayment, need a transaction ID for mobile methods, and get unique sequential receipt numbers under concurrency.
@@ -163,7 +163,7 @@ This is Task 5 of 7 in `/Users/adil/.claude/plans/make-the-plan-for-radiant-flur
 - [x] Reports and the ledger are correct.
 - [x] `/api/my/*` fees are scoped to the caller.
 - [x] Permissions per role are as listed. Student and parent no longer have `view-fees`.
-- [ ] The SPA screens work, and the receipt prints in Bangla and English. The build passes. A browser check on Docker happens before the merge.
+- [x] The SPA screens work, and the receipt prints in Bangla and English. Checked in Chrome on Docker: the Bangla receipt `২০২৬-০০০০০৩` shows Bangla digits, the allocation (Tuition, January 2026), the collector and signature lines, plus the language and paper selectors.
 - [x] The full suite, Pint, `npm run build` and smoke all pass. CLAUDE.md and the guidelines are updated.
 
 ## Test cases
@@ -202,3 +202,12 @@ This is Task 5 of 7 in `/Users/adil/.claude/plans/make-the-plan-for-radiant-flur
 - [x] **Legacy:** the old `/api/fee-types`, `/api/fee-structures` and `/api/fee-payments/student/...` routes return 404.
 - [x] **Seeder:** run twice, it creates no duplicates.
 - [x] **Unit:** `FeeDueServiceTest`, `FeePaymentServiceTest` and `MoneyTest` with mocked repositories.
+
+## Docker check (MySQL 8)
+- [x] `FeeSeeder` run twice: 4 heads, 64 rates, 670 dues (৳659,000.00) and 2 demo payments, with no duplicates.
+- [x] **Concurrency:** 10 payments for 10 different students fired at the same time as the office user (`VHBUB-52`) all returned 201 and got unique, sequential receipts `2026-000003` to `2026-000012`. The counter ends at 12, with no deadlock and no 500.
+
+## Follow-ups
+- On the Bangla receipt, the date mixes English month and am/pm ("০১ Oct ২০২৬, ০৯:০৭ pm"). Use Bangla month names and পূর্বাহ্ন/অপরাহ্ন.
+- The Bangla label for cash is "নগদ" and for Nagad "নগদ (মোবাইল)". Consider "নগদ টাকা" for cash to avoid confusion with the Nagad service.
+- Counter row pre-creation isn't done. A first-of-year deadlock is handled by the 3-attempt retry.
