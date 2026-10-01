@@ -4,7 +4,9 @@ namespace Tests\Feature;
 
 use App\Models\Classes;
 use App\Models\ClassSubject;
+use App\Models\Section;
 use App\Models\Subject;
+use App\Models\SubjectAssignment;
 use App\Models\User;
 use Database\Seeders\RolePermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -343,5 +345,167 @@ class CurriculumApiTest extends TestCase
             ->putJson("/api/classes/{$class->id}", ['number' => 8])
             ->assertOk()
             ->assertJsonPath('data.number', 8);
+    }
+
+    private function physics(array $extra = []): array
+    {
+        return [
+            'written_full' => 50, 'written_pass' => 17,
+            'mcq_full' => 25, 'mcq_pass' => 8,
+            'practical_full' => 25, 'practical_pass' => 8,
+            ...$extra,
+        ];
+    }
+
+    public function test_part_marks_are_saved_and_returned_on_get(): void
+    {
+        $class = Classes::factory()->create(['number' => 9]);
+        $physics = Subject::factory()->create();
+
+        $this->replace($class, [[...$this->row($physics, 'science'), ...$this->physics(), 'paper_group' => null]])
+            ->assertOk()
+            ->assertJsonPath('data.0.written_full', 50)
+            ->assertJsonPath('data.0.practical_pass', 8);
+
+        $this->actingAs($this->admin, 'sanctum')->getJson("/api/classes/{$class->id}/subjects")
+            ->assertOk()
+            ->assertJsonStructure(['data' => [['written_full', 'written_pass', 'mcq_full', 'mcq_pass', 'practical_full', 'practical_pass', 'paper_group']]])
+            ->assertJsonPath('data.0.mcq_full', 25)
+            ->assertJsonPath('data.0.paper_group', null);
+    }
+
+    public function test_a_pair_is_saved(): void
+    {
+        $class = Classes::factory()->create(['number' => 9]);
+        [$first, $second] = Subject::factory()->count(2)->create();
+
+        $this->replace($class, [
+            [...$this->row($first), 'written_full' => 70, 'written_pass' => 23, 'paper_group' => 'bangla'],
+            [...$this->row($second), 'written_full' => 70, 'written_pass' => 23, 'paper_group' => 'bangla'],
+        ])->assertOk()->assertJsonPath('data.0.paper_group', 'bangla')->assertJsonPath('data.1.paper_group', 'bangla');
+    }
+
+    public function test_a_row_with_no_part_set_is_rejected(): void
+    {
+        $class = Classes::factory()->create(['number' => 9]);
+        $subject = Subject::factory()->create();
+
+        $this->replace($class, [[...$this->row($subject), 'written_full' => null, 'written_pass' => null]])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['subjects.0.written_full']);
+    }
+
+    public function test_a_pass_mark_without_its_full_mark_is_rejected(): void
+    {
+        $class = Classes::factory()->create(['number' => 9]);
+        $subject = Subject::factory()->create();
+
+        $this->replace($class, [[...$this->row($subject), 'written_full' => 70, 'written_pass' => 23, 'mcq_pass' => 8]])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['subjects.0.mcq_full']);
+    }
+
+    public function test_pass_above_full_is_rejected_per_row(): void
+    {
+        $class = Classes::factory()->create(['number' => 9]);
+        [$ok, $bad] = Subject::factory()->count(2)->create();
+
+        $this->replace($class, [
+            [...$this->row($ok), ...$this->physics()],
+            [...$this->row($bad), ...$this->physics(['mcq_pass' => 26])],
+        ])->assertUnprocessable()->assertJsonValidationErrors(['subjects.1.mcq_pass']);
+    }
+
+    public function test_a_third_row_in_a_paper_group_is_rejected(): void
+    {
+        $class = Classes::factory()->create(['number' => 9]);
+        $subjects = Subject::factory()->count(3)->create();
+
+        $this->replace($class, $subjects->map(fn ($s) => [...$this->row($s), 'paper_group' => 'bangla'])->all())
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['subjects.2.paper_group']);
+    }
+
+    public function test_a_pair_mixing_compulsory_and_optional_is_rejected(): void
+    {
+        $class = Classes::factory()->create(['number' => 9]);
+        [$a, $b] = Subject::factory()->count(2)->create();
+
+        $this->replace($class, [
+            [...$this->row($a), 'paper_group' => 'bangla'],
+            [...$this->row($b, null, 'optional'), 'paper_group' => 'bangla'],
+        ])->assertUnprocessable()->assertJsonValidationErrors(['subjects.1.paper_group']);
+    }
+
+    public function test_a_pair_across_different_groups_is_rejected(): void
+    {
+        $class = Classes::factory()->create(['number' => 9]);
+        [$a, $b] = Subject::factory()->count(2)->create();
+
+        $this->replace($class, [
+            [...$this->row($a, 'science'), 'paper_group' => 'bangla'],
+            [...$this->row($b, 'humanities'), 'paper_group' => 'bangla'],
+        ])->assertUnprocessable()->assertJsonValidationErrors(['subjects.1.paper_group']);
+    }
+
+    public function test_a_bad_paper_group_slug_is_rejected(): void
+    {
+        $class = Classes::factory()->create(['number' => 9]);
+        $subject = Subject::factory()->create();
+
+        foreach (['Bangla', 'bangla 1', 'বাংলা', 'a_b', str_repeat('a', 51)] as $slug) {
+            $this->replace($class, [[...$this->row($subject), 'paper_group' => $slug]])
+                ->assertUnprocessable()
+                ->assertJsonValidationErrors(['subjects.0.paper_group']);
+        }
+    }
+
+    public function test_omitting_part_fields_keeps_the_saved_marks_and_pairing(): void
+    {
+        $class = Classes::factory()->create(['number' => 9]);
+        $subject = Subject::factory()->create();
+        $this->replace($class, [[...$this->row($subject), ...$this->physics(), 'paper_group' => 'science']])->assertOk();
+
+        $this->replace($class, [$this->row($subject, null, 'compulsory')])
+            ->assertOk()
+            ->assertJsonPath('data.0.written_full', 50)
+            ->assertJsonPath('data.0.practical_full', 25)
+            ->assertJsonPath('data.0.paper_group', 'science');
+    }
+
+    public function test_a_new_row_without_part_fields_gets_the_subjects_marks_as_written(): void
+    {
+        $class = Classes::factory()->create(['number' => 3]);
+        $subject = Subject::factory()->create(['total_marks' => 80, 'pass_marks' => 28]);
+
+        $this->replace($class, [$this->row($subject)])
+            ->assertOk()
+            ->assertJsonPath('data.0.written_full', 80)
+            ->assertJsonPath('data.0.written_pass', 28)
+            ->assertJsonPath('data.0.mcq_full', null)
+            ->assertJsonPath('data.0.paper_group', null);
+    }
+
+    public function test_removing_a_subject_with_assignments_is_rejected_until_unassigned(): void
+    {
+        $class = Classes::factory()->create(['number' => 9]);
+        [$keep, $drop] = Subject::factory()->count(2)->create();
+        ClassSubject::factory()->create(['class_id' => $class->id, 'subject_id' => $keep->id]);
+        ClassSubject::factory()->create(['class_id' => $class->id, 'subject_id' => $drop->id]);
+        $assignment = SubjectAssignment::factory()->create([
+            'class_id' => $class->id,
+            'section_id' => Section::factory()->create(['class_id' => $class->id])->id,
+            'subject_id' => $drop->id,
+        ]);
+
+        $this->replace($class, [$this->row($keep)])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['subjects'])
+            ->assertJsonPath('errors.subjects.0', fn ($m) => str_contains($m, $drop->name) && str_contains($m, 'Unassign'));
+        $this->assertSame(2, $class->curriculum()->count());
+
+        $assignment->delete();
+
+        $this->replace($class, [$this->row($keep)])->assertOk()->assertJsonCount(1, 'data');
     }
 }

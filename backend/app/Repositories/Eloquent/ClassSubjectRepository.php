@@ -5,6 +5,7 @@ namespace App\Repositories\Eloquent;
 use App\Models\Classes;
 use App\Models\ClassSubject;
 use App\Models\Subject;
+use App\Models\SubjectAssignment;
 use App\Repositories\Contracts\ClassSubjectRepositoryInterface;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
@@ -27,14 +28,31 @@ class ClassSubjectRepository implements ClassSubjectRepositoryInterface
     public function sync(Classes $class, array $rows): void
     {
         $existing = $class->curriculum()->get()->keyBy(fn (ClassSubject $row) => $this->key($row->subject_id, $row->group));
+        $subjects = Subject::withTrashed()->whereIn('id', array_column($rows, 'subject_id'))->get()->keyBy('id');
 
         $keep = [];
 
         foreach (array_values($rows) as $position => $row) {
             $key = $this->key($row['subject_id'], $row['group'] ?? null);
             $attributes = ['type' => $row['type'], 'sort_order' => $position];
+            $current = $existing->get($key);
 
-            if ($current = $existing->get($key)) {
+            if (array_key_exists('paper_group', $row)) {
+                $attributes['paper_group'] = $row['paper_group'];
+            }
+
+            if (array_intersect(ClassSubject::MARK_FIELDS, array_keys($row)) !== []) {
+                foreach (ClassSubject::MARK_FIELDS as $field) {
+                    $attributes[$field] = $row[$field] ?? null;
+                }
+            } elseif (! $current) {
+                // A new row that sends no marks starts from its subject's defaults.
+                $subject = $subjects->get($row['subject_id']);
+                $attributes['written_full'] = $subject?->total_marks;
+                $attributes['written_pass'] = $subject?->pass_marks;
+            }
+
+            if ($current) {
                 $current->update($attributes);
                 $keep[] = $current->id;
             } else {
@@ -49,6 +67,22 @@ class ClassSubjectRepository implements ClassSubjectRepositoryInterface
         }
 
         $class->curriculum()->whereNotIn('id', $keep)->delete();
+    }
+
+    public function savedPaperGroups(Classes $class): array
+    {
+        return $class->curriculum()->whereNotNull('paper_group')->get()
+            ->mapWithKeys(fn (ClassSubject $row) => [$this->key($row->subject_id, $row->group) => $row->paper_group])
+            ->all();
+    }
+
+    public function assignedSubjects(Classes $class): array
+    {
+        return Subject::withTrashed()
+            ->whereIn('id', SubjectAssignment::query()->where('class_id', $class->id)->select('subject_id'))
+            ->orderBy('name')
+            ->pluck('name', 'id')
+            ->all();
     }
 
     public function lockClass(Classes $class): Classes

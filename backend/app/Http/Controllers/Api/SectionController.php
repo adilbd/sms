@@ -7,11 +7,14 @@ use App\Http\Requests\Section\AssignClassTeacherRequest;
 use App\Http\Requests\Section\IndexSectionRequest;
 use App\Http\Requests\Section\StoreSectionRequest;
 use App\Http\Requests\Section\UpdateSectionRequest;
+use App\Http\Requests\SubjectAssignment\SyncSectionSubjectTeachersRequest;
 use App\Http\Resources\ClassTeacherResource;
 use App\Http\Resources\SectionResource;
+use App\Http\Resources\SubjectAssignmentResource;
 use App\Models\Section;
 use App\Services\ClassTeacherService;
 use App\Services\SectionService;
+use App\Services\SubjectAssignmentService;
 use Illuminate\Routing\Controllers\HasMiddleware;
 
 class SectionController extends Controller implements HasMiddleware
@@ -19,6 +22,7 @@ class SectionController extends Controller implements HasMiddleware
     public function __construct(
         private SectionService $sections,
         private ClassTeacherService $classTeachers,
+        private SubjectAssignmentService $subjectAssignments,
     ) {}
 
     public static function middleware(): array
@@ -27,6 +31,7 @@ class SectionController extends Controller implements HasMiddleware
         return static::resourcePermissions('classes', [
             'classTeachers' => 'view-classes',
             'updateClassTeacher' => 'edit-classes',
+            'updateSubjectTeachers' => 'edit-classes',
         ]);
     }
 
@@ -80,5 +85,12 @@ class SectionController extends Controller implements HasMiddleware
         $message = $result->staff ? 'Class teacher assigned successfully' : 'Class teacher removed successfully';
 
         return (new ClassTeacherResource($result))->additional(['message' => $message]);
+    }
+
+    public function updateSubjectTeachers(SyncSectionSubjectTeachersRequest $request, Section $section)
+    {
+        return SubjectAssignmentResource::collection(
+            $this->subjectAssignments->syncForSection($section, $request->validated())
+        )->additional(['message' => 'Subject teachers updated successfully']);
     }
 }

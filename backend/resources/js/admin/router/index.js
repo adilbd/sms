@@ -104,6 +104,11 @@ const routes = [
         component: () => import('@/views/sections/SectionForm.vue'),
       },
       {
+        path: 'sections/:id/subject-teachers',
+        name: 'Section Subject Teachers',
+        component: () => import('@/views/sections/SubjectTeachers.vue'),
+      },
+      {
         path: 'sections/:id/edit',
         name: 'Edit Section',
         component: () => import('@/views/sections/SectionForm.vue'),

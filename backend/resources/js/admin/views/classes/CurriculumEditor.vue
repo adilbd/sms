@@ -47,12 +47,37 @@
                 <span v-if="row.subject?.name_bn" class="text-gray-500">({{ row.subject.name_bn }})</span>
                 <span class="badge ml-1">{{ row.subject?.code }}</span>
                 <span v-if="row.subject && !row.subject.is_active" class="badge badge-warning ml-1">Inactive</span>
+                <span
+                  v-if="pairedWith(row).length"
+                  class="badge badge-info ml-1"
+                  :title="`Graded together with ${pairedWith(row).map((r) => r.subject?.name).join(', ')}`"
+                >Paired: {{ row.paper_group }}</span>
               </span>
               <span class="flex items-center space-x-2">
                 <button type="button" class="text-gray-600 disabled:opacity-30" :disabled="pos === 0" title="Move up" @click="move(type.value, pos, -1)">▲</button>
                 <button type="button" class="text-gray-600 disabled:opacity-30" :disabled="pos === bucket(type.value).length - 1" title="Move down" @click="move(type.value, pos, 1)">▼</button>
                 <button type="button" class="text-red-600 hover:text-red-800" title="Remove" @click="remove(row)">🗑️</button>
               </span>
+            </div>
+            <div class="mt-2 grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-2 text-sm items-end">
+              <div v-for="part in PARTS" :key="part.key" class="col-span-2 flex gap-1">
+                <label class="flex-1">
+                  <span class="block text-xs text-gray-500">{{ part.label }} full</span>
+                  <input v-model="row[`${part.key}_full`]" type="number" min="0" max="1000" class="input" :aria-label="`${part.label} full marks`" @input="clearErrors" />
+                </label>
+                <label class="flex-1">
+                  <span class="block text-xs text-gray-500">pass</span>
+                  <input v-model="row[`${part.key}_pass`]" type="number" min="0" max="1000" class="input" :aria-label="`${part.label} pass marks`" @input="clearErrors" />
+                </label>
+              </div>
+              <label class="col-span-2">
+                <span class="block text-xs text-gray-500">Paper group (pairs two papers)</span>
+                <input v-model="row.paper_group" type="text" maxlength="50" placeholder="e.g. bangla" class="input" @input="clearErrors" />
+              </label>
+              <div class="col-span-2 text-gray-700">
+                <span class="block text-xs text-gray-500">Total (full / pass)</span>
+                <strong>{{ totalOf(row, 'full') }}</strong> / {{ totalOf(row, 'pass') }}
+              </div>
             </div>
             <p v-for="message in rowErrors(rows.indexOf(row))" :key="message" class="text-sm text-red-600 mt-1">{{ message }}</p>
           </li>
@@ -111,7 +136,35 @@ const activeTab = ref('common')
 const picks = reactive({ compulsory: '', optional: '' })
 
 let uidCounter = 0
-const makeRow = (data) => ({ uid: ++uidCounter, subject_id: data.subject_id, group: data.group ?? null, type: data.type, subject: data.subject ?? null })
+const PARTS = [
+  { key: 'written', label: 'Written' },
+  { key: 'mcq', label: 'MCQ' },
+  { key: 'practical', label: 'Practical' },
+]
+const MARK_FIELDS = PARTS.flatMap((p) => [`${p.key}_full`, `${p.key}_pass`])
+
+const makeRow = (data) => ({
+  uid: ++uidCounter,
+  subject_id: data.subject_id,
+  group: data.group ?? null,
+  type: data.type,
+  subject: data.subject ?? null,
+  // Part marks: null (shown empty) when the part doesn't exist for the subject.
+  ...Object.fromEntries(MARK_FIELDS.map((f) => [f, data[f] ?? ''])),
+  paper_group: data.paper_group ?? '',
+})
+
+const toMark = (value) => (value === '' || value === null || value === undefined ? null : Number(value))
+
+const totalOf = (row, kind) =>
+  PARTS.reduce((sum, p) => sum + (toMark(row[`${p.key}_${kind}`]) || 0), 0)
+
+// The other rows sharing this row's paper group (the pair it is graded with).
+const pairedWith = (row) => {
+  const group = (row.paper_group || '').trim()
+  if (!group) return []
+  return rows.value.filter((r) => r !== row && (r.paper_group || '').trim() === group)
+}
 
 const hasGroups = computed(() => !!cls.value?.has_groups)
 const TYPES = [
@@ -147,7 +200,11 @@ const add = (type) => {
   const subject = allSubjects.value.find((s) => s.id === Number(picks[type]))
   if (!subject) return
   clearErrors()
-  rows.value.push(makeRow({ subject_id: subject.id, group: currentGroup.value, type, subject }))
+  // A new row starts with the subject's own marks as the written part.
+  rows.value.push(makeRow({
+    subject_id: subject.id, group: currentGroup.value, type, subject,
+    written_full: subject.total_marks, written_pass: subject.pass_marks,
+  }))
   picks[type] = ''
 }
 
@@ -221,7 +278,13 @@ const save = async () => {
   clearErrors()
   saving.value = true
   try {
-    const payload = rows.value.map((r) => ({ subject_id: r.subject_id, group: r.group, type: r.type }))
+    const payload = rows.value.map((r) => ({
+      subject_id: r.subject_id,
+      group: r.group,
+      type: r.type,
+      ...Object.fromEntries(MARK_FIELDS.map((f) => [f, toMark(r[f])])),
+      paper_group: (r.paper_group || '').trim() || null,
+    }))
     const { data } = await api.put(`/classes/${route.params.id}/subjects`, { subjects: payload })
     rows.value = data.data.map(makeRow)
     alert(data.message || 'Curriculum updated successfully')
