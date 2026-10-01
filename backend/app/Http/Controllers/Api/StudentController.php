@@ -28,12 +28,16 @@ class StudentController extends Controller implements HasMiddleware
     {
         $perPage = min(max((int) $request->query('per_page', 15), 1), 100);
 
+        $sensitive = $this->canSeeSensitive($request);
+
         return StudentResource::collectionFor(
             $this->students->list(
-                $request->safe()->only(['academic_year_id', 'class_id', 'section_id', 'shift_id', 'group', 'status', 'search']),
+                // search_sensitive comes from the caller's permission, never from input.
+                $request->safe()->only(['academic_year_id', 'class_id', 'section_id', 'shift_id', 'group', 'status', 'search'])
+                    + ['search_sensitive' => $sensitive],
                 $perPage,
             ),
-            $this->canSeeSensitive($request),
+            $sensitive,
         );
     }
 

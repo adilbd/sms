@@ -13,7 +13,7 @@
         <input
           v-model="filters.search"
           type="text"
-          placeholder="Search name, student ID, guardian mobile..."
+          :placeholder="canSeeSensitive ? 'Search name, student ID, guardian mobile...' : 'Search name or student ID...'"
           class="input md:col-span-2"
           @input="onSearch"
         />
@@ -67,7 +67,7 @@
               <th>Name</th>
               <th>Class / Section / Roll</th>
               <th>Group</th>
-              <th>Guardian mobile</th>
+              <th v-if="canSeeSensitive">Guardian mobile</th>
               <th>Status</th>
               <th>Actions</th>
             </tr>
@@ -95,7 +95,7 @@
                 <span v-else class="text-gray-400">-</span>
               </td>
               <td>{{ GROUP_LABELS[student.current_enrolment?.group] || '-' }}</td>
-              <td>{{ student.guardian?.mobile }}</td>
+              <td v-if="canSeeSensitive">{{ student.guardian?.mobile }}</td>
               <td>
                 <span :class="['badge', student.status === 'active' ? 'badge-success' : 'badge-danger']" class="capitalize">
                   {{ student.status }}
@@ -148,6 +148,11 @@
 <script setup>
 import { computed, onMounted, reactive, ref } from 'vue'
 import api from '@/services/api'
+import { useAuthStore } from '@/stores/auth'
+
+const authStore = useAuthStore()
+// The API omits guardian mobiles (and ignores them in search) without edit-students.
+const canSeeSensitive = computed(() => authStore.hasPermission('edit-students'))
 
 const GROUP_LABELS = {
   science: 'Science',

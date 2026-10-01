@@ -88,7 +88,8 @@ class StudentSeeder extends Seeder
         $guardianKey = ($i === self::PER_CLASS && $number >= 2)
             ? ($number - 2) * self::PER_CLASS + 1
             : ($number - 1) * self::PER_CLASS + $i;
-        // Reserved demo range 01999xxxxxx, unlikely to collide with a real subscriber's number.
+        // Bangladesh has no reserved test number range: 01999xxxxxx is only an unlikely-but-real
+        // format demo range. This seeder must never run against production data.
         $guardianMobile = '01999'.str_pad((string) $guardianKey, 6, '0', STR_PAD_LEFT);
 
         $guardian = User::firstOrCreate(['username' => $guardianMobile], [

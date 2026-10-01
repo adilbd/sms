@@ -208,6 +208,28 @@ class StudentApiTest extends TestCase
         $get('search=Anika&status=left')->assertJsonPath('meta.total', 0);
     }
 
+    public function test_search_by_guardian_mobile_or_birth_registration_needs_edit_students(): void
+    {
+        $a = Student::factory()->create(['name_en' => 'Anika Rahman', 'guardian_mobile' => '01755555555', 'birth_registration_number' => '20140123456789012']);
+        $this->enrolStudent($a);
+        $teacher = User::factory()->create(['email' => 't@example.com']);
+        $teacher->assignRole('teacher');
+
+        foreach (['01755555555', '20140123456789012'] as $term) {
+            $this->actingAs($teacher, 'sanctum')->getJson("/api/students?search={$term}")
+                ->assertOk()->assertJsonPath('meta.total', 0);
+            $this->actingAs($this->admin, 'sanctum')->getJson("/api/students?search={$term}")
+                ->assertOk()->assertJsonPath('meta.total', 1);
+        }
+
+        // A caller cannot opt in through the query string.
+        $this->actingAs($teacher, 'sanctum')->getJson('/api/students?search=01755555555&search_sensitive=1')
+            ->assertOk()->assertJsonPath('meta.total', 0);
+        // Names still work for a teacher.
+        $this->actingAs($teacher, 'sanctum')->getJson('/api/students?search=Anika')
+            ->assertOk()->assertJsonPath('meta.total', 1);
+    }
+
     public function test_index_rejects_an_array_search(): void
     {
         $this->actingAs($this->admin, 'sanctum')

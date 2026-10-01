@@ -33,6 +33,17 @@ class UniqueViolationTest extends TestCase
         }
     }
 
+    public function test_a_quote_in_the_duplicate_value_cannot_spoof_the_key_name(): void
+    {
+        $e = new \Illuminate\Database\UniqueConstraintViolationException(
+            'mysql', 'insert into `users` (`email`) values (?)', ['x'],
+            new \PDOException("SQLSTATE[23000]: Integrity constraint violation: 1062 Duplicate entry 'a for key 'users_username_unique'@b.c' for key 'users_email_unique'"),
+        );
+
+        $this->assertTrue(UniqueViolation::is($e, 'users', ['email']));
+        $this->assertFalse(UniqueViolation::is($e, 'users', ['username']));
+    }
+
     public function test_it_accepts_the_mysql_key_name_without_the_table_prefix(): void
     {
         $e = new \Illuminate\Database\UniqueConstraintViolationException(

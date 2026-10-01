@@ -193,6 +193,45 @@ class AuthApiTest extends TestCase
         $this->postJson('/api/login', ['login' => 'someone@example.com', 'password' => 'x'])->assertUnprocessable();
     }
 
+    public function test_login_is_throttled_per_ip_across_identifiers(): void
+    {
+        for ($i = 0; $i < 20; $i++) {
+            $this->postJson('/api/login', ['login' => "nobody{$i}@example.com", 'password' => 'x'])->assertUnprocessable();
+        }
+
+        $this->postJson('/api/login', ['login' => 'admin@sms.com', 'password' => 'password'])->assertStatus(429);
+    }
+
+    public function test_failures_are_throttled_per_account_across_ips_and_spellings(): void
+    {
+        // Distinct IPs and identifiers that all resolve to one account.
+        $logins = ['20260001', ' 20260001', '20260001 ', '20260001', '20260001'];
+        $this->studentLogin();
+
+        foreach ($logins as $i => $login) {
+            $this->withServerVariables(['REMOTE_ADDR' => "10.0.0.{$i}"])
+                ->postJson('/api/login', ['login' => $login, 'password' => 'wrong'])->assertUnprocessable();
+        }
+
+        $this->withServerVariables(['REMOTE_ADDR' => '10.0.0.99'])
+            ->postJson('/api/login', ['login' => '20260001', 'password' => 'student-pass'])
+            ->assertStatus(429);
+    }
+
+    public function test_a_successful_login_resets_the_account_failure_count(): void
+    {
+        $this->studentLogin();
+
+        for ($round = 0; $round < 3; $round++) {
+            for ($i = 0; $i < 4; $i++) {
+                $this->withServerVariables(['REMOTE_ADDR' => '10.1.'.$round.'.'.$i])
+                    ->postJson('/api/login', ['login' => '20260001', 'password' => 'wrong'])->assertUnprocessable();
+            }
+            $this->withServerVariables(['REMOTE_ADDR' => "10.2.0.{$round}"])
+                ->postJson('/api/login', ['login' => '20260001', 'password' => 'student-pass'])->assertOk();
+        }
+    }
+
     public function test_change_password_revokes_the_other_tokens_but_keeps_the_current_one(): void
     {
         $user = $this->studentLogin();

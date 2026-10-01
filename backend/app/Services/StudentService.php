@@ -39,7 +39,7 @@ class StudentService
      * Lists the students enrolled in $filters['academic_year_id'], which defaults to the
      * active year.
      *
-     * @param  array{academic_year_id?: mixed, class_id?: mixed, section_id?: mixed, shift_id?: mixed, group?: string, status?: string, search?: string}  $filters
+     * @param  array{academic_year_id?: mixed, class_id?: mixed, section_id?: mixed, shift_id?: mixed, group?: string, status?: string, search?: string, search_sensitive?: bool}  $filters
      */
     public function list(array $filters, int $perPage): LengthAwarePaginator
     {

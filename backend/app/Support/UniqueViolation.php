@@ -31,7 +31,7 @@ class UniqueViolation
             return array_diff($failed, $expected) === [] && array_diff($expected, $failed) === [];
         }
 
-        if (preg_match("/for key '([^']+)'/", $message, $m)) {
+        if (preg_match("/for key '([^']+)'\s*$/", $message, $m)) {
             return $m[1] === $index || $m[1] === "{$table}.{$index}";
         }
 

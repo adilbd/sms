@@ -85,8 +85,10 @@ class StudentRepository extends EloquentRepository implements StudentRepositoryI
                 ->where('students.name_en', 'like', "%{$search}%")
                 ->orWhere('students.name_bn', 'like', "%{$search}%")
                 ->orWhere('students.student_id', 'like', "%{$search}%")
-                ->orWhere('students.guardian_mobile', 'like', "%{$search}%")
-                ->orWhere('students.birth_registration_number', 'like', "%{$search}%"));
+                // Only for callers who may see these fields, or search would leak them.
+                ->when($filters['search_sensitive'] ?? false, fn (Builder $q) => $q
+                    ->orWhere('students.guardian_mobile', 'like', "%{$search}%")
+                    ->orWhere('students.birth_registration_number', 'like', "%{$search}%")));
         }
 
         if (filled($filters['status'] ?? null)) {
