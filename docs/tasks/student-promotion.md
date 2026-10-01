@@ -99,7 +99,7 @@ This is Task B of the Students plan, which the user approved earlier ("promote w
 - [x] Apply runs every action and rule in one locked transaction, writes nothing on any error, and returns the summary.
 - [x] Group and 4th-subject carry-over or reset is correct for every class transition.
 - [x] Leavers and graduates get status, leaving date and logins synced through the existing paths.
-- [ ] The SPA wizard works against the API. It builds and its API is fully tested, but it hasn't been clicked through in a browser yet. That needs a 2027 academic year on the Docker database.
+- [x] The SPA wizard works against the API. Tested in Chrome on Docker MySQL: Class 6-A Morning went from 2026 to an inactive 2027, with 3 promoted to 7-A, 1 retained in 6-A, and 1 who left (status `left`, leaving date 2026-10-01, login deactivated). The rows were checked in the database, and the console showed no errors. Two cosmetic follow-ups: the page title reads "StudentPromotion", and the result screen lists target sections without their class.
 - [x] The full suite, Pint, `npm run build` and smoke all pass, and CLAUDE.md is updated.
 
 ## Test cases
