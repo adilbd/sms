@@ -22,6 +22,12 @@ return Application::configure(basePath: dirname(__DIR__))
             'role' => \Spatie\Permission\Middleware\RoleMiddleware::class,
             'permission' => \Spatie\Permission\Middleware\PermissionMiddleware::class,
         ]);
+
+        // The student/guardian portal: private headers plus the web-session role gate.
+        $middleware->group('portal', [
+            \App\Http\Middleware\PortalHeaders::class,
+            \App\Http\Middleware\PortalAuth::class,
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {
         // API errors are always JSON, even when the client omits `Accept: application/json`.

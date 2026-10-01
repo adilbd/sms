@@ -29,6 +29,21 @@ class AuthService
      */
     public function login(string $login, string $password, ?string $deviceName, string $ip): array
     {
+        $user = $this->authenticate($login, $password, $ip);
+
+        return [
+            'user' => $user,
+            'token' => $this->users->issueToken($user, $deviceName ?: 'auth-token'),
+        ];
+    }
+
+    /**
+     * Checks the credentials with the same lookup, throttles and inactive-account rule as
+     * login(), without issuing an API token. The portal's session login uses this, so a
+     * browser sign-in never leaves a stray Sanctum token behind.
+     */
+    public function authenticate(string $login, string $password, string $ip): User
+    {
         $ipKey = 'login-ip-fail:'.sha1($ip);
 
         // Counts failures only, so a school behind one public IP isn't throttled by its own
@@ -67,10 +82,7 @@ class AuthService
         RateLimiter::clear($key);
         LoginTrust::trust($user, $ip);
 
-        return [
-            'user' => $user,
-            'token' => $this->users->issueToken($user, $deviceName ?: 'auth-token'),
-        ];
+        return $user;
     }
 
     private function ensureNotLocked(string $key, int $max): void

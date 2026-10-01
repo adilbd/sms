@@ -227,4 +227,36 @@ class AuthServiceTest extends TestCase
 
         $this->assertTrue(Hash::check('secret-pass', $user->password));
     }
+
+    public function test_authenticate_checks_the_credentials_without_issuing_a_token(): void
+    {
+        $user = $this->user();
+
+        $this->mock(UserRepositoryInterface::class, function (MockInterface $mock) use ($user) {
+            $mock->shouldReceive('findForLogin')->once()->with('20260001')->andReturn($user);
+            $mock->shouldNotReceive('issueToken');
+        });
+
+        $this->assertSame($user, app(AuthService::class)->authenticate('20260001', 'secret-pass', '10.0.0.1'));
+    }
+
+    public function test_authenticate_refuses_a_wrong_password_and_an_inactive_account(): void
+    {
+        $user = $this->user();
+        $inactive = $this->user(false);
+
+        $this->mock(UserRepositoryInterface::class, function (MockInterface $mock) use ($user, $inactive) {
+            $mock->shouldReceive('findForLogin')->with('a')->andReturn($user);
+            $mock->shouldReceive('findForLogin')->with('b')->andReturn($inactive);
+        });
+
+        foreach ([['a', 'wrong'], ['b', 'secret-pass']] as [$login, $password]) {
+            try {
+                app(AuthService::class)->authenticate($login, $password, '10.0.0.2');
+                $this->fail('Expected a ValidationException');
+            } catch (ValidationException $e) {
+                $this->assertArrayHasKey('login', $e->errors());
+            }
+        }
+    }
 }

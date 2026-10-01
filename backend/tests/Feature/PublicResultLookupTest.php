@@ -477,7 +477,8 @@ class PublicResultLookupTest extends TestCase
         $this->seed(MenuSeeder::class);
         $this->seed(MenuSeeder::class);
 
-        $this->assertSame(2, MenuItem::where('location', 'header')->count());
+        // The results item and the portal item.
+        $this->assertSame(3, MenuItem::where('location', 'header')->count());
         $item = MenuItem::where('route_name', 'results.index')->sole();
         $this->assertSame(1, $item->sort_order);
         $this->get('/')->assertSee(route('results.index'), false);

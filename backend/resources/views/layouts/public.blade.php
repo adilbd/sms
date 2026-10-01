@@ -51,7 +51,8 @@
                     <li><a class="hover:text-primary-700" href="{{ route('admissions') }}">Admissions</a></li>
                     <li><a class="hover:text-primary-700" href="{{ route('news.index') }}">News</a></li>
                     <li><a class="hover:text-primary-700" href="{{ route('events.index') }}">Events</a></li>
-                    <li><a class="hover:text-primary-700" href="{{ url('/admin') }}" rel="nofollow">Staff &amp; parent login</a></li>
+                    <li><a class="hover:text-primary-700" href="{{ route('portal.login') }}" rel="nofollow">Student &amp; guardian portal</a></li>
+                    <li><a class="hover:text-primary-700" href="{{ url('/admin') }}" rel="nofollow">Staff login</a></li>
                 </ul>
             </div>
         </div>

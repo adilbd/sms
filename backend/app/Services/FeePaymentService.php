@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\FeeDue;
 use App\Models\FeePayment;
+use App\Models\Student;
 use App\Models\User;
 use App\Repositories\Contracts\FeeDueRepositoryInterface;
 use App\Repositories\Contracts\FeePaymentRepositoryInterface;
@@ -61,6 +62,19 @@ class FeePaymentService
 
     public function find(FeePayment $payment): FeePayment
     {
+        return $this->payments->loadReceipt($payment);
+    }
+
+    /**
+     * A student's own payment with its receipt data, for the portal. 404 for any other
+     * student's payment, whether or not it exists, so receipt ids can't be probed.
+     */
+    public function findForStudent(Student $student, int $paymentId): FeePayment
+    {
+        $payment = $this->payments->find($paymentId);
+
+        abort_if($payment === null || (int) $payment->student_id !== (int) $student->id, 404, 'Record not found.');
+
         return $this->payments->loadReceipt($payment);
     }
 

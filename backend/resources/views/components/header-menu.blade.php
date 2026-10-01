@@ -34,6 +34,28 @@
     ];
 
     $menu = $items !== [] ? $items : $defaultLinks;
+
+    // A signed-in student or guardian sees "আমার পোর্টাল" (their portal) in place of the
+    // login link, plus a logout button. The cached tree stays the same for everyone.
+    $portalUser = auth('web')->user();
+    $inPortal = $portalUser?->hasAnyRole(['student', 'parent']) ?? false;
+
+    if ($inPortal) {
+        $loginHref = route('portal.login');
+        $swap = function (array $nodes) use (&$swap, $loginHref) {
+            return array_map(function (array $node) use (&$swap, $loginHref) {
+                if (($node['href'] ?? null) === $loginHref) {
+                    $node['label'] = 'আমার পোর্টাল';
+                    $node['href'] = route('portal.dashboard');
+                }
+
+                $node['children'] = $swap($node['children'] ?? []);
+
+                return $node;
+            }, $nodes);
+        };
+        $menu = $swap($menu);
+    }
 @endphp
 
 <!-- Desktop navigation -->
@@ -133,6 +155,13 @@
     </ul>
 </nav>
 
+@if ($inPortal)
+    <form method="POST" action="{{ route('portal.logout') }}" class="hidden md:block">
+        @csrf
+        <button type="submit" class="px-3 py-2 text-sm font-medium text-gray-600 hover:text-primary-700">লগআউট</button>
+    </form>
+@endif
+
 <!-- Mobile navigation -->
 <details class="md:hidden relative">
     <summary class="list-none cursor-pointer select-none px-3 py-2 rounded hover:bg-gray-50 flex items-center gap-2">
@@ -184,6 +213,14 @@
                     @endif
                 </li>
             @endforeach
+            @if ($inPortal)
+                <li>
+                    <form method="POST" action="{{ route('portal.logout') }}">
+                        @csrf
+                        <button type="submit" class="block w-full px-3 py-2 rounded text-left text-sm font-medium text-gray-700 hover:bg-gray-50 hover:text-primary-700">লগআউট</button>
+                    </form>
+                </li>
+            @endif
         </ul>
     </nav>
 </details>
