@@ -20,6 +20,7 @@ class AuthController extends Controller
             $request->validated('login'),
             $request->validated('password'),
             $request->validated('device_name'),
+            (string) $request->ip(),
         );
 
         return response()->json([

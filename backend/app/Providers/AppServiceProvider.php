@@ -31,19 +31,14 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        // 5 sign-in attempts a minute per login identifier and IP, plus 20 a minute per IP
-        // overall. The identifier is normalized (case, +88 prefix), but a database may
-        // still treat other spellings (accents, scripts) as the same login, so the IP
-        // limit stops varying the identifier from dodging the first one, and
-        // AuthService::login() also counts failures per resolved user.
+        // 5 sign-in attempts a minute per login identifier and IP (one person retrying one
+        // login, so successes counting is fine). The per-IP and per-account failure limits
+        // live in AuthService::login(), which counts failed passwords only.
         RateLimiter::for('login', function (Request $request) {
             $login = $request->input('login', $request->input('email'));
             $login = is_string($login) ? Str::lower((string) Mobile::normalize($login)) : '';
 
-            return [
-                Limit::perMinute(5)->by($login.'|'.$request->ip()),
-                Limit::perMinute(20)->by('login-ip:'.$request->ip()),
-            ];
+            return Limit::perMinute(5)->by($login.'|'.$request->ip());
         });
 
         View::composer('layouts.public', HeaderMenuComposer::class);
