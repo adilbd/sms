@@ -37,6 +37,7 @@ class ExamResultFactory extends Factory
             'grade' => 'A',
             'is_pass' => true,
             'failed_count' => 0,
+            'passed_count' => 0,
             'class_position' => 1,
             'section_position' => 1,
             'subjects' => [],

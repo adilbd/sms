@@ -94,6 +94,7 @@
         <div><span>Grade</span><strong>{{ card.grade }}</strong></div>
         <div><span>Total marks</span><strong>{{ num(card.total_obtained) }} / {{ num(card.total_full) }}</strong></div>
         <div><span>Result</span><strong>{{ card.is_pass ? 'Passed' : 'Failed' }}</strong></div>
+        <div><span>Subjects passed</span><strong>{{ card.passed_count }}</strong></div>
         <div><span>Failed subjects</span><strong>{{ card.failed_count }}</strong></div>
         <div><span>Position in class</span><strong>{{ card.class_position }}</strong></div>
         <div><span>Position in section</span><strong>{{ card.section_position }}</strong></div>

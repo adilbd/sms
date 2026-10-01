@@ -119,13 +119,15 @@ class Gpa
      *
      * @param  list<array{grade: string, point: string, obtained: string, full: string}>  $compulsory
      * @param  array{grade: string, point: string, obtained: string, full: string}|null  $optional
-     * @return array{gpa: string, grade: string, is_pass: bool, failed_count: int, total_obtained: string, total_full: string}
+     * @return array{gpa: string, grade: string, is_pass: bool, failed_count: int, passed_count: int, total_obtained: string, total_full: string}
      */
     public static function result(array $compulsory, ?array $optional = null): array
     {
         $units = $optional === null ? $compulsory : [...$compulsory, $optional];
         $failedCount = count(array_filter($compulsory, fn (array $unit) => $unit['grade'] === self::FAIL_GRADE));
         $count = count($compulsory);
+        // Every graded unit that is not an F, the 4th subject included; a combined pair is one unit.
+        $passedCount = count(array_filter($units, fn (array $unit) => $unit['grade'] !== self::FAIL_GRADE));
 
         $gpa = 0;
 
@@ -146,6 +148,7 @@ class Gpa
             'grade' => $isPass ? self::gradeForGpa(self::decimal($gpa)) : self::FAIL_GRADE,
             'is_pass' => $isPass,
             'failed_count' => $failedCount,
+            'passed_count' => $passedCount,
             'total_obtained' => self::decimal(array_sum(array_map(fn (array $unit) => self::hundredths($unit['obtained']), $units))),
             'total_full' => self::decimal(array_sum(array_map(fn (array $unit) => self::hundredths($unit['full']), $units))),
         ];
@@ -173,18 +176,18 @@ class Gpa
     }
 
     /**
-     * Merit positions (standard competition ranking: 1, 2, 2, 4). Passed students come
-     * first, then the higher GPA, then the higher total; students equal on all three share
-     * a position. The input order (roll number, say) never affects a position.
+     * Merit positions (standard competition ranking: 1, 2, 2, 4). The higher GPA comes
+     * first (a failed student's GPA is 0.00, below every passed student's), then more passed
+     * subjects, then the higher total; students equal on all three share a position. The input order (roll number, say) never affects a position.
      *
-     * @param  list<array{key: int|string, is_pass: bool, gpa: string, total: string}>  $rows
+     * @param  list<array{key: int|string, gpa: string, passed_count: int, total: string}>  $rows
      * @return array<int|string, int> position by key
      */
     public static function positions(array $rows): array
     {
         $sortable = array_map(fn (array $row) => [
             'key' => $row['key'],
-            'tuple' => [$row['is_pass'] ? 1 : 0, self::hundredths($row['gpa']), self::hundredths($row['total'])],
+            'tuple' => [self::hundredths($row['gpa']), (int) $row['passed_count'], self::hundredths($row['total'])],
         ], $rows);
 
         usort($sortable, fn (array $a, array $b) => $b['tuple'] <=> $a['tuple']);

@@ -65,6 +65,7 @@ class ExamResultResource extends JsonResource
             'grade' => $this->grade,
             'is_pass' => $this->is_pass,
             'failed_count' => $this->failed_count,
+            'passed_count' => $this->passed_count,
             'class_position' => $this->class_position,
             'section_position' => $this->section_position,
             'subjects' => $this->when($this->withSubjects, fn () => $this->subjects),
