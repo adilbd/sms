@@ -259,7 +259,7 @@ class StaffLoginApiTest extends TestCase
         $this->app['auth']->forgetGuards();
 
         $this->actingAs($this->admin, 'sanctum')->putJson("/api/staff/{$staff->id}", ['login' => ['enabled' => false]])
-            ->assertOk()->assertJsonPath('data.login.is_active', false)->assertJsonPath('data.login.enabled', true);
+            ->assertOk()->assertJsonPath('data.login.is_active', false)->assertJsonPath('data.login.enabled', false);
 
         $this->assertFalse($user->fresh()->is_active);
         $this->assertSame(0, $user->tokens()->count());
@@ -299,6 +299,62 @@ class StaffLoginApiTest extends TestCase
 
         $this->assertTrue($user->fresh()->is_active);
         $this->postJson('/api/login', ['login' => 'VHBUB-12', 'password' => 'secret-pass'])->assertOk();
+    }
+
+    public function test_a_login_switched_off_stays_off_when_the_member_returns_to_active(): void
+    {
+        $staff = $this->staffWithLogin();
+        $user = User::findOrFail($staff->user_id);
+        $url = "/api/staff/{$staff->id}";
+
+        $this->actingAs($this->admin, 'sanctum')->putJson($url, ['login' => ['enabled' => false]])->assertOk();
+        $this->putJson($url, ['status' => 'retired', 'leaving_date' => '2026-06-30'])->assertOk();
+        $this->putJson($url, ['status' => 'active'])
+            ->assertOk()
+            ->assertJsonPath('data.login.enabled', false)
+            ->assertJsonPath('data.login.is_active', false);
+
+        $this->assertFalse($user->fresh()->is_active);
+        $this->postJson('/api/login', ['login' => 'VHBUB-12', 'password' => 'secret-pass'])->assertUnprocessable();
+    }
+
+    public function test_a_login_left_on_comes_back_when_the_member_returns_to_active(): void
+    {
+        $staff = $this->staffWithLogin();
+        $user = User::findOrFail($staff->user_id);
+        $url = "/api/staff/{$staff->id}";
+
+        $this->actingAs($this->admin, 'sanctum')->putJson($url, ['status' => 'retired', 'leaving_date' => '2026-06-30'])
+            ->assertOk()->assertJsonPath('data.login.enabled', true)->assertJsonPath('data.login.is_active', false);
+        $this->assertFalse($user->fresh()->is_active);
+
+        $this->putJson($url, ['status' => 'active'])->assertOk()->assertJsonPath('data.login.is_active', true);
+        $this->assertTrue($user->fresh()->is_active);
+    }
+
+    public function test_the_employee_id_cannot_look_like_a_mobile_number_or_an_email(): void
+    {
+        foreach (['01712345678', '+8801712345678', 'karim@school'] as $employeeId) {
+            $this->create($this->teacherLogin([], ['employee_id' => $employeeId]))
+                ->assertUnprocessable()->assertJsonValidationErrors(['employee_id']);
+        }
+
+        $this->assertSame(0, Staff::count());
+
+        // Without a login the same ID is fine.
+        $this->create($this->payload(['employee_id' => '01712345678']))->assertCreated();
+    }
+
+    public function test_the_employee_id_cannot_match_another_users_email_or_mobile_at_sign_in(): void
+    {
+        User::factory()->create(['email' => 'vhbub-12', 'username' => 'someone-else']);
+        $this->create($this->teacherLogin())->assertUnprocessable()->assertJsonValidationErrors(['employee_id']);
+
+        User::factory()->create(['email' => 'shared@example.com', 'username' => 'vhbub-20']);
+        $this->create($this->teacherLogin(['email' => 'vhbub-20'], ['employee_id' => 'VHBUB-21']))
+            ->assertUnprocessable()->assertJsonValidationErrors(['login.email']);
+
+        $this->assertSame(0, Staff::count());
     }
 
     public function test_deleting_the_staff_member_deactivates_the_login(): void

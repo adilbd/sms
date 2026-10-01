@@ -47,7 +47,7 @@ class StaffLoginSeeder extends Seeder
             ]);
             $user->assignRole($role);
 
-            $staff->update(['user_id' => $user->id]);
+            $staff->update(['user_id' => $user->id, 'login_enabled' => true]);
         }
     }
 }

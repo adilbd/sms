@@ -8,6 +8,7 @@ use App\Models\User;
 use App\Repositories\Contracts\ShiftRepositoryInterface;
 use App\Repositories\Contracts\StaffRepositoryInterface;
 use App\Repositories\Contracts\UserRepositoryInterface;
+use App\Support\Mobile;
 use App\Support\UniqueViolation;
 use App\Support\Username;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
@@ -121,9 +122,8 @@ class StaffService
         }
 
         try {
-            $previousStatus = $staff->status;
 
-            $staff = $this->withUniqueLogin(fn () => DB::transaction(function () use ($staff, $data, $shiftIds, $educations, $trainings, $merged, $oldPhotoPath, $newPhotoPath, $removePhoto, $login, $previousStatus) {
+            $staff = $this->withUniqueLogin(fn () => DB::transaction(function () use ($staff, $data, $shiftIds, $educations, $trainings, $merged, $oldPhotoPath, $newPhotoPath, $removePhoto, $login) {
                 // Read this staff member's current shifts (when none were sent).
                 // shiftIdsFor() takes a locking read of its own (see StaffRepository),
                 // but that alone wouldn't be enough: what actually guarantees
@@ -150,7 +150,7 @@ class StaffService
                     $this->staff->syncTrainings($staff, $trainings);
                 }
 
-                $staff = $this->syncLogin($staff, $login, $previousStatus);
+                $staff = $this->syncLogin($staff, $login);
 
                 // Deferred with afterCommit() so a rolled-back transaction never
                 // deletes a file whose row still points at it.
@@ -278,6 +278,8 @@ class StaffService
 
         if (is_array($login)) {
             $login['enabled'] = filter_var($login['enabled'] ?? false, FILTER_VALIDATE_BOOLEAN);
+            // The admin's switch is remembered on the staff row (staff.login_enabled).
+            $data['login_enabled'] = $login['enabled'];
         } else {
             $login = null;
         }
@@ -304,6 +306,17 @@ class StaffService
             ]);
         }
 
+        // The sign-in form also resolves a mobile number or an email, so a username shaped
+        // like either could match a different account than the one it belongs to.
+        if (($enabling || $requireEmployeeId) && (
+            str_contains((string) $staff->employee_id, '@')
+            || Mobile::isValid((string) Mobile::normalize($staff->employee_id))
+        )) {
+            throw ValidationException::withMessages([
+                'employee_id' => ['The employee ID is the login username, so it cannot contain "@" or look like a mobile number.'],
+            ]);
+        }
+
         if ($enabling && ($login['role'] ?? null) !== $this->roleFor($staff)) {
             $expected = $this->roleFor($staff);
 
@@ -320,7 +333,9 @@ class StaffService
 
     /**
      * Whether $user is a login created for staff (teacher/office roles, or none yet), as
-     * opposed to a student, guardian or admin account that must not be repurposed.
+     * opposed to a student, guardian or admin account that must not be repurposed. A
+     * role-less user counts as a staff login only because it is reachable solely through
+     * staff.user_id (an admin links it there), never by a name or username lookup.
      */
     private function isStaffLogin(User $user): bool
     {
@@ -340,12 +355,13 @@ class StaffService
      * ID, the role for the category, the optional email and password; disabling
      * deactivates it. Without a block, an existing login still follows the row: name,
      * username (employee ID), role (category) and whether the staff member is active.
-     * Deactivating revokes every token; moving from a former status back to active
-     * reactivates the login.
+     * The user is active only while `staff.login_enabled` (the admin's switch, set from
+     * the block's `enabled`) is on and the status is active; otherwise it is deactivated
+     * and every token revoked.
      *
      * @param  ?array{enabled: bool, role?: ?string, password?: ?string, email?: ?string}  $login
      */
-    private function syncLogin(Staff $staff, ?array $login, ?string $previousStatus): Staff
+    private function syncLogin(Staff $staff, ?array $login): Staff
     {
         $user = $staff->user_id ? $this->users->find($staff->user_id) : null;
         $enabling = $login !== null && $login['enabled'];
@@ -361,6 +377,7 @@ class StaffService
         }
 
         $active = $staff->status === Staff::STATUS_ACTIVE;
+        $allowed = $active && $staff->login_enabled;
         $password = $login['password'] ?? null;
 
         if ($login !== null && ! $login['enabled']) {
@@ -381,7 +398,9 @@ class StaffService
             $username = Username::normalize($staff->employee_id);
 
             if ($user === null || $user->username !== $username) {
-                $owner = $this->users->findByUsername($username);
+                // The same resolution the sign-in form uses, so the username can't also
+                // match another account's email or mobile number.
+                $owner = $this->users->findForLogin($username);
 
                 if ($owner !== null && $owner->id !== $user?->id) {
                     throw ValidationException::withMessages(['employee_id' => ['This employee ID is already used as another account\'s username.']]);
@@ -395,7 +414,7 @@ class StaffService
             $email = filled($login['email']) ? Username::normalize($login['email']) : null;
 
             if ($email !== null) {
-                $owner = $this->users->findByEmail($email);
+                $owner = $this->users->findForLogin($email);
 
                 if ($owner !== null && $owner->id !== $user?->id) {
                     throw ValidationException::withMessages(['login.email' => ['The email has already been taken.']]);
@@ -412,18 +431,15 @@ class StaffService
                 throw ValidationException::withMessages(['login.password' => ['A password is required to create the login.']]);
             }
 
-            $user = $this->users->createWithRole($attributes + ['password' => $password, 'is_active' => $active], $role);
+            $user = $this->users->createWithRole($attributes + ['password' => $password, 'is_active' => $allowed], $role);
 
             return $this->staff->update($staff, ['user_id' => $user->id]);
         }
 
-        // An existing login follows the staff member's status: off while they have left,
-        // switched back on when they return (or when an admin turns the login on).
-        if (! $active) {
-            $attributes['is_active'] = false;
-        } elseif ($enabling || $previousStatus !== Staff::STATUS_ACTIVE) {
-            $attributes['is_active'] = true;
-        }
+        // An existing login can sign in only while the admin has it switched on
+        // (staff.login_enabled) and the member is active, so returning to active never
+        // re-enables a login that was deliberately turned off.
+        $attributes['is_active'] = $allowed;
 
         if (filled($password)) {
             $attributes['password'] = $password;
@@ -435,7 +451,7 @@ class StaffService
             $this->users->syncRole($user, $role);
         }
 
-        if (filled($password) || ! $active) {
+        if (filled($password) || ! $allowed) {
             $this->users->revokeAllTokens($user);
         }
 

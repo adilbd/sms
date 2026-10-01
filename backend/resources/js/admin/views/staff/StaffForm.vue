@@ -484,7 +484,7 @@ const fetchStaff = async () => {
       shift_ids: (member.shifts || []).map((s) => s.id),
     })
     loginInfo.value = member.login
-    login.enabled = !!member.login?.enabled && !!member.login?.is_active
+    login.enabled = !!member.login?.enabled
     login.email = member.login?.email || ''
     sameAsPresent.value = !!member.present_address && member.present_address === member.permanent_address
     memberShifts.value = member.shifts || []
@@ -544,9 +544,9 @@ const save = async () => {
   }
 
   // Sent when the login is on (to apply the role, email or a new password) or when it was
-  // just turned off. Left out otherwise, so the API still follows the staff status (a
-  // member who returns to active gets their login back).
-  const hadLoginOn = !!loginInfo.value?.enabled && !!loginInfo.value?.is_active
+  // just turned off. The toggle mirrors staff.login_enabled, so a login that was switched
+  // off stays off when the member returns to active, and one that is on comes back.
+  const hadLoginOn = !!loginInfo.value?.enabled
   if (login.enabled || hadLoginOn) {
     payload.append('login[enabled]', login.enabled ? '1' : '0')
     if (login.enabled) {

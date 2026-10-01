@@ -383,9 +383,9 @@ class StaffServiceTest extends TestCase
 
         $this->mock(UserRepositoryInterface::class, function (MockInterface $mock) {
             // vhbub-12 belongs to somebody else; nobody owns vhbub-13.
-            $mock->shouldReceive('findByUsername')->with('vhbub-12')->andReturn($this->user(99));
-            $mock->shouldReceive('findByUsername')->with('vhbub-13')->andReturn(null);
-            $mock->shouldReceive('findByEmail')->with('taken@example.com')->andReturn($this->user(98));
+            $mock->shouldReceive('findForLogin')->with('vhbub-12')->andReturn($this->user(99));
+            $mock->shouldReceive('findForLogin')->with('vhbub-13')->andReturn(null);
+            $mock->shouldReceive('findForLogin')->with('taken@example.com')->andReturn($this->user(98));
             $mock->shouldNotReceive('createWithRole');
         });
 
@@ -406,15 +406,15 @@ class StaffServiceTest extends TestCase
         $user = $this->user(77);
 
         $this->mock(StaffRepositoryInterface::class, function (MockInterface $mock) {
-            $mock->shouldReceive('create')->once()->andReturn($this->savedStaff());
+            $mock->shouldReceive('create')->once()->andReturn($this->savedStaff(['login_enabled' => true]));
             $mock->shouldReceive('syncShifts');
             $mock->shouldReceive('syncEducations');
             $mock->shouldReceive('syncTrainings');
             $mock->shouldReceive('update')->once()->withArgs(fn ($staff, $data) => $data === ['user_id' => 77])->andReturn($this->savedStaff(['user_id' => 77]));
         });
         $this->mock(UserRepositoryInterface::class, function (MockInterface $mock) use ($user) {
-            $mock->shouldReceive('findByUsername')->with('vhbub-12')->andReturn(null);
-            $mock->shouldReceive('findByEmail')->with('karim@example.com')->andReturn(null);
+            $mock->shouldReceive('findForLogin')->with('vhbub-12')->andReturn(null);
+            $mock->shouldReceive('findForLogin')->with('karim@example.com')->andReturn(null);
             $mock->shouldReceive('createWithRole')->once()->withArgs(fn (array $attributes, string $role) => $role === 'teacher'
                 && $attributes['username'] === 'vhbub-12'
                 && $attributes['email'] === 'karim@example.com'
@@ -447,7 +447,7 @@ class StaffServiceTest extends TestCase
 
     public function test_update_to_a_former_status_deactivates_the_login_and_returning_reactivates_it(): void
     {
-        $staff = $this->savedStaff(['user_id' => 77]);
+        $staff = $this->savedStaff(['user_id' => 77, 'login_enabled' => true]);
         $user = $this->user(77);
         $captured = [];
 
@@ -463,7 +463,7 @@ class StaffServiceTest extends TestCase
         $this->mock(UserRepositoryInterface::class, function (MockInterface $mock) use ($user, &$captured) {
             $mock->shouldReceive('find')->with(77)->andReturn($user);
             $mock->shouldReceive('roleNames')->andReturn(['teacher']);
-            $mock->shouldReceive('findByUsername')->andReturn(null);
+            $mock->shouldReceive('findForLogin')->andReturn(null);
             $mock->shouldReceive('update')->andReturnUsing(function ($model, $attributes) use (&$captured) {
                 $captured[] = $attributes;
 
@@ -509,7 +509,7 @@ class StaffServiceTest extends TestCase
 
     public function test_update_changing_the_employee_id_changes_the_username_unless_taken(): void
     {
-        $staff = $this->savedStaff(['user_id' => 77]);
+        $staff = $this->savedStaff(['user_id' => 77, 'login_enabled' => true]);
         $user = $this->user(77);
         $captured = [];
 
@@ -525,8 +525,8 @@ class StaffServiceTest extends TestCase
         $this->mock(UserRepositoryInterface::class, function (MockInterface $mock) use ($user, &$captured) {
             $mock->shouldReceive('find')->with(77)->andReturn($user);
             $mock->shouldReceive('roleNames')->andReturn(['teacher']);
-            $mock->shouldReceive('findByUsername')->with('vhbub-99')->andReturn(null);
-            $mock->shouldReceive('findByUsername')->with('vhbub-55')->andReturn($this->user(11, ['username' => 'vhbub-55']));
+            $mock->shouldReceive('findForLogin')->with('vhbub-99')->andReturn(null);
+            $mock->shouldReceive('findForLogin')->with('vhbub-55')->andReturn($this->user(11, ['username' => 'vhbub-55']));
             $mock->shouldReceive('update')->andReturnUsing(function ($model, $attributes) use (&$captured) {
                 $captured[] = $attributes;
 
