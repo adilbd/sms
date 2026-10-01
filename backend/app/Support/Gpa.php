@@ -114,7 +114,7 @@ class Gpa
      * GPA = (sum of the compulsory points + max(0, 4th-subject point - 2)) / the number of
      * compulsory units, capped at 5.00 and rounded half-up to 2 decimals. Any failed
      * compulsory unit makes the GPA 0.00 and the grade F; a failed 4th subject never fails
-     * the student. The totals include the 4th subject. A student with no compulsory unit
+     * the student. passed_count and failed_count count compulsory units only. The totals include the 4th subject. A student with no compulsory unit
      * has nothing to pass and fails.
      *
      * @param  list<array{grade: string, point: string, obtained: string, full: string}>  $compulsory
@@ -126,8 +126,8 @@ class Gpa
         $units = $optional === null ? $compulsory : [...$compulsory, $optional];
         $failedCount = count(array_filter($compulsory, fn (array $unit) => $unit['grade'] === self::FAIL_GRADE));
         $count = count($compulsory);
-        // Every graded unit that is not an F, the 4th subject included; a combined pair is one unit.
-        $passedCount = count(array_filter($units, fn (array $unit) => $unit['grade'] !== self::FAIL_GRADE));
+        // Compulsory units that are not an F (a combined pair is one unit). The 4th subject is never counted, passed or failed.
+        $passedCount = $count - $failedCount;
 
         $gpa = 0;
 

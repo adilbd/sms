@@ -405,26 +405,46 @@ class GpaTest extends TestCase
         $this->assertSame([2 => 1, 1 => 2], $positions);
     }
 
-    public function test_a_failed_4th_subject_lowers_passed_count_but_not_the_gpa(): void
+    public function test_a_failed_4th_subject_changes_neither_passed_count_nor_the_gpa(): void
     {
         $compulsory = array_fill(0, 4, $this->graded('A', '4.00'));
 
         $passed4th = Gpa::result($compulsory, $this->graded('C', '2.00'));
         $failed4th = Gpa::result($compulsory, $this->graded('F', '0.00', '10.00'));
 
-        $this->assertSame(5, $passed4th['passed_count']);
+        $this->assertSame(4, $passed4th['passed_count']);
         $this->assertSame(4, $failed4th['passed_count']);
+        $this->assertSame(0, $failed4th['failed_count']);
         $this->assertSame($passed4th['gpa'], $failed4th['gpa']);
         $this->assertTrue($failed4th['is_pass']);
 
         $positions = Gpa::positions([
             ['key' => 1, 'gpa' => $failed4th['gpa'], 'passed_count' => $failed4th['passed_count'], 'total' => '400.00'],
-            ['key' => 2, 'gpa' => $passed4th['gpa'], 'passed_count' => $passed4th['passed_count'], 'total' => '400.00'],
+            ['key' => 2, 'gpa' => $passed4th['gpa'], 'passed_count' => $passed4th['passed_count'], 'total' => '410.00'],
         ]);
+        // Equal GPA and passed_count: the passed 4th subject's marks lift the total.
         $this->assertSame([2 => 1, 1 => 2], $positions);
     }
 
-    public function test_passed_count_counts_every_unit_that_is_not_an_f(): void
+    public function test_a_passed_4th_subject_above_2_00_gives_a_higher_gpa_and_rank(): void
+    {
+        $compulsory = array_fill(0, 4, $this->graded('A', '4.00'));
+        $bonus = Gpa::result($compulsory, $this->graded('A+', '5.00'));
+        $failed = Gpa::result($compulsory, $this->graded('F', '0.00', '10.00'));
+
+        $this->assertSame($failed['passed_count'], $bonus['passed_count']);
+        $this->assertSame('4.75', $bonus['gpa']);
+        $this->assertSame('4.00', $failed['gpa']);
+        $this->assertSame(
+            [2 => 1, 1 => 2],
+            Gpa::positions([
+                ['key' => 1, 'gpa' => $failed['gpa'], 'passed_count' => $failed['passed_count'], 'total' => '500.00'],
+                ['key' => 2, 'gpa' => $bonus['gpa'], 'passed_count' => $bonus['passed_count'], 'total' => '400.00'],
+            ])
+        );
+    }
+
+    public function test_passed_count_counts_every_compulsory_unit_that_is_not_an_f(): void
     {
         $result = Gpa::result([$this->graded('A', '4.00'), $this->graded('F', '0.00', '10.00'), $this->graded('D', '1.00')]);
 

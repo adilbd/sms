@@ -190,7 +190,7 @@ class ExamResultApiTest extends TestCase
             ->assertJsonPath('data.grade', 'A')
             ->assertJsonPath('data.is_pass', true)
             ->assertJsonPath('data.failed_count', 0)
-            ->assertJsonPath('data.passed_count', 3)
+            ->assertJsonPath('data.passed_count', 2)
             ->assertJsonPath('data.total_obtained', '286.00')
             ->assertJsonPath('data.total_full', '400.00')
             ->assertJsonPath('data.class_position', 2)
