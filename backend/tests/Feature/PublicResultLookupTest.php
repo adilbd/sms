@@ -161,7 +161,7 @@ class PublicResultLookupTest extends TestCase
         }
 
         $this->assertCount(1, array_unique($bodies), 'Misses differ: '.json_encode(array_keys($bodies)));
-        $this->assertStringContainsString('No result found', reset($bodies));
+        $this->assertStringContainsString('কোনো ফলাফল পাওয়া যায়নি', json_decode(reset($bodies), true)['message']);
     }
 
     public function test_api_validation(): void
@@ -221,20 +221,56 @@ class PublicResultLookupTest extends TestCase
         $this->withServerVariables(['REMOTE_ADDR' => '10.9.9.9'])->postJson('/api/public/results', $this->byId())->assertOk();
     }
 
-    public function test_thirty_failed_lookups_an_hour_lock_the_ip_but_not_another(): void
+    public function test_sixty_failed_lookups_an_hour_lock_the_ip_but_not_another(): void
     {
         $key = \App\Services\ResultService::publicFailureKey('127.0.0.1');
-        for ($i = 0; $i < 29; $i++) {
+        for ($i = 0; $i < 59; $i++) {
             RateLimiter::hit($key, 3600);
         }
 
-        // The 30th failure is still answered as "not found"; the next lookup is locked out,
+        // The 60th failure is still answered as "not found"; the next lookup is locked out,
         // even with the right details.
         $this->postJson('/api/public/results', $this->byId(['student_id' => '99999999']))->assertNotFound();
         $this->postJson('/api/public/results', $this->byId())->assertStatus(429)->assertHeader('Retry-After');
         $this->post('/results', $this->byId())->assertStatus(429)->assertHeader('Retry-After');
 
         $this->withServerVariables(['REMOTE_ADDR' => '10.9.9.9'])->postJson('/api/public/results', $this->byId())->assertOk();
+    }
+
+    public function test_the_year_is_shown_once_in_the_marksheet_and_the_lookup_page(): void
+    {
+        $this->exam->update(['name_bn' => 'অর্ধবার্ষিক পরীক্ষা ২০২৬', 'name_en' => 'Half Yearly 2026']);
+
+        $sheet = $this->post('/results', $this->byId())->assertOk()->getContent();
+        $this->assertSame(1, substr_count($sheet, '২০২৬ –'));
+        $this->assertStringNotContainsString('২০২৬ ২০২৬', $sheet);
+
+        $page = $this->get('/results')->getContent();
+        $this->assertStringContainsString('>অর্ধবার্ষিক পরীক্ষা ২০২৬</option>', $page);
+
+        $this->exam->update(['name_bn' => 'অর্ধবার্ষিক পরীক্ষা']);
+        $this->assertStringContainsString('অর্ধবার্ষিক পরীক্ষা ২০২৬ –', $this->post('/results', $this->byId())->getContent());
+        $this->assertStringContainsString('>অর্ধবার্ষিক পরীক্ষা 2026</option>', $this->get('/results')->getContent());
+    }
+
+    public function test_the_date_of_birth_is_not_flashed_to_the_session_or_the_redirected_form(): void
+    {
+        $this->post('/results', $this->byId(['date_of_birth' => '2011-01-01']))->assertRedirect('/results');
+        $this->assertNull(session()->getOldInput('date_of_birth'));
+        $this->assertSame('20260047', session()->getOldInput('student_id'));
+
+        $this->followingRedirects()->post('/results', $this->byId(['date_of_birth' => '2011-01-01']))
+            ->assertDontSee('2011-01-01');
+    }
+
+    public function test_forwarded_for_is_ignored_when_no_proxy_is_trusted(): void
+    {
+        $key = \App\Services\ResultService::publicFailureKey('127.0.0.1');
+
+        $this->withHeader('X-Forwarded-For', '203.0.113.9')->postJson('/api/public/results', $this->byId(['student_id' => '99999999']))->assertNotFound();
+
+        $this->assertSame(1, RateLimiter::attempts($key));
+        $this->assertSame(0, RateLimiter::attempts(\App\Services\ResultService::publicFailureKey('203.0.113.9')));
     }
 
     public function test_successful_lookups_do_not_count_as_failures(): void
@@ -315,10 +351,11 @@ class PublicResultLookupTest extends TestCase
         }
 
         $this->assertCount(1, array_unique($messages));
-        $this->assertStringContainsString('No result found', reset($messages));
+        $this->assertStringContainsString('কোনো ফলাফল পাওয়া যায়নি', reset($messages));
 
         $this->followingRedirects()->post('/results', $this->byId(['date_of_birth' => '2011-01-01']))
-            ->assertOk()->assertSee('No result found');
+            ->assertOk()->assertSee('কোনো ফলাফল পাওয়া যায়নি')->assertSee('No result found')
+            ->assertDontSee('2011-01-01');
     }
 
     public function test_web_validation_redirects_back_with_errors_and_old_input(): void

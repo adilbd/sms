@@ -6,6 +6,7 @@
 @php
     use App\Support\AcademicGroup;
     use App\Support\BanglaNumber;
+    use App\Support\ExamTitle;
 
     $bn = $language === 'bn';
     $t = fn (string $bangla, string $english) => $bn ? $bangla : $english;
@@ -44,7 +45,7 @@
     </header>
 
     <h3 class="my-3 border-y border-gray-900 py-1 text-center text-[15px] font-bold">
-        {{ $pick($exam->name_bn, $exam->name_en) }} {{ $d($exam->academicYear->year) }} – {{ $t('একাডেমিক ট্রান্সক্রিপ্ট', 'Academic transcript') }}
+        {{ ExamTitle::withYear($pick($exam->name_bn, $exam->name_en), $exam->academicYear->year, $bn) }} – {{ $t('একাডেমিক ট্রান্সক্রিপ্ট', 'Academic transcript') }}
     </h3>
 
     <dl class="grid grid-cols-2 gap-x-4 gap-y-1.5 sm:grid-cols-4">

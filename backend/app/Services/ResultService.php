@@ -35,7 +35,7 @@ use Illuminate\Validation\ValidationException;
 class ResultService
 {
     /** Failed public lookups an hour per IP. Successful ones never count. */
-    public const MAX_PUBLIC_FAILURES = 30;
+    public const MAX_PUBLIC_FAILURES = 60;
 
     public function __construct(
         private ExamRepositoryInterface $exams,
@@ -197,7 +197,7 @@ class ResultService
 
         if (RateLimiter::tooManyAttempts($key, self::MAX_PUBLIC_FAILURES)) {
             throw new ThrottleRequestsException(
-                'Too many lookups. Please try again later.',
+                'অনেকবার অনুসন্ধান করা হয়েছে। কিছুক্ষণ পরে আবার চেষ্টা করুন। (Too many lookups. Please try again later.)',
                 null,
                 ['Retry-After' => (string) RateLimiter::availableIn($key)],
             );
@@ -245,11 +245,11 @@ class ResultService
         $hasGroups = $section->class->hasGroups();
 
         if ($hasGroups && $group === null) {
-            throw ValidationException::withMessages(['group' => ['Choose a group for this class.']]);
+            throw ValidationException::withMessages(['group' => ['এই শ্রেণির জন্য একটি গ্রুপ বেছে নিন। (Choose a group for this class.)']]);
         }
 
         if (! $hasGroups && $group !== null) {
-            throw ValidationException::withMessages(['group' => ['This class has no groups.']]);
+            throw ValidationException::withMessages(['group' => ['এই শ্রেণিতে কোনো গ্রুপ নেই। (This class has no groups.)']]);
         }
 
         return ['section_id' => $section->id, 'group' => $group, 'roll_number' => (int) $input['roll']];

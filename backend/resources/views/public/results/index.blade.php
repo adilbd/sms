@@ -66,7 +66,7 @@
                         <option value="">পরীক্ষা বেছে নিন (Select an exam)</option>
                         @foreach ($yearGroups as $year => $group)
                             @foreach ($group as $exam)
-                                <option value="{{ $exam->id }}" data-year="{{ $year }}" @selected((string) $currentExam === (string) $exam->id)>{{ $examLabel($exam) }} – {{ $year }}</option>
+                                <option value="{{ $exam->id }}" data-year="{{ $year }}" @selected((string) $currentExam === (string) $exam->id)>{{ \App\Support\ExamTitle::withYear($examLabel($exam), $year) }}</option>
                             @endforeach
                         @endforeach
                     </select>

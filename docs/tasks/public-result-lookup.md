@@ -34,7 +34,7 @@ Combined or Grand Final results built from several exams are out of scope. Each 
    - Only published exams are listed or matched.
    - Returns the same breakdown as `ResultService::breakdown()`.
 2. **Throttle.**
-   - A named `result-lookup` limiter: 10 lookups a minute per IP, plus 30 failed lookups an hour per IP. Every 429 includes `Retry-After`.
+   - A named `result-lookup` limiter: 10 lookups a minute per IP, plus 60 failed lookups an hour per IP. Every 429 includes `Retry-After`.
    - Failed lookups are counted in the service, like `AuthService` counts failed logins.
    - Applied to both the website POST and the API.
 3. **Public website** (Blade; `Web\ResultController`; Bangla-first copy). It must follow the SEO rules in CLAUDE.md:
@@ -119,7 +119,7 @@ Combined or Grand Final results built from several exams are out of scope. Each 
   - The DOB never appears in a URL. The marksheet response has `no-store` and `noindex`.
 - [x] **Throttle.**
   - The 11th lookup in a minute from one IP gets 429 with `Retry-After`.
-  - 30 failed lookups in an hour from one IP lock that IP out, and another IP still works.
+  - 60 failed lookups in an hour from one IP lock that IP out, and another IP still works.
   - Successful lookups don't count toward the failure limit.
 - [x] **Validation.**
   - Neither the student ID nor the roll fields are given → 422 (API), or a redirect back with errors (web).

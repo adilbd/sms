@@ -48,7 +48,7 @@
       </header>
 
       <h3 class="rc-title">
-        {{ pick(exam?.name_bn, exam?.name_en) }} {{ d(exam?.academic_year?.year) }}
+        {{ examTitle(pick(exam?.name_bn, exam?.name_en), exam?.academic_year?.year, bn) }}
         – {{ t('একাডেমিক ট্রান্সক্রিপ্ট', 'Progress Report') }}
       </h3>
 
@@ -139,6 +139,7 @@ import { useRoute } from 'vue-router'
 import api from '@/services/api'
 import { GROUP_LABELS } from '@/constants/academic'
 import { banglaNumber } from '@/utils/banglaNumber'
+import { examTitle } from '@/utils/examTitle'
 import { MARK_PARTS } from '@/constants/exams'
 
 const route = useRoute()
