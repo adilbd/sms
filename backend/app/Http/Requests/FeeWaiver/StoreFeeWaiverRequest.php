@@ -20,8 +20,8 @@ class StoreFeeWaiverRequest extends FormRequest
             'academic_year_id' => ['required', 'integer', Rule::exists('academic_years', 'id')->whereNull('deleted_at')],
             'fee_head_id' => ['required', 'integer', Rule::exists('fee_heads', 'id')->whereNull('deleted_at')],
             // Exactly one of the two is required; FeeWaiverService checks it.
-            'percent' => 'nullable|numeric|decimal:0,2|min:0|max:100',
-            'fixed_amount' => 'nullable|numeric|decimal:0,2|min:0|max:99999999.99',
+            'percent' => 'nullable|numeric|decimal:0,2|regex:/^\d+(\.\d{1,2})?$/|min:0|max:100',
+            'fixed_amount' => 'nullable|numeric|decimal:0,2|regex:/^\d+(\.\d{1,2})?$/|min:0|max:99999999.99',
             'reason' => 'nullable|string|max:255',
         ];
     }

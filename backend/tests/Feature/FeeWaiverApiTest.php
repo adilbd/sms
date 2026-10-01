@@ -72,6 +72,14 @@ class FeeWaiverApiTest extends TestCase
         $this->as($this->admin)->postJson('/api/fee-waivers', $this->payload(['percent' => 100]))->assertCreated();
     }
 
+    public function test_malformed_money_and_percent_are_422_not_500(): void
+    {
+        foreach (['+5', '.5', '5.', '1e2'] as $bad) {
+            $this->as($this->admin)->postJson('/api/fee-waivers', $this->payload(['percent' => $bad]))->assertUnprocessable()->assertJsonValidationErrors(['percent']);
+            $this->as($this->admin)->postJson('/api/fee-waivers', $this->payload(['percent' => null, 'fixed_amount' => $bad]))->assertUnprocessable()->assertJsonValidationErrors(['fixed_amount']);
+        }
+    }
+
     public function test_the_other_fields_are_validated(): void
     {
         $this->as($this->admin)->postJson('/api/fee-waivers', [])->assertUnprocessable()->assertJsonValidationErrors(['student_id', 'academic_year_id', 'fee_head_id']);

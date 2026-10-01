@@ -47,6 +47,11 @@ class FeeHead extends Model
         return $this->hasMany(FeeRate::class);
     }
 
+    public function waivers(): HasMany
+    {
+        return $this->hasMany(StudentFeeWaiver::class);
+    }
+
     public function dues(): HasMany
     {
         return $this->hasMany(FeeDue::class);

@@ -71,6 +71,19 @@ class FeeCatalogServicesTest extends TestCase
         $this->assertConflict(fn () => app(FeeHeadService::class)->delete($head));
     }
 
+    public function test_a_head_with_waivers_cannot_be_deleted(): void
+    {
+        $head = new FeeHead;
+
+        $this->mock(FeeHeadRepositoryInterface::class, function (MockInterface $m) {
+            $m->shouldReceive('hasRates')->once()->andReturn(false);
+            $m->shouldReceive('hasDues')->once()->andReturn(false);
+            $m->shouldReceive('hasWaivers')->once()->andReturn(true);
+            $m->shouldNotReceive('delete');
+        });
+        $this->assertConflict(fn () => app(FeeHeadService::class)->delete($head));
+    }
+
     public function test_an_unused_head_is_deleted(): void
     {
         $head = new FeeHead;
@@ -78,6 +91,7 @@ class FeeCatalogServicesTest extends TestCase
         $this->mock(FeeHeadRepositoryInterface::class, function (MockInterface $m) use ($head) {
             $m->shouldReceive('hasRates')->andReturn(false);
             $m->shouldReceive('hasDues')->andReturn(false);
+            $m->shouldReceive('hasWaivers')->andReturn(false);
             $m->shouldReceive('delete')->once()->with($head);
         });
 

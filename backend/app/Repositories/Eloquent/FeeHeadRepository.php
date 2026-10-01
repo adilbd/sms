@@ -21,6 +21,11 @@ class FeeHeadRepository extends EloquentRepository implements FeeHeadRepositoryI
         return $head->dues()->exists();
     }
 
+    public function hasWaivers(FeeHead $head): bool
+    {
+        return $head->waivers()->exists();
+    }
+
     public function active(): Collection
     {
         return FeeHead::query()->where('is_active', true)->orderBy('id')->get();

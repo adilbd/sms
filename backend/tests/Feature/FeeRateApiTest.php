@@ -32,6 +32,13 @@ class FeeRateApiTest extends TestCase
         ];
     }
 
+    public function test_malformed_rate_amounts_are_422_not_500(): void
+    {
+        foreach (['+5', '.5', '5.'] as $bad) {
+            $this->as($this->admin)->postJson('/api/fee-rates', $this->payload(['amount' => $bad]))->assertUnprocessable()->assertJsonValidationErrors(['amount']);
+        }
+    }
+
     public function test_an_admin_creates_a_rate_for_the_whole_class(): void
     {
         $this->as($this->admin)->postJson('/api/fee-rates', $this->payload(['due_day' => 5]))

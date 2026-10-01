@@ -11,6 +11,8 @@ interface FeeHeadRepositoryInterface extends RepositoryInterface
 
     public function hasDues(FeeHead $head): bool;
 
+    public function hasWaivers(FeeHead $head): bool;
+
     /**
      * Every active head, for generating dues.
      */

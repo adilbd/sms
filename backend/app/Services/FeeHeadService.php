@@ -58,6 +58,7 @@ class FeeHeadService
         // Foreign keys don't protect a soft-deleted head, so check the references here.
         abort_if($this->heads->hasRates($head), 409, 'Fee head has rates and cannot be deleted.');
         abort_if($this->heads->hasDues($head), 409, 'Fee head has dues and cannot be deleted.');
+        abort_if($this->heads->hasWaivers($head), 409, 'Fee head has waivers and cannot be deleted.');
 
         $this->heads->delete($head);
     }

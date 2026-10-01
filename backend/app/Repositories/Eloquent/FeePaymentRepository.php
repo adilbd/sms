@@ -27,10 +27,20 @@ class FeePaymentRepository extends EloquentRepository implements FeePaymentRepos
 
     public function nextReceiptNumber(int $year): int
     {
-        // The row has to exist before it can be locked; a concurrent insert is ignored.
-        DB::table('fee_receipt_counters')->insertOrIgnore(['year' => $year, 'last_number' => 0]);
+        // Lock the row first. INSERT IGNORE on an existing row takes a shared lock on MySQL,
+        // and two payments doing that and then SELECT ... FOR UPDATE would deadlock. Only
+        // when the row is missing (first receipt of the year) is it inserted, and then
+        // locked again; a concurrent insert is ignored.
+        $counter = fn () => DB::table('fee_receipt_counters')->where('year', $year)->lockForUpdate()->value('last_number');
 
-        $last = (int) DB::table('fee_receipt_counters')->where('year', $year)->lockForUpdate()->value('last_number');
+        $last = $counter();
+
+        if ($last === null) {
+            DB::table('fee_receipt_counters')->insertOrIgnore(['year' => $year, 'last_number' => 0]);
+            $last = $counter();
+        }
+
+        $last = (int) $last;
         $next = $last + 1;
 
         DB::table('fee_receipt_counters')->where('year', $year)->update(['last_number' => $next]);

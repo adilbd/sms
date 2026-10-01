@@ -128,6 +128,8 @@ return new class extends Migration
 
     public function down(): void
     {
+        $this->restoreViewFeesForStudentsAndGuardians();
+
         Schema::dropIfExists('fee_receipt_counters');
         Schema::dropIfExists('fee_payment_allocations');
         Schema::dropIfExists('fee_payments');
@@ -193,6 +195,19 @@ return new class extends Migration
                 ->where('permission_id', $permissionId)
                 ->whereIn('role_id', $roleIds)
                 ->delete();
+        }
+
+        app(\Spatie\Permission\PermissionRegistrar::class)->forgetCachedPermissions();
+    }
+
+    private function restoreViewFeesForStudentsAndGuardians(): void
+    {
+        $permissionId = DB::table('permissions')->where('name', 'view-fees')->value('id');
+
+        if ($permissionId) {
+            foreach (DB::table('roles')->whereIn('name', ['student', 'parent'])->pluck('id') as $roleId) {
+                DB::table('role_has_permissions')->insertOrIgnore(['permission_id' => $permissionId, 'role_id' => $roleId]);
+            }
         }
 
         app(\Spatie\Permission\PermissionRegistrar::class)->forgetCachedPermissions();

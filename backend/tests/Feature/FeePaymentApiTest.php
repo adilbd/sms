@@ -173,6 +173,50 @@ class FeePaymentApiTest extends TestCase
         $this->pay($this->enrolment, '100.00', 'cash', ['due_ids' => [1, 1]])->assertUnprocessable()->assertJsonValidationErrors(['due_ids.0']);
     }
 
+    public function test_malformed_payment_amounts_are_422_not_500(): void
+    {
+        $this->twoDues();
+
+        foreach (['+5', '.5', '5.', '1e2'] as $bad) {
+            $this->pay($this->enrolment, $bad)->assertUnprocessable()->assertJsonValidationErrors(['amount']);
+        }
+    }
+
+    public function test_an_offset_less_paid_at_is_asia_dhaka_time(): void
+    {
+        $this->twoDues();
+
+        $this->as($this->admin)->postJson('/api/fee-payments', [
+            'student_id' => $this->enrolment->student_id, 'amount' => '100.00', 'method' => 'cash', 'paid_at' => '2026-10-01 10:00:00',
+        ])->assertCreated()->assertJsonPath('data.paid_at', '2026-10-01T04:00:00+00:00');
+    }
+
+    public function test_the_first_payment_of_a_year_creates_the_counter_row_and_later_ones_reuse_it(): void
+    {
+        $this->twoDues();
+        $this->assertDatabaseMissing('fee_receipt_counters', ['year' => 2026]);
+
+        $this->pay($this->enrolment, '100.00')->assertCreated()->assertJsonPath('data.receipt_no', '2026-000001');
+        $this->assertDatabaseHas('fee_receipt_counters', ['year' => 2026, 'last_number' => 1]);
+
+        $this->pay($this->enrolment, '100.00')->assertCreated()->assertJsonPath('data.receipt_no', '2026-000002');
+        $this->assertDatabaseHas('fee_receipt_counters', ['year' => 2026, 'last_number' => 2]);
+    }
+
+    public function test_an_existing_counter_row_is_locked_before_any_insert_is_attempted(): void
+    {
+        DB::table('fee_receipt_counters')->insert(['year' => 2026, 'last_number' => 7]);
+
+        DB::enableQueryLog();
+        $number = app(\App\Repositories\Contracts\FeePaymentRepositoryInterface::class)->nextReceiptNumber(2026);
+        $queries = collect(DB::getQueryLog())->pluck('query');
+        DB::disableQueryLog();
+
+        $this->assertSame(8, $number);
+        $this->assertStringStartsWith('select', $queries->first());
+        $this->assertTrue($queries->doesntContain(fn (string $q) => str_starts_with($q, 'insert')), 'No insert may run when the row exists.');
+    }
+
     public function test_only_an_admin_can_backdate_a_payment(): void
     {
         $this->twoDues();

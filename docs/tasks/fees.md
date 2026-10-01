@@ -13,7 +13,7 @@ Fees are still stubs:
 
 The intended outcome, using Bangladeshi Taka (BDT, ৳) stored and sent as `decimal:2`:
 - Admins define fee heads and the rate for each class and year.
-- Admins give individual students waivers.
+- Admins and office staff (via `create-fees`) give individual students waivers.
 - Admins generate monthly (Jan–Dec), one-time and per-exam dues for enrolled students.
 - Office staff take cash or bKash/Nagad/Rocket payments (transaction ID entered by hand), including part payments.
 - Each payment gets a printable receipt.

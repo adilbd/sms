@@ -234,7 +234,8 @@ class FeePaymentService
             throw ValidationException::withMessages(['paid_at' => ['Only an admin can set the payment time.']]);
         }
 
-        return Carbon::parse($paidAt)->utc();
+        // An offset-less time is Asia/Dhaka wall-clock time (the school's local time).
+        return Carbon::parse($paidAt, 'Asia/Dhaka')->utc();
     }
 
     private function duplicateTransaction(): ValidationException

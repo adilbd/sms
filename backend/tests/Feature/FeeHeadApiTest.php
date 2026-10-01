@@ -115,6 +115,16 @@ class FeeHeadApiTest extends TestCase
         $this->assertSoftDeleted('fee_heads', ['id' => $unused->id]);
     }
 
+    public function test_a_head_with_only_waivers_cannot_be_deleted(): void
+    {
+        $enrolment = $this->enrolStudents(1)[0];
+        $head = FeeHead::factory()->create();
+        $this->waive($enrolment, $head, '50');
+
+        $this->as($this->admin)->deleteJson("/api/fee-heads/{$head->id}")->assertStatus(409);
+        $this->assertDatabaseHas('fee_heads', ['id' => $head->id, 'deleted_at' => null]);
+    }
+
     public function test_a_deleted_heads_code_stays_taken(): void
     {
         $unused = FeeHead::factory()->create(['code' => 'GONE']);

@@ -23,7 +23,7 @@ class StoreFeeRateRequest extends FormRequest
             // Whether a group is allowed for this class (Class 9+) is a domain rule checked
             // in FeeRateService, not here.
             'group' => ['nullable', 'string', Rule::in(AcademicGroup::VALUES)],
-            'amount' => 'required|numeric|decimal:0,2|min:0|max:99999999.99',
+            'amount' => 'required|numeric|decimal:0,2|regex:/^\d+(\.\d{1,2})?$/|min:0|max:99999999.99',
             'due_day' => 'nullable|integer|min:1|max:28',
         ];
     }

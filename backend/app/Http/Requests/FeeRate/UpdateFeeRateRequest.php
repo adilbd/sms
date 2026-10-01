@@ -22,7 +22,7 @@ class UpdateFeeRateRequest extends FormRequest
             'class_id' => 'prohibited',
             'academic_year_id' => 'prohibited',
             'group' => ['sometimes', 'nullable', 'string', Rule::in(AcademicGroup::VALUES)],
-            'amount' => 'sometimes|numeric|decimal:0,2|min:0|max:99999999.99',
+            'amount' => 'sometimes|numeric|decimal:0,2|regex:/^\d+(\.\d{1,2})?$/|min:0|max:99999999.99',
             'due_day' => 'sometimes|nullable|integer|min:1|max:28',
         ];
     }
