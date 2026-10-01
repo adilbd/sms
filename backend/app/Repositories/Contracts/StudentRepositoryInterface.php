@@ -50,5 +50,8 @@ interface StudentRepositoryInterface extends RepositoryInterface
 
     public function hasExamResults(Student $student): bool;
 
-    public function hasFeePayments(Student $student): bool;
+    /**
+     * Whether the student has fee dues or fee payments (cancelled ones too).
+     */
+    public function hasFeeDuesOrPayments(Student $student): bool;
 }

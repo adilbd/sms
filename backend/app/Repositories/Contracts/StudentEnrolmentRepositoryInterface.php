@@ -44,6 +44,14 @@ interface StudentEnrolmentRepositoryInterface
     public function update(StudentEnrolment $enrolment, array $attributes): StudentEnrolment;
 
     /**
+     * The active enrolments of the year (of students who are not deleted), optionally only
+     * in a class, a section or a set of classes, oldest first. Used to generate fee dues.
+     *
+     * @param  list<int>|null  $classIds  null means every class
+     */
+    public function activeInYear(int $academicYearId, ?int $classId, ?int $sectionId, ?array $classIds): Collection;
+
+    /**
      * Every enrolment of the student, newest year first, with its year, class, section
      * and 4th subject.
      */

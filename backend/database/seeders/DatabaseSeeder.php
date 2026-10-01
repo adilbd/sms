@@ -30,6 +30,7 @@ class DatabaseSeeder extends Seeder
             StudentSeeder::class,
             AttendanceSeeder::class,
             ExamSeeder::class,
+            FeeSeeder::class,
             MenuSeeder::class,
         ]);
     }

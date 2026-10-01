@@ -50,6 +50,35 @@
             </div>
           </div>
 
+          <!-- Fees group: Collect, Dues, Reports and (admin) Heads, Rates, Generate -->
+          <div v-if="feeItems.length">
+            <button
+              type="button"
+              class="flex w-full items-center justify-between px-6 py-3 text-gray-700 hover:bg-primary-50 hover:text-primary-600 transition-colors"
+              :class="{ 'text-primary-600': isFeesActive }"
+              @click="feesOpen = !feesOpen"
+              :aria-expanded="feesOpen"
+            >
+              <span class="flex items-center">
+                <span class="text-lg mr-3">💰</span>
+                <span class="font-medium">Fees</span>
+              </span>
+              <span class="text-xs transition-transform duration-150" :class="{ 'rotate-90': feesOpen }">▶</span>
+            </button>
+            <div v-show="feesOpen">
+              <router-link
+                v-for="child in feeItems"
+                :key="child.name"
+                :to="child.path"
+                class="flex items-center pl-14 pr-6 py-2 text-sm text-gray-600 hover:bg-primary-50 hover:text-primary-600 transition-colors"
+                :class="{ 'bg-primary-50 text-primary-600 border-r-4 border-primary-600': isChildActive(child) }"
+              >
+                <span class="mr-2">{{ child.icon }}</span>
+                <span>{{ child.name }}</span>
+              </router-link>
+            </div>
+          </div>
+
           <!-- CMS group: News, Events and Pages -->
           <div v-if="cmsItems.length">
             <button
@@ -166,7 +195,6 @@ const menuItems = computed(() => visible([
   { name: 'Attendance', path: '/attendance', icon: '📋', access: { permission: 'view-attendance' }, when: () => !teacherOnly.value || leadsSection.value },
   // A teacher's only exam page is mark entry.
   { name: teacherOnly.value ? 'Mark entry' : 'Exams', path: '/exams', icon: '📝', access: { permission: 'view-exams' } },
-  { name: 'Fees', path: '/fees', icon: '💰', access: { permission: 'view-fees' } },
 ]))
 
 const cmsItems = computed(() => visible([
@@ -189,13 +217,26 @@ const academicItems = computed(() => visible([
   { name: 'Holidays', path: '/holidays', icon: '🎉', access: { permission: 'edit-settings' } },
 ]))
 
+// Office staff collect fees and read dues and reports; the admin also manages heads, rates
+// and the dues generation (those need edit-fees, which only the admin role holds).
+const feeItems = computed(() => visible([
+  { name: 'Collect', path: '/fees/collect', icon: '💵', access: { permission: 'collect-fees' } },
+  { name: 'Dues', path: '/fees/dues', icon: '🧾', access: { permission: 'view-fees' } },
+  { name: 'Reports', path: '/fees/reports', icon: '📈', access: { permission: 'view-fees' } },
+  { name: 'Heads', path: '/fees/heads', icon: '🏷️', access: { permission: 'edit-fees' } },
+  { name: 'Rates', path: '/fees/rates', icon: '💲', access: { permission: 'edit-fees' } },
+  { name: 'Generate', path: '/fees/generate', icon: '⚙️', access: { permission: 'edit-fees' } },
+]))
+
 const isChildActive = (child) => route.path === child.path || route.path.startsWith(`${child.path}/`)
 
 const isCmsActive = computed(() => cmsItems.value.some(isChildActive))
 const isAcademicActive = computed(() => academicItems.value.some(isChildActive))
+const isFeesActive = computed(() => feeItems.value.some(isChildActive))
 
 const cmsOpen = ref(isCmsActive.value)
 const academicOpen = ref(isAcademicActive.value)
+const feesOpen = ref(isFeesActive.value)
 
 // Auto-expand each group whenever the current route is one of its children, without
 // collapsing it back when the user navigates away (they can toggle it).
@@ -204,6 +245,9 @@ watch(isCmsActive, (active) => {
 })
 watch(isAcademicActive, (active) => {
   if (active) academicOpen.value = true
+})
+watch(isFeesActive, (active) => {
+  if (active) feesOpen.value = true
 })
 
 // Titles come from the route's meta (an unnamed fallback keeps new routes readable).

@@ -409,7 +409,7 @@ class StaffLoginApiTest extends TestCase
         $this->actingAs($office, 'sanctum')->getJson("/api/students/{$student->id}")->assertOk();
         $this->actingAs($office, 'sanctum')->getJson('/api/classes')->assertOk();
         $this->actingAs($office, 'sanctum')->getJson('/api/subjects')->assertOk();
-        // The fee endpoints are stubs, so the permissions are checked directly.
+        // The permissions are checked directly, then through the fee endpoints.
         $this->assertTrue($office->can('view-fees'));
         $this->assertTrue($office->can('collect-fees'));
         $this->assertTrue($office->can('create-fees'));

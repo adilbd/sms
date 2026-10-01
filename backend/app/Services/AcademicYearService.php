@@ -58,7 +58,7 @@ class AcademicYearService
         // (see SubjectService::delete() for the same pattern).
         abort_if($this->years->hasStudents($academicYear), 409, 'Academic year has students and cannot be deleted.');
         abort_if($this->years->hasExams($academicYear), 409, 'Academic year has exams and cannot be deleted.');
-        abort_if($this->years->hasFeeStructures($academicYear), 409, 'Academic year has fee structures and cannot be deleted.');
+        abort_if($this->years->hasFeeRatesOrDues($academicYear), 409, 'Academic year has fee rates or fee dues and cannot be deleted.');
         abort_if($this->years->hasClassTeacherRows($academicYear), 409, 'Academic year has class teacher assignments and cannot be deleted.');
         abort_if($this->years->hasSubjectAssignments($academicYear), 409, 'Academic year has subject assignments and cannot be deleted.');
 

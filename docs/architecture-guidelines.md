@@ -189,7 +189,7 @@ These modules predate the pattern and query Eloquent directly:
 |------|---------------|
 | `ContactService` | Service exists but queries Eloquent directly, with no repository |
 | `Web\ContactController` | Validates inline with `$request->validate(ContactService::RULES)` instead of a FormRequest |
-| Stub controllers (fees, dashboard) | Not implemented. **Build them with this pattern from the start.** Staff (formerly the Teacher stub) has been built, and the parents stub was removed in favor of the Students module; see the Staff and Shifts modules and Students notes in `CLAUDE.md`. The exam stubs were replaced by the Exams and marks module (see its note in `CLAUDE.md`), and the legacy attendance controller by the Attendance module (see its note in `CLAUDE.md`). |
+| Stub controllers (dashboard) | Not implemented. **Build them with this pattern from the start.** The fee stubs were replaced by the Fees module (see its note in `CLAUDE.md`). Staff (formerly the Teacher stub) has been built, and the parents stub was removed in favor of the Students module; see the Staff and Shifts modules and Students notes in `CLAUDE.md`. The exam stubs were replaced by the Exams and marks module (see its note in `CLAUDE.md`), and the legacy attendance controller by the Attendance module (see its note in `CLAUDE.md`). |
 
 **How to migrate:** don't refactor a module just to apply the pattern. When a task changes a legacy module, convert **that whole module** in the same change: repository and interface, binding, service, FormRequests, resource, and a thin controller. At the same time, update its response shape and SPA consumers as described in the API guideline. Update the tables above and in the API guideline afterwards.
 

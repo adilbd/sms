@@ -49,6 +49,17 @@ class StudentEnrolmentRepository implements StudentEnrolmentRepositoryInterface
             ->count();
     }
 
+    public function activeInYear(int $academicYearId, ?int $classId, ?int $sectionId, ?array $classIds): Collection
+    {
+        return StudentEnrolment::query()
+            ->activeIn($academicYearId)
+            ->when($classId !== null, fn (Builder $q) => $q->where('class_id', $classId))
+            ->when($sectionId !== null, fn (Builder $q) => $q->where('section_id', $sectionId))
+            ->when($classIds !== null, fn (Builder $q) => $q->whereIn('class_id', $classIds))
+            ->orderBy('id')
+            ->get();
+    }
+
     public function create(array $attributes): StudentEnrolment
     {
         return StudentEnrolment::create($attributes)->refresh();

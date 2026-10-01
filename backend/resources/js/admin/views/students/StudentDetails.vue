@@ -90,15 +90,85 @@
           </table>
         </div>
       </section>
+
+      <section v-if="authStore.hasPermission('view-fees')" class="card">
+        <div class="flex items-center justify-between mb-4">
+          <h2 class="text-lg font-semibold text-gray-900">Fee waivers</h2>
+          <div class="flex gap-2">
+            <router-link v-if="authStore.hasPermission('collect-fees')" :to="`/fees/collect?student_id=${student.id}`" class="btn btn-secondary">Collect fee</router-link>
+            <router-link :to="`/fees/reports?student_id=${student.id}`" class="btn btn-secondary">Fee ledger</router-link>
+          </div>
+        </div>
+        <p class="text-sm text-gray-500 mb-4">A waiver applies to the dues generated after it is saved; dues that already exist keep their amount.</p>
+        <div v-if="waiverNotice" :class="['rounded-lg border px-4 py-3 text-sm mb-4', waiverNotice.ok ? 'border-green-200 bg-green-50 text-green-700' : 'border-red-200 bg-red-50 text-red-700']" role="status">{{ waiverNotice.text }}</div>
+
+        <p v-if="waivers.length === 0" class="text-gray-500 mb-4">No waivers.</p>
+        <div v-else class="overflow-x-auto mb-4">
+          <table class="table">
+            <thead>
+              <tr><th>Year</th><th>Fee head</th><th>Waiver</th><th>Reason</th><th>Approved by</th><th v-if="authStore.hasPermission('create-fees')"></th></tr>
+            </thead>
+            <tbody>
+              <tr v-for="waiver in waivers" :key="waiver.id">
+                <td>{{ yearName(waiver.academic_year_id) }}</td>
+                <td>{{ waiver.head?.name_en || waiver.head?.name_bn }}</td>
+                <td>{{ waiver.percent !== null ? `${waiver.percent}%` : taka(waiver.fixed_amount) }}</td>
+                <td>{{ waiver.reason || '-' }}</td>
+                <td>{{ waiver.approved_by_name }}</td>
+                <td v-if="authStore.hasPermission('create-fees')">
+                  <button type="button" class="text-red-600 hover:text-red-800" title="Remove the waiver" @click="removeWaiver(waiver)">🗑️</button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <form v-if="authStore.hasPermission('create-fees')" class="grid grid-cols-1 gap-4 md:grid-cols-5" @submit.prevent="addWaiver">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1" for="waiver-year">Year</label>
+            <select id="waiver-year" v-model="waiverForm.academic_year_id" class="input" required>
+              <option v-for="year in years" :key="year.id" :value="year.id">{{ year.name }}</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1" for="waiver-head">Fee head</label>
+            <select id="waiver-head" v-model="waiverForm.fee_head_id" class="input" required>
+              <option value="" disabled>Choose</option>
+              <option v-for="head in heads" :key="head.id" :value="head.id">{{ head.name_en || head.name_bn }}</option>
+            </select>
+            <p v-if="waiverErrors.fee_head_id" class="text-sm text-red-600 mt-1">{{ waiverErrors.fee_head_id[0] }}</p>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1" for="waiver-kind">Type</label>
+            <select id="waiver-kind" v-model="waiverForm.kind" class="input">
+              <option value="percent">Percent</option>
+              <option value="fixed">Fixed amount (৳)</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1" for="waiver-value">{{ waiverForm.kind === 'percent' ? 'Percent' : 'Amount (৳)' }}</label>
+            <input id="waiver-value" v-model="waiverForm.value" type="number" min="0" :max="waiverForm.kind === 'percent' ? 100 : undefined" step="0.01" class="input" required />
+            <p v-if="waiverErrors.percent || waiverErrors.fixed_amount" class="text-sm text-red-600 mt-1">{{ (waiverErrors.percent || waiverErrors.fixed_amount)[0] }}</p>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1" for="waiver-reason">Reason</label>
+            <input id="waiver-reason" v-model="waiverForm.reason" type="text" maxlength="255" class="input" />
+          </div>
+          <div class="md:col-span-5">
+            <button type="submit" class="btn btn-primary" :disabled="savingWaiver">{{ savingWaiver ? 'Saving...' : 'Add waiver' }}</button>
+          </div>
+        </form>
+      </section>
     </template>
   </div>
 </template>
 
 <script setup>
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import api from '@/services/api'
 import { useAuthStore } from '@/stores/auth'
+import { taka } from '@/utils/money'
 
 const authStore = useAuthStore()
 
@@ -133,10 +203,86 @@ const profileItems = computed(() => {
   ]
 })
 
+// Fee waivers: shown to anyone who can view fees, changed by anyone who can create them.
+const waivers = ref([])
+const years = ref([])
+const heads = ref([])
+const waiverNotice = ref(null)
+const waiverErrors = ref({})
+const savingWaiver = ref(false)
+const waiverForm = reactive({ academic_year_id: '', fee_head_id: '', kind: 'percent', value: '', reason: '' })
+
+const yearName = (id) => years.value.find((year) => year.id === id)?.name ?? id
+
+const loadWaivers = async () => {
+  const { data } = await api.get('/fee-waivers', { params: { student_id: student.value.id, per_page: 100 } })
+  waivers.value = data.data
+}
+
+const loadFeeData = async () => {
+  if (!authStore.hasPermission('view-fees')) return
+
+  try {
+    const [yearsRes, headsRes] = await Promise.all([
+      api.get('/academic-years', { params: { per_page: 100 } }),
+      api.get('/fee-heads', { params: { per_page: 100, is_active: true } }),
+    ])
+    years.value = yearsRes.data.data
+    heads.value = headsRes.data.data
+    waiverForm.academic_year_id = years.value.find((year) => year.is_active)?.id ?? ''
+    await loadWaivers()
+  } catch (error) {
+    waiverNotice.value = { ok: false, text: error.response?.data?.message || 'Failed to load the fee waivers' }
+  }
+}
+
+const addWaiver = async () => {
+  waiverErrors.value = {}
+  waiverNotice.value = null
+  savingWaiver.value = true
+
+  const body = {
+    student_id: student.value.id,
+    academic_year_id: waiverForm.academic_year_id,
+    fee_head_id: waiverForm.fee_head_id,
+    percent: waiverForm.kind === 'percent' ? waiverForm.value : null,
+    fixed_amount: waiverForm.kind === 'fixed' ? waiverForm.value : null,
+    reason: waiverForm.reason || null,
+  }
+
+  try {
+    const { data } = await api.post('/fee-waivers', body)
+    waiverNotice.value = { ok: true, text: data.message }
+    Object.assign(waiverForm, { fee_head_id: '', value: '', reason: '' })
+    await loadWaivers()
+  } catch (error) {
+    if (error.response?.status === 422) {
+      waiverErrors.value = error.response.data.errors ?? {}
+    } else {
+      waiverNotice.value = { ok: false, text: error.response?.data?.message || 'Failed to save the waiver' }
+    }
+  } finally {
+    savingWaiver.value = false
+  }
+}
+
+const removeWaiver = async (waiver) => {
+  if (!confirm('Remove this waiver? Dues that already exist keep their amount.')) return
+
+  try {
+    await api.delete(`/fee-waivers/${waiver.id}`)
+    waiverNotice.value = { ok: true, text: 'Waiver removed' }
+    await loadWaivers()
+  } catch (error) {
+    waiverNotice.value = { ok: false, text: error.response?.data?.message || 'Failed to remove the waiver' }
+  }
+}
+
 onMounted(async () => {
   try {
     const { data } = await api.get(`/students/${route.params.id}`)
     student.value = data.data
+    await loadFeeData()
   } catch (error) {
     if (error.response?.status === 404) notFound.value = true
     else console.error('Failed to fetch student:', error)

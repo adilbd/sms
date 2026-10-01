@@ -72,7 +72,7 @@ class ClassService
         abort_if($this->classes->hasStudents($class), 409, 'Class has students and cannot be deleted.');
         abort_if($this->classes->hasAttendances($class), 409, 'Class has attendance records and cannot be deleted.');
         abort_if($this->classes->hasExamSchedules($class), 409, 'Class has exam schedules and cannot be deleted.');
-        abort_if($this->classes->hasFeeStructures($class), 409, 'Class has fee structures and cannot be deleted.');
+        abort_if($this->classes->hasFeeRatesOrDues($class), 409, 'Class has fee rates or fee dues and cannot be deleted.');
         abort_if($this->classes->hasSubjectAssignments($class), 409, 'Class has subject assignments and cannot be deleted.');
 
         // The curriculum rows cascade in the database, but a soft delete doesn't fire

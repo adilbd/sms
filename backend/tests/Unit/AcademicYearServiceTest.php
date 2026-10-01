@@ -133,14 +133,14 @@ class AcademicYearServiceTest extends TestCase
         $this->assertConflict(fn () => app(AcademicYearService::class)->delete($year));
     }
 
-    public function test_delete_is_refused_when_year_has_fee_structures(): void
+    public function test_delete_is_refused_when_year_has_fee_rates_or_dues(): void
     {
         $year = new AcademicYear(['is_active' => false]);
 
         $this->mock(AcademicYearRepositoryInterface::class, function (MockInterface $mock) use ($year) {
             $mock->shouldReceive('hasStudents')->once()->andReturn(false);
             $mock->shouldReceive('hasExams')->once()->andReturn(false);
-            $mock->shouldReceive('hasFeeStructures')->once()->with($year)->andReturn(true);
+            $mock->shouldReceive('hasFeeRatesOrDues')->once()->with($year)->andReturn(true);
             $mock->shouldNotReceive('delete');
         });
 
@@ -154,7 +154,7 @@ class AcademicYearServiceTest extends TestCase
         $this->mock(AcademicYearRepositoryInterface::class, function (MockInterface $mock) use ($year) {
             $mock->shouldReceive('hasStudents')->once()->andReturn(false);
             $mock->shouldReceive('hasExams')->once()->andReturn(false);
-            $mock->shouldReceive('hasFeeStructures')->once()->andReturn(false);
+            $mock->shouldReceive('hasFeeRatesOrDues')->once()->andReturn(false);
             $mock->shouldReceive('hasClassTeacherRows')->once()->with($year)->andReturn(true);
             $mock->shouldNotReceive('delete');
         });
@@ -169,7 +169,7 @@ class AcademicYearServiceTest extends TestCase
         $this->mock(AcademicYearRepositoryInterface::class, function (MockInterface $mock) use ($year) {
             $mock->shouldReceive('hasStudents')->once()->andReturn(false);
             $mock->shouldReceive('hasExams')->once()->andReturn(false);
-            $mock->shouldReceive('hasFeeStructures')->once()->andReturn(false);
+            $mock->shouldReceive('hasFeeRatesOrDues')->once()->andReturn(false);
             $mock->shouldReceive('hasClassTeacherRows')->once()->andReturn(false);
             $mock->shouldReceive('hasSubjectAssignments')->once()->with($year)->andReturn(true);
             $mock->shouldNotReceive('delete');
@@ -183,7 +183,7 @@ class AcademicYearServiceTest extends TestCase
         $year = new AcademicYear(['is_active' => false]);
 
         $this->mock(AcademicYearRepositoryInterface::class, function (MockInterface $mock) use ($year) {
-            $mock->shouldReceive('hasStudents', 'hasExams', 'hasFeeStructures', 'hasClassTeacherRows', 'hasSubjectAssignments')->andReturn(false);
+            $mock->shouldReceive('hasStudents', 'hasExams', 'hasFeeRatesOrDues', 'hasClassTeacherRows', 'hasSubjectAssignments')->andReturn(false);
             $mock->shouldReceive('hasHolidays')->once()->with($year)->andReturn(true);
             $mock->shouldNotReceive('delete');
         });
@@ -198,7 +198,7 @@ class AcademicYearServiceTest extends TestCase
         $this->mock(AcademicYearRepositoryInterface::class, function (MockInterface $mock) use ($year) {
             $mock->shouldReceive('hasStudents')->once()->andReturn(false);
             $mock->shouldReceive('hasExams')->once()->andReturn(false);
-            $mock->shouldReceive('hasFeeStructures')->once()->andReturn(false);
+            $mock->shouldReceive('hasFeeRatesOrDues')->once()->andReturn(false);
             $mock->shouldReceive('hasClassTeacherRows')->once()->andReturn(false);
             $mock->shouldReceive('hasSubjectAssignments')->once()->andReturn(false);
             $mock->shouldReceive('hasHolidays')->once()->andReturn(false);

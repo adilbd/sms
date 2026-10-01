@@ -8,9 +8,11 @@ use App\Http\Requests\MyRecords\IndexMyAssignmentsRequest;
 use App\Http\Resources\ExamResultResource;
 use App\Http\Resources\MyAssignmentsResource;
 use App\Http\Resources\MyExamScheduleResource;
+use App\Http\Resources\MyFeesResource;
 use App\Http\Resources\StudentAttendanceResource;
 use App\Http\Resources\StudentResource;
 use App\Services\AttendanceService;
+use App\Services\FeeReportService;
 use App\Services\ResultService;
 use App\Services\StudentService;
 use App\Services\TeacherScope;
@@ -28,6 +30,7 @@ class MyRecordsController extends Controller
         private ResultService $results,
         private TeacherScope $teacherScope,
         private AttendanceService $attendance,
+        private FeeReportService $fees,
     ) {}
 
     public function student(Request $request)
@@ -74,6 +77,16 @@ class MyRecordsController extends Controller
         return new StudentAttendanceResource(
             $this->attendance->childMonth($request->user(), $student, $request->validated('month'))
         );
+    }
+
+    public function fees(Request $request)
+    {
+        return new MyFeesResource($this->fees->ownFees($request->user()));
+    }
+
+    public function childFees(Request $request, int $student)
+    {
+        return new MyFeesResource($this->fees->childFees($request->user(), $student));
     }
 
     public function exams(Request $request)

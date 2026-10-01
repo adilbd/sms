@@ -18,7 +18,10 @@ interface AcademicYearRepositoryInterface extends RepositoryInterface
 
     public function hasExams(AcademicYear $academicYear): bool;
 
-    public function hasFeeStructures(AcademicYear $academicYear): bool;
+    /**
+     * Whether the year has fee rates, or fee dues in any of its enrolments.
+     */
+    public function hasFeeRatesOrDues(AcademicYear $academicYear): bool;
 
     public function hasClassTeacherRows(AcademicYear $academicYear): bool;
 

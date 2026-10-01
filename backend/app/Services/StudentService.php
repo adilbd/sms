@@ -285,7 +285,7 @@ class StudentService
         abort_if($this->students->hasAttendances($student), 409, 'Student has attendance records and cannot be deleted.');
         abort_if($this->students->hasExamMarks($student), 409, 'Student has exam marks and cannot be deleted.');
         abort_if($this->students->hasExamResults($student), 409, 'Student has exam results and cannot be deleted.');
-        abort_if($this->students->hasFeePayments($student), 409, 'Student has fee payments and cannot be deleted.');
+        abort_if($this->students->hasFeeDuesOrPayments($student), 409, 'Student has fee dues or payments and cannot be deleted.');
 
         DB::transaction(function () use ($student) {
             if ($student->user_id && $login = $this->users->find($student->user_id)) {

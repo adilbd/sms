@@ -60,6 +60,13 @@ Route::middleware('auth:sanctum')->group(function () {
     // The signed-in teacher's own subjects and class-teacher sections.
     Route::get('my/assignments', [\App\Http\Controllers\Api\MyRecordsController::class, 'assignments'])
         ->middleware('role:teacher');
+    // Own fees (dues, payments, outstanding total); the student and parent roles have no
+    // view-fees permission.
+    Route::get('my/fees', [\App\Http\Controllers\Api\MyRecordsController::class, 'fees'])
+        ->middleware('role:student');
+    Route::get('my/children/{student}/fees', [\App\Http\Controllers\Api\MyRecordsController::class, 'childFees'])
+        ->where('student', '[0-9]+')
+        ->middleware('role:parent');
     Route::get('my/exams', [\App\Http\Controllers\Api\MyRecordsController::class, 'exams'])
         ->middleware('role:student|parent');
 
@@ -146,16 +153,25 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::apiResource('exams', \App\Http\Controllers\Api\ExamController::class)
         ->where(['exam' => '[0-9]+']);
 
-    // Fee Types
-    Route::apiResource('fee-types', \App\Http\Controllers\Api\FeeTypeController::class);
-
-    // Fee Structures
-    Route::apiResource('fee-structures', \App\Http\Controllers\Api\FeeStructureController::class);
-
-    // Fee Payments
-    Route::apiResource('fee-payments', \App\Http\Controllers\Api\FeePaymentController::class);
-    Route::get('fee-payments/student/{student}', [\App\Http\Controllers\Api\FeePaymentController::class, 'studentPayments']);
-    Route::get('fee-payments/receipt/{feePayment}', [\App\Http\Controllers\Api\FeePaymentController::class, 'generateReceipt']);
+    // Fees. The extra routes are registered before the resources so 'generate',
+    // 'cancel' and the report paths aren't captured by an {id} wildcard.
+    Route::apiResource('fee-heads', \App\Http\Controllers\Api\FeeHeadController::class)
+        ->where(['fee_head' => '[0-9]+']);
+    Route::apiResource('fee-rates', \App\Http\Controllers\Api\FeeRateController::class)
+        ->where(['fee_rate' => '[0-9]+']);
+    Route::apiResource('fee-waivers', \App\Http\Controllers\Api\FeeWaiverController::class)
+        ->where(['fee_waiver' => '[0-9]+']);
+    Route::post('fee-dues/generate', [\App\Http\Controllers\Api\FeeDueController::class, 'generate']);
+    Route::get('fee-dues', [\App\Http\Controllers\Api\FeeDueController::class, 'index']);
+    Route::post('fee-payments/{feePayment}/cancel', [\App\Http\Controllers\Api\FeePaymentController::class, 'cancel'])
+        ->where('feePayment', '[0-9]+');
+    Route::apiResource('fee-payments', \App\Http\Controllers\Api\FeePaymentController::class)
+        ->only(['index', 'show', 'store'])
+        ->where(['fee_payment' => '[0-9]+']);
+    Route::get('fee-reports/dues', [\App\Http\Controllers\Api\FeeReportController::class, 'dues']);
+    Route::get('fee-reports/collection', [\App\Http\Controllers\Api\FeeReportController::class, 'collection']);
+    Route::get('fee-reports/students/{student}/ledger', [\App\Http\Controllers\Api\FeeReportController::class, 'ledger'])
+        ->where('student', '[0-9]+');
 
     // Public website content (news & events)
     Route::post('posts/media', [\App\Http\Controllers\Api\PostMediaController::class, 'store']);

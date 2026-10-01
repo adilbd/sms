@@ -87,9 +87,14 @@ class ApiAuthorizationTest extends TestCase
         $this->actingAs($student, 'sanctum')->getJson('/api/my/children')->assertForbidden();
         $this->actingAs($student, 'sanctum')->getJson('/api/my/student')->assertNotFound();
 
-        // Parents can see fees but not collect them.
-        $this->actingAs($parent, 'sanctum')->getJson('/api/fee-payments')->assertOk();
+        // Students and guardians hold no fee permission (view-fees would list every
+        // student's fees); they read their own through /api/my/fees.
+        $this->actingAs($parent, 'sanctum')->getJson('/api/fee-payments')->assertForbidden();
         $this->actingAs($parent, 'sanctum')->postJson('/api/fee-payments', [])->assertForbidden();
+        $this->actingAs($student, 'sanctum')->getJson('/api/fee-dues')->assertForbidden();
+        $this->actingAs($student, 'sanctum')->getJson('/api/fee-heads')->assertForbidden();
+        $this->actingAs($student, 'sanctum')->getJson('/api/my/fees')->assertNotFound();
+        $this->actingAs($parent, 'sanctum')->getJson('/api/my/fees')->assertForbidden();
 
         // Academic years are readable by everyone, but only settings admins change them.
         $this->actingAs($student, 'sanctum')->getJson('/api/academic-years')->assertOk();

@@ -249,9 +249,49 @@ const routes = [
       },
       {
         path: 'fees',
-        name: 'Fees',
-        component: () => import('@/views/fees/FeeList.vue'),
-        meta: { title: 'Fees', permission: 'view-fees' },
+        redirect: '/fees/collect',
+      },
+      {
+        path: 'fees/collect',
+        name: 'Collect Fee',
+        component: () => import('@/views/fees/CollectFee.vue'),
+        meta: { title: 'Collect Fee', permission: 'collect-fees' },
+      },
+      {
+        path: 'fees/dues',
+        name: 'Fee Dues',
+        component: () => import('@/views/fees/FeeDues.vue'),
+        meta: { title: 'Fee Dues', permission: 'view-fees' },
+      },
+      {
+        path: 'fees/reports',
+        name: 'Fee Reports',
+        component: () => import('@/views/fees/FeeReports.vue'),
+        meta: { title: 'Fee Reports', permission: 'view-fees' },
+      },
+      {
+        path: 'fees/receipts/:id',
+        name: 'Fee Receipt',
+        component: () => import('@/views/fees/FeeReceipt.vue'),
+        meta: { title: 'Receipt', permission: 'view-fees' },
+      },
+      {
+        path: 'fees/heads',
+        name: 'Fee Heads',
+        component: () => import('@/views/fees/FeeHeads.vue'),
+        meta: { title: 'Fee Heads', permission: 'edit-fees' },
+      },
+      {
+        path: 'fees/rates',
+        name: 'Fee Rates',
+        component: () => import('@/views/fees/FeeRates.vue'),
+        meta: { title: 'Fee Rates', permission: 'edit-fees' },
+      },
+      {
+        path: 'fees/generate',
+        name: 'Generate Dues',
+        component: () => import('@/views/fees/GenerateDues.vue'),
+        meta: { title: 'Generate Dues', permission: 'create-fees' },
       },
       {
         path: 'institute',

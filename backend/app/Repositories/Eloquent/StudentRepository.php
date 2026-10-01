@@ -78,9 +78,9 @@ class StudentRepository extends EloquentRepository implements StudentRepositoryI
         return $student->examResults()->exists();
     }
 
-    public function hasFeePayments(Student $student): bool
+    public function hasFeeDuesOrPayments(Student $student): bool
     {
-        return $student->feePayments()->exists();
+        return $student->feeDues()->exists() || $student->feePayments()->exists();
     }
 
     protected function query(): Builder

@@ -443,13 +443,13 @@ class StudentServiceTest extends TestCase
         app(StudentService::class)->update($student, ['enrolment' => ['section_id' => 4]], null, false);
     }
 
-    public function test_delete_is_refused_while_the_student_has_attendance_exam_results_or_fee_payments(): void
+    public function test_delete_is_refused_while_the_student_has_attendance_exam_results_or_fee_dues_or_payments(): void
     {
-        foreach (['hasAttendances', 'hasExamMarks', 'hasExamResults', 'hasFeePayments'] as $blocking) {
+        foreach (['hasAttendances', 'hasExamMarks', 'hasExamResults', 'hasFeeDuesOrPayments'] as $blocking) {
             $student = $this->savedStudent();
 
             $this->mock(StudentRepositoryInterface::class, function (MockInterface $mock) use ($student, $blocking) {
-                foreach (['hasAttendances', 'hasExamMarks', 'hasExamResults', 'hasFeePayments'] as $method) {
+                foreach (['hasAttendances', 'hasExamMarks', 'hasExamResults', 'hasFeeDuesOrPayments'] as $method) {
                     $mock->shouldReceive($method)->with($student)->andReturn($method === $blocking);
                 }
                 $mock->shouldNotReceive('delete');
@@ -474,7 +474,7 @@ class StudentServiceTest extends TestCase
         $guardian = $this->user(20);
 
         $this->mock(StudentRepositoryInterface::class, function (MockInterface $mock) use ($student, $guardian) {
-            $mock->shouldReceive('hasAttendances', 'hasExamMarks', 'hasExamResults', 'hasFeePayments')->andReturn(false);
+            $mock->shouldReceive('hasAttendances', 'hasExamMarks', 'hasExamResults', 'hasFeeDuesOrPayments')->andReturn(false);
             $mock->shouldReceive('delete')->once()->with($student);
             $mock->shouldReceive('hasActiveChildren')->once()->with($guardian)->andReturn(false);
         });
@@ -498,7 +498,7 @@ class StudentServiceTest extends TestCase
         $guardian = $this->user(20);
 
         $this->mock(StudentRepositoryInterface::class, function (MockInterface $mock) use ($student) {
-            $mock->shouldReceive('hasAttendances', 'hasExamMarks', 'hasExamResults', 'hasFeePayments')->andReturn(false);
+            $mock->shouldReceive('hasAttendances', 'hasExamMarks', 'hasExamResults', 'hasFeeDuesOrPayments')->andReturn(false);
             $mock->shouldReceive('delete')->once()->with($student);
             $mock->shouldReceive('hasActiveChildren')->andReturn(true);
         });
