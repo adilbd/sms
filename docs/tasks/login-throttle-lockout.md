@@ -36,6 +36,12 @@ The intended outcome: brute-forcing a password stays expensive, but an attacker 
   - `RateLimiter` and `Cache` are framework facades, not Eloquent queries, so they're fine in the service. Any user lookups stay in `UserRepository`.
 - `docs/api-response-guidelines.md`: a 429 uses the standard error shape `{message}`, and every 429 carries `Retry-After`.
 
+## Residual risks (accepted)
+- **First-time users can still be locked out.** A user with no trusted IP yet, on a first login or a new device, can be locked out for a minute at a time by 10 failures from other IPs.
+- **A shared network can be blocked.** Someone on a school's NAT can block that IP for a minute with 30 bad attempts. Everyone behind one IP also shares its trust.
+- **It assumes there's no proxy.** `trustProxies` isn't configured. Behind Cloudflare or a load balancer, `$request->ip()` would be the proxy's address. Configure it when hosting is chosen.
+- **Trust isn't cleared on a password change or deactivation.** Trust only skips the lock and never grants access. This is a follow-up nit.
+
 ## Acceptance criteria
 - [x] An attacker sending wrong passwords to a known account from IPs it hasn't logged in from can't stop the owner signing in from a trusted IP.
 - [x] Brute force against one account across many untrusted IPs is still capped at 10 failures a minute for that account.
