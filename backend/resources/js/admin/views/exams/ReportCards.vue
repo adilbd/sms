@@ -66,12 +66,13 @@
           </tr>
         </thead>
         <tbody>
-          <tr v-for="(unit, i) in card.subjects" :key="i" :class="unit.grade === 'F' ? 'rc-fail' : ''">
+          <tr v-for="(unit, i) in card.subjects" :key="i" :class="unit.grade === 'F' ? (unit.is_optional ? 'rc-muted-row' : 'rc-fail') : ''">
             <td class="rc-left">
               {{ unit.name_en || unit.name_bn }}
               <span v-if="unit.name_en && unit.name_bn && !unit.is_combined" class="rc-muted"> ({{ unit.name_bn }})</span>
               <span v-if="unit.is_combined" class="rc-tag">Combined</span>
               <span v-if="unit.is_optional" class="rc-tag">4th subject</span>
+              <div v-if="unit.is_optional && unit.grade === 'F'" class="rc-muted">4th subject — not counted as a fail</div>
             </td>
             <td v-for="part in MARK_PARTS" :key="part.key">
               <template v-if="unit.parts[part.key]">
@@ -94,7 +95,7 @@
         <div><span>Grade</span><strong>{{ card.grade }}</strong></div>
         <div><span>Total marks</span><strong>{{ num(card.total_obtained) }} / {{ num(card.total_full) }}</strong></div>
         <div><span>Result</span><strong>{{ card.is_pass ? 'Passed' : 'Failed' }}</strong></div>
-        <div><span>Subjects passed</span><strong>{{ card.passed_count }}</strong></div>
+        <div><span>Subjects passed</span><strong>{{ card.passed_count }} of {{ card.passed_count + card.failed_count }}</strong></div>
         <div><span>Failed subjects</span><strong>{{ card.failed_count }}</strong></div>
         <div><span>Position in class</span><strong>{{ card.class_position }}</strong></div>
         <div><span>Position in section</span><strong>{{ card.section_position }}</strong></div>
@@ -231,6 +232,7 @@ onBeforeUnmount(() => document.body.classList.remove('report-cards-page'))
 .rc-left { text-align: left !important; }
 .rc-strong { font-weight: 700; }
 .rc-fail td { color: #b91c1c; }
+.rc-muted-row td { color: #6b7280; }
 .rc-tag { display: inline-block; margin-left: 6px; padding: 0 5px; border: 1px solid #6b7280; border-radius: 3px; font-size: 10px; color: #374151; }
 .rc-summary { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin: 12px 0; }
 .rc-summary div { border: 1px solid #9ca3af; border-radius: 4px; padding: 6px 8px; }
