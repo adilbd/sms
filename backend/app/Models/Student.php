@@ -116,6 +116,11 @@ class Student extends Model
         return $this->hasMany(ExamMark::class);
     }
 
+    public function examResults(): HasMany
+    {
+        return $this->hasMany(ExamResult::class);
+    }
+
     public function feePayments(): HasMany
     {
         return $this->hasMany(FeePayment::class);

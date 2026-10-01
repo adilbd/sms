@@ -52,7 +52,7 @@ class CurriculumSeederTest extends TestCase
             $this->marks(9, 'PHY', 'science'),
         );
         $this->assertSame([70, 23, 30, 10, null, null], $this->marks(11, 'ACC', 'business_studies'));
-        $this->assertSame([100, 40, null, null, null, null], $this->marks(1, 'BAN', null));
+        $this->assertSame([100, 33, null, null, null, null], $this->marks(1, 'BAN', null));
         $this->assertSame(['bangla', 'bangla'], $this->curriculumOf(10)->whereIn('subject.code', ['BAN1', 'BAN2'])->pluck('paper_group')->all());
         $this->assertSame(['english', 'english'], $this->curriculumOf(12)->whereIn('subject.code', ['ENG1', 'ENG2'])->pluck('paper_group')->all());
         $this->assertSame(0, ClassSubject::whereNotNull('paper_group')->whereIn('class_id', Classes::where('number', '<', 9)->pluck('id'))->count());

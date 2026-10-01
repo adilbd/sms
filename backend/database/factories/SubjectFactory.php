@@ -16,7 +16,7 @@ class SubjectFactory extends Factory
             'code' => strtoupper(fake()->unique()->bothify('SUB-###')),
             'type' => 'theory',
             'total_marks' => 100,
-            'pass_marks' => 40,
+            'pass_marks' => 33,
             'description' => null,
             'is_active' => true,
         ];

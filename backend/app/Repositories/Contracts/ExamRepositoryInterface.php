@@ -83,6 +83,8 @@ interface ExamRepositoryInterface extends RepositoryInterface
 
     public function hasMarks(Exam $exam): bool;
 
+    public function hasResults(Exam $exam): bool;
+
     public function hasMarksForClass(Exam $exam, int $classId): bool;
 
     public function hasMarksForSubject(ExamSubject $subject): bool;

@@ -4,8 +4,11 @@ namespace Tests\Feature;
 
 use App\Models\Exam;
 use App\Models\ExamMark;
+use App\Models\ExamResult;
 use App\Models\ExamSubject;
 use App\Models\Student;
+use App\Models\StudentEnrolment;
+use App\Models\User;
 use Database\Seeders\AcademicYearSeeder;
 use Database\Seeders\ClassSeeder;
 use Database\Seeders\CurriculumSeeder;
@@ -127,6 +130,40 @@ class ExamSeederTest extends TestCase
 
         $this->assertSame($counts, [Exam::count(), ExamSubject::count(), ExamMark::count()]);
         $this->assertSame('1.00', $mark->fresh()->written);
+    }
+
+    public function test_the_seeded_exam_can_be_processed_published_and_read_back(): void
+    {
+        $this->seedPrerequisites();
+        $this->seed(ExamSeeder::class);
+        $exam = Exam::firstOrFail();
+        $admin = User::where('email', 'admin@sms.com')->firstOrFail();
+
+        $summary = $this->actingAs($admin, 'sanctum')->postJson("/api/exams/{$exam->id}/process")
+            ->assertOk()
+            ->assertJsonPath('data.exam.status', 'processed')
+            ->json('data.summary');
+
+        // Every active enrolment of Classes 9 and 10 gets a result.
+        $enrolments = StudentEnrolment::where('status', 'active')->whereIn('class_id', $exam->classes->pluck('id'))->count();
+        $this->assertGreaterThan(0, $enrolments);
+        $this->assertSame($enrolments, ExamResult::where('exam_id', $exam->id)->count());
+        $this->assertSame($enrolments, array_sum(array_column($summary, 'students')));
+        $this->assertSame($enrolments, array_sum(array_column($summary, 'passed')) + array_sum(array_column($summary, 'failed')));
+
+        // The seeded students are all in the Section A that has marks, and an absence is a
+        // recorded mark, not a missing one.
+        $this->assertSame(0, array_sum(array_column($summary, 'missing_marks')));
+
+        // Every GPA is on the scale, and a failed result is GPA 0.00 with an F.
+        foreach (ExamResult::where('exam_id', $exam->id)->get() as $result) {
+            $this->assertGreaterThanOrEqual(0, (float) $result->gpa);
+            $this->assertLessThanOrEqual(5, (float) $result->gpa);
+            $this->assertSame($result->is_pass, $result->failed_count === 0);
+            $this->assertSame($result->is_pass, $result->grade !== 'F');
+        }
+
+        $this->actingAs($admin, 'sanctum')->postJson("/api/exams/{$exam->id}/publish")->assertOk();
     }
 
     public function test_it_does_nothing_without_the_prerequisites(): void

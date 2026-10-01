@@ -11,13 +11,15 @@ use Illuminate\Http\Resources\Json\JsonResource;
  * student is a narrow shape (no contact or guardian details; the teacher role has
  * `enter-results` but not `view-students`).
  *
- * @property array{exam_subject: \App\Models\ExamSubject, section: \App\Models\Section, enrolments: \Illuminate\Support\Collection} $resource
+ * @property array{exam: \App\Models\Exam, exam_subject: \App\Models\ExamSubject, section: \App\Models\Section, enrolments: \Illuminate\Support\Collection} $resource
  */
 class ExamMarkSheetResource extends JsonResource
 {
     public function toArray(Request $request): array
     {
         return [
+            // Saving into a processed exam moves it back to marks_entry, so the sheet says so.
+            'exam_status' => $this->resource['exam']->status,
             'exam_subject' => new ExamSubjectResource($this->resource['exam_subject']),
             'section' => [
                 'id' => $this->resource['section']->id,

@@ -75,7 +75,7 @@ class SubjectApiTest extends TestCase
             // Database defaults are returned, not null.
             ->assertJsonPath('data.type', 'theory')
             ->assertJsonPath('data.total_marks', 100)
-            ->assertJsonPath('data.pass_marks', 40)
+            ->assertJsonPath('data.pass_marks', 33)
             ->assertJsonPath('data.is_active', true);
 
         $this->assertDatabaseHas('subjects', ['code' => 'CHEM']);

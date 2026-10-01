@@ -37,6 +37,14 @@ Route::middleware('auth:sanctum')->group(function () {
         ->middleware('role:student');
     Route::get('my/children', [\App\Http\Controllers\Api\MyRecordsController::class, 'children'])
         ->middleware('role:parent');
+    // Published results and the exam schedule of the caller's own class (or their children's).
+    Route::get('my/results', [\App\Http\Controllers\Api\MyRecordsController::class, 'results'])
+        ->middleware('role:student');
+    Route::get('my/children/{student}/results', [\App\Http\Controllers\Api\MyRecordsController::class, 'childResults'])
+        ->where('student', '[0-9]+')
+        ->middleware('role:parent');
+    Route::get('my/exams', [\App\Http\Controllers\Api\MyRecordsController::class, 'exams'])
+        ->middleware('role:student|parent');
 
     // Classes. The curriculum routes are registered before the resource, like the
     // class-teacher routes below.
@@ -100,6 +108,18 @@ Route::middleware('auth:sanctum')->group(function () {
         ->where('exam', '[0-9]+');
     Route::put('exams/{exam}/marks', [\App\Http\Controllers\Api\ExamMarkController::class, 'save'])
         ->where('exam', '[0-9]+');
+    Route::post('exams/{exam}/process', [\App\Http\Controllers\Api\ExamResultController::class, 'process'])
+        ->where('exam', '[0-9]+');
+    Route::post('exams/{exam}/publish', [\App\Http\Controllers\Api\ExamResultController::class, 'publish'])
+        ->where('exam', '[0-9]+');
+    Route::post('exams/{exam}/unpublish', [\App\Http\Controllers\Api\ExamResultController::class, 'unpublish'])
+        ->where('exam', '[0-9]+');
+    Route::post('exams/{exam}/reopen', [\App\Http\Controllers\Api\ExamResultController::class, 'reopen'])
+        ->where('exam', '[0-9]+');
+    Route::get('exams/{exam}/results', [\App\Http\Controllers\Api\ExamResultController::class, 'index'])
+        ->where('exam', '[0-9]+');
+    Route::get('exams/{exam}/results/{student}', [\App\Http\Controllers\Api\ExamResultController::class, 'show'])
+        ->where(['exam' => '[0-9]+', 'student' => '[0-9]+']);
     Route::apiResource('exams', \App\Http\Controllers\Api\ExamController::class)
         ->where(['exam' => '[0-9]+']);
 

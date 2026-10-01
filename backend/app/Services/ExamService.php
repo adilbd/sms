@@ -111,6 +111,19 @@ class ExamService
 
             $locked = $this->exams->lockExam($exam);
 
+            // The classes of a processed or published exam are the ones its results cover.
+            if ($classIds !== null && in_array($locked->status, [Exam::STATUS_PROCESSED, Exam::STATUS_PUBLISHED], true)) {
+                $held = $this->exams->classIds($locked);
+
+                abort_if(
+                    array_diff($classIds, $held) !== [] || array_diff($held, $classIds) !== [],
+                    409,
+                    $locked->status === Exam::STATUS_PUBLISHED
+                        ? "Unpublish the results and reopen mark entry before changing this exam's classes."
+                        : "Reopen mark entry before changing this exam's classes."
+                );
+            }
+
             if ($data !== []) {
                 $applied = (clone $locked)->fill($data);
                 $this->ensureHasName($applied);
@@ -133,8 +146,20 @@ class ExamService
                     $this->exams->deleteClassSubjects($locked, $removedId);
                 }
 
+                // Additions come from this locked read, not the earlier one, so a class
+                // that was removed concurrently is added back rather than silently dropped.
+                $additions = array_values(array_diff($classIds, $current));
+
+                // A class that only became missing after the first read was never locked
+                // (the class locks come before the exam lock), so it has no snapshot.
+                abort_if(
+                    array_diff($additions, array_keys($snapshots)) !== [],
+                    409,
+                    "The exam's classes changed while you were saving. Reload the exam and try again."
+                );
+
                 foreach ($classes as $class) {
-                    if (! in_array($class->id, $current, true)) {
+                    if (in_array($class->id, $additions, true)) {
                         $this->exams->replaceClassSubjects($locked, $class, $snapshots[$class->id]);
                     }
                 }
@@ -150,6 +175,13 @@ class ExamService
     {
         DB::transaction(function () use ($exam) {
             $locked = $this->exams->lockExam($exam);
+
+            // A processed or published exam has results, which a soft delete wouldn't cascade to.
+            abort_if(
+                in_array($locked->status, [Exam::STATUS_PROCESSED, Exam::STATUS_PUBLISHED], true) || $this->exams->hasResults($locked),
+                409,
+                'This exam has results and cannot be deleted.'
+            );
 
             // Marks (even one) lock the exam: a soft delete wouldn't cascade to them.
             abort_if($this->exams->hasMarks($locked), 409, 'Marks have been entered for this exam and it cannot be deleted.');
@@ -185,11 +217,12 @@ class ExamService
     {
         $exam = DB::transaction(function () use ($exam, $class) {
             $classes = $this->lockClasses([$class->id]);
-            $snapshots = $this->snapshotsFor($classes, [$class->id], null, 'class_id');
-
             $locked = $this->exams->lockExam($exam);
 
+            // Membership first: a class the exam isn't held for is a 404 whatever its curriculum.
             abort_unless(in_array($class->id, $this->exams->classIds($locked), true), 404, 'This exam is not held for the class.');
+
+            $snapshots = $this->snapshotsFor($classes, [$class->id], null, 'class_id');
             abort_if(
                 $this->exams->hasMarksForClass($locked, $class->id),
                 409,

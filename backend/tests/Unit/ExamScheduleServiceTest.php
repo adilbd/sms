@@ -18,7 +18,7 @@ class ExamScheduleServiceTest extends TestCase
 {
     private function exam(): Exam
     {
-        $exam = new Exam;
+        $exam = new Exam(['start_date' => '2026-06-01', 'end_date' => '2026-06-15']);
         $exam->id = 8;
 
         return $exam;
@@ -112,6 +112,32 @@ class ExamScheduleServiceTest extends TestCase
         });
 
         app(ExamScheduleService::class)->update($this->exam(), $this->subject(), ['written_full' => 50, 'mcq_pass' => 8, 'practical_full' => null, 'exam_date' => '2026-06-03']);
+    }
+
+    public function test_the_exam_date_must_be_within_the_exams_dates(): void
+    {
+        $this->repo(fn (MockInterface $m) => $m->shouldNotReceive('updateSubject'));
+
+        // The exam runs 2026-06-01 to 2026-06-15.
+        $this->assertSame(['exam_date'], array_keys($this->errors(['exam_date' => '2026-05-31'])));
+        $this->assertSame(['exam_date'], array_keys($this->errors(['exam_date' => '2026-06-16'])));
+    }
+
+    public function test_the_first_and_last_day_of_the_exam_are_accepted(): void
+    {
+        $this->repo(fn (MockInterface $m) => $m->shouldReceive('updateSubject')->twice()->andReturn($this->subject()));
+
+        app(ExamScheduleService::class)->update($this->exam(), $this->subject(), ['exam_date' => '2026-06-01']);
+        app(ExamScheduleService::class)->update($this->exam(), $this->subject(), ['exam_date' => '2026-06-15']);
+    }
+
+    public function test_clearing_the_date_and_unrelated_edits_are_not_checked_against_the_exam_dates(): void
+    {
+        $this->repo(fn (MockInterface $m) => $m->shouldReceive('updateSubject')->twice()->andReturn($this->subject()));
+
+        app(ExamScheduleService::class)->update($this->exam(), $this->subject(), ['exam_date' => null]);
+        // A subject that still carries a date from before the exam's dates moved.
+        app(ExamScheduleService::class)->update($this->exam(), $this->subject(attributes: ['exam_date' => '2026-05-20']), ['start_time' => '10:00']);
     }
 
     public function test_the_end_time_must_be_after_the_start_time(): void

@@ -76,6 +76,11 @@ class Exam extends Model
         return $this->belongsTo(AcademicYear::class);
     }
 
+    public function results(): HasMany
+    {
+        return $this->hasMany(ExamResult::class);
+    }
+
     public function examSubjects(): HasMany
     {
         return $this->hasMany(ExamSubject::class);

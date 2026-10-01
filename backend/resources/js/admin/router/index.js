@@ -179,6 +179,21 @@ const routes = [
         component: () => import('@/views/exams/MarkEntry.vue'),
       },
       {
+        path: 'exams/:id/results',
+        name: 'Exam Results',
+        component: () => import('@/views/exams/ExamResults.vue'),
+      },
+      {
+        path: 'exams/:id/report-cards',
+        name: 'Report Cards',
+        component: () => import('@/views/exams/ReportCards.vue'),
+      },
+      {
+        path: 'exams/:id/report-cards/:studentId',
+        name: 'Report Card',
+        component: () => import('@/views/exams/ReportCards.vue'),
+      },
+      {
         path: 'fees',
         name: 'Fees',
         component: () => import('@/views/fees/FeeList.vue'),

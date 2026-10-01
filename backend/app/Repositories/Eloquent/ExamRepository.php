@@ -111,6 +111,11 @@ class ExamRepository extends EloquentRepository implements ExamRepositoryInterfa
             ->exists();
     }
 
+    public function hasResults(Exam $exam): bool
+    {
+        return $exam->results()->exists();
+    }
+
     public function hasMarksForClass(Exam $exam, int $classId): bool
     {
         return ExamMark::query()

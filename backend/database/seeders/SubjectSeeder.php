@@ -45,7 +45,7 @@ class SubjectSeeder extends Seeder
             // the unique code.
             $subject = Subject::withTrashed()->where('code', $code)->first() ?? new Subject(['code' => $code]);
 
-            $subject->fill(['name' => $name, 'name_bn' => $nameBn, 'type' => $type]);
+            $subject->fill(['name' => $name, 'name_bn' => $nameBn, 'type' => $type, 'total_marks' => 100, 'pass_marks' => 33]);
             $subject->save();
         }
     }

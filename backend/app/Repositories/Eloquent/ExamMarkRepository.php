@@ -2,14 +2,12 @@
 
 namespace App\Repositories\Eloquent;
 
-use App\Models\ClassSubject;
 use App\Models\Exam;
 use App\Models\ExamMark;
 use App\Models\ExamSubject;
 use App\Models\Section;
 use App\Models\StudentEnrolment;
 use App\Repositories\Contracts\ExamMarkRepositoryInterface;
-use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 
 class ExamMarkRepository implements ExamMarkRepositoryInterface
@@ -23,19 +21,8 @@ class ExamMarkRepository implements ExamMarkRepositoryInterface
     {
         return StudentEnrolment::query()
             ->where('section_id', $section->id)
-            ->where('academic_year_id', $exam->academic_year_id)
-            ->where('status', StudentEnrolment::STATUS_ACTIVE)
-            // A soft-deleted student is off the sheet.
-            ->whereHas('student')
-            ->where(function (Builder $q) use ($subject) {
-                if ($subject->type === ClassSubject::TYPE_OPTIONAL) {
-                    $q->where('optional_subject_id', $subject->subject_id);
-                }
-
-                if ($subject->group !== null) {
-                    $q->where('group', $subject->group);
-                }
-            })
+            ->activeIn($exam->academic_year_id)
+            ->takingSubject($subject)
             ->with([
                 'student',
                 'examMarks' => fn ($q) => $q->where('exam_subject_id', $subject->id),
