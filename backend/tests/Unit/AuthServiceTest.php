@@ -141,7 +141,7 @@ class AuthServiceTest extends TestCase
             $mock->shouldReceive('issueToken')->once()->andReturn('t');
         });
 
-        Cache::put('login-trusted:7:'.sha1('10.0.0.5'), true, now()->addDay());
+        Cache::put('login-trusted:7:0:'.sha1('10.0.0.5'), true, now()->addDay());
         RateLimiter::increment('login-user:7', 60, 10);
 
         $this->assertSame('t', app(AuthService::class)->login('x', 'secret-pass', null, '10.0.0.5')['token']);
@@ -164,7 +164,7 @@ class AuthServiceTest extends TestCase
             app(AuthService::class)->login('x', 'secret-pass', null, '10.0.0.7');
         }
 
-        $this->assertTrue(Cache::has('login-trusted:7:'.sha1('10.0.0.7')));
+        $this->assertTrue(Cache::has('login-trusted:7:0:'.sha1('10.0.0.7')));
         $this->assertSame(0, RateLimiter::attempts('login-ip-fail:'.sha1('10.0.0.7')));
     }
 

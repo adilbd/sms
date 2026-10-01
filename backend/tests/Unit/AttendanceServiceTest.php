@@ -111,7 +111,7 @@ class AttendanceServiceTest extends TestCase
             $holidays && $holidays($m);
         });
         $this->mock(AttendanceRepositoryInterface::class, function (MockInterface $m) use ($attendance) {
-            $m->shouldReceive('sheetEnrolments')->andReturn(new Collection([$this->enrolment(100, 1), $this->enrolment(101, 2)]))->byDefault();
+            $m->shouldReceive('candidateEnrolments')->andReturn(new Collection([$this->enrolment(100, 1), $this->enrolment(101, 2)]))->byDefault();
             $attendance && $attendance($m);
         });
         $this->mock(TeacherScope::class, function (MockInterface $m) use ($leads, $year, $staffStatus) {
@@ -364,7 +364,7 @@ class AttendanceServiceTest extends TestCase
     public function test_a_month_with_no_academic_year_is_refused(): void
     {
         $this->wire('teacher');
-        $this->mock(AcademicYearRepositoryInterface::class, fn (MockInterface $m) => $m->shouldReceive('findByYear')->andReturn(null));
+        $this->mock(AcademicYearRepositoryInterface::class, fn (MockInterface $m) => $m->shouldReceive('findByYear')->andReturn(null) && $m->shouldReceive('findActive')->andReturn($this->year()));
 
         $this->assertArrayHasKey('month', $this->errors(fn () => $this->service()->report($this->user(), 20, '2027-01')));
     }

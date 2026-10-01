@@ -48,9 +48,7 @@ trait BuildsExams
         $this->seed(RolePermissionSeeder::class);
         $this->admin = User::where('email', 'admin@sms.com')->firstOrFail();
 
-        $this->year = AcademicYear::factory()->active()->create([
-            'year' => 2026, 'name' => '2026', 'code' => '2026', 'start_date' => '2026-01-01', 'end_date' => '2026-12-31',
-        ]);
+        $this->year = AcademicYear::factory()->active()->create(['year' => 2026]);
         $this->shift = Shift::factory()->create();
         $this->class9 = Classes::factory()->create(['number' => 9, 'name' => 'Class 9']);
         $this->class10 = Classes::factory()->create(['number' => 10, 'name' => 'Class 10']);

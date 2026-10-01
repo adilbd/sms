@@ -34,7 +34,9 @@ class EnrolmentServiceTest extends TestCase
 
         $this->year = new AcademicYear;
         $this->year->id = 1;
-        $this->student = new Student(['status' => Student::STATUS_ACTIVE]);
+        $this->year->start_date = '2026-01-01';
+        $this->year->end_date = '2026-12-31';
+        $this->student = new Student(['status' => Student::STATUS_ACTIVE, 'admission_date' => '2026-03-10']);
         $this->student->id = 5;
     }
 
@@ -98,10 +100,34 @@ class EnrolmentServiceTest extends TestCase
                 'status' => StudentEnrolment::STATUS_ACTIVE,
                 'student_id' => 5,
                 'academic_year_id' => 1,
+                // The admission date (2026-03-10), inside the year.
+                'enrolled_on' => '2026-03-10',
             ])->andReturn(new StudentEnrolment);
         });
 
         app(EnrolmentService::class)->save($this->student, $this->year, ['section_id' => $section->id, 'roll_number' => 12]);
+    }
+
+    public function test_enrolled_on_is_clamped_to_the_year_for_early_and_late_admissions(): void
+    {
+        $section = $this->section();
+        $this->mock(ClassSubjectRepositoryInterface::class);
+
+        $this->mock(StudentEnrolmentRepositoryInterface::class, function (MockInterface $mock) use ($section) {
+            $mock->shouldReceive('lockSection')->andReturn($section);
+            $mock->shouldReceive('forStudentAndYear')->andReturn(null);
+            $mock->shouldReceive('countActiveInSection')->andReturn(0);
+            $mock->shouldReceive('create')->once()->withArgs(fn ($a) => $a['enrolled_on'] === '2026-01-01')->andReturn(new StudentEnrolment);
+            $mock->shouldReceive('create')->once()->withArgs(fn ($a) => $a['enrolled_on'] === '2026-12-31')->andReturn(new StudentEnrolment);
+        });
+
+        $early = new Student(['status' => Student::STATUS_ACTIVE, 'admission_date' => '2024-06-01']);
+        $early->id = 6;
+        $late = new Student(['status' => Student::STATUS_ACTIVE, 'admission_date' => '2027-02-01']);
+        $late->id = 7;
+
+        app(EnrolmentService::class)->save($early, $this->year, ['section_id' => $section->id]);
+        app(EnrolmentService::class)->save($late, $this->year, ['section_id' => $section->id]);
     }
 
     public function test_rejects_an_inactive_section(): void

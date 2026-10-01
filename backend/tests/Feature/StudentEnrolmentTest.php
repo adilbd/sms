@@ -58,6 +58,40 @@ class StudentEnrolmentTest extends TestCase
         $this->assertSame(2, StudentEnrolment::count());
     }
 
+    public function test_a_new_enrolment_starts_on_the_admission_date_clamped_to_the_year(): void
+    {
+        $year = AcademicYear::factory()->create(['year' => 2026]);
+        $this->section->update(['capacity' => 10]);
+        $make = fn (string $admitted) => $this->service()->save(
+            Student::factory()->create(['admission_date' => $admitted]),
+            $year,
+            ['section_id' => $this->section->id],
+        );
+
+        $this->assertSame('2026-01-05', $make('2026-01-05')->enrolled_on->toDateString());
+        $this->assertSame('2026-01-01', $make('2024-06-01')->enrolled_on->toDateString());
+        $this->assertSame('2026-12-31', $make('2027-02-01')->enrolled_on->toDateString());
+    }
+
+    public function test_enrolling_into_a_past_year_after_it_ended_never_starts_after_its_end(): void
+    {
+        \Illuminate\Support\Carbon::setTestNow('2027-05-01 06:00:00');
+        $past = AcademicYear::factory()->create(['year' => 2025]);
+        $student = Student::factory()->create(['admission_date' => '2025-02-02']);
+
+        $enrolment = $this->service()->save($student, $past, ['section_id' => $this->section->id]);
+        $this->assertSame('2025-02-02', $enrolment->enrolled_on->toDateString());
+
+        // A resave keeps the date; an explicit start (promotion) wins.
+        $again = $this->service()->save($student, $past, ['section_id' => $this->section->id, 'roll_number' => 3]);
+        $this->assertSame('2025-02-02', $again->enrolled_on->toDateString());
+
+        $other = $this->service()->save(Student::factory()->create(), $this->year, ['section_id' => $this->section->id, 'enrolled_on' => '2026-01-01']);
+        $this->assertSame('2026-01-01', $other->enrolled_on->toDateString());
+
+        \Illuminate\Support\Carbon::setTestNow();
+    }
+
     public function test_a_seat_frees_up_when_a_student_leaves(): void
     {
         $leaver = Student::factory()->create();

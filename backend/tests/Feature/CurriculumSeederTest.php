@@ -15,6 +15,21 @@ class CurriculumSeederTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_re_running_the_subject_seeder_keeps_an_admins_marks_but_syncs_the_name(): void
+    {
+        $this->seed(SubjectSeeder::class);
+        Subject::where('code', 'BAN')->update(['pass_marks' => 40, 'total_marks' => 120, 'name' => 'Old name']);
+
+        $this->seed(SubjectSeeder::class);
+
+        $subject = Subject::where('code', 'BAN')->firstOrFail();
+        $this->assertSame(40, $subject->pass_marks);
+        $this->assertSame(120, $subject->total_marks);
+        $this->assertSame('Bangla', $subject->name);
+        $this->assertSame(33, Subject::where('code', 'ENG')->value('pass_marks'));
+        $this->assertSame(100, Subject::where('code', 'ENG')->value('total_marks'));
+    }
+
     public function test_seeds_subjects_and_a_curriculum_for_every_class_and_is_idempotent(): void
     {
         $this->seed([ClassSeeder::class, SubjectSeeder::class, CurriculumSeeder::class]);

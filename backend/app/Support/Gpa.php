@@ -114,8 +114,9 @@ class Gpa
      * GPA = (sum of the compulsory points + max(0, 4th-subject point - 2)) / the number of
      * compulsory units, capped at 5.00 and rounded half-up to 2 decimals. Any failed
      * compulsory unit makes the GPA 0.00 and the grade F; a failed 4th subject never fails
-     * the student. passed_count and failed_count count compulsory units only. The totals include the 4th subject. A student with no compulsory unit
-     * has nothing to pass and fails.
+     * the student. passed_count and failed_count count compulsory units only. The totals
+     * include the 4th subject. A student with no compulsory unit has nothing to pass and
+     * fails.
      *
      * @param  list<array{grade: string, point: string, obtained: string, full: string}>  $compulsory
      * @param  array{grade: string, point: string, obtained: string, full: string}|null  $optional
@@ -126,7 +127,8 @@ class Gpa
         $units = $optional === null ? $compulsory : [...$compulsory, $optional];
         $failedCount = count(array_filter($compulsory, fn (array $unit) => $unit['grade'] === self::FAIL_GRADE));
         $count = count($compulsory);
-        // Compulsory units that are not an F (a combined pair is one unit). The 4th subject is never counted, passed or failed.
+        // Compulsory units that are not an F (a combined pair is one unit). The 4th subject
+        // is never counted, passed or failed.
         $passedCount = $count - $failedCount;
 
         $gpa = 0;
@@ -178,7 +180,8 @@ class Gpa
     /**
      * Merit positions (standard competition ranking: 1, 2, 2, 4). The higher GPA comes
      * first (a failed student's GPA is 0.00, below every passed student's), then more passed
-     * subjects, then the higher total; students equal on all three share a position. The input order (roll number, say) never affects a position.
+     * subjects, then the higher total; students equal on all three share a position. The
+     * input order (roll number, say) never affects a position.
      *
      * @param  list<array{key: int|string, gpa: string, passed_count: int, total: string}>  $rows
      * @return array<int|string, int> position by key

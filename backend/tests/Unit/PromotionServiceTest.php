@@ -37,9 +37,9 @@ class PromotionServiceTest extends TestCase
     {
         parent::setUp();
 
-        $this->from = new AcademicYear(['year' => 2026]);
+        $this->from = new AcademicYear(['year' => 2026, 'start_date' => '2026-01-01', 'end_date' => '2026-12-31']);
         $this->from->id = 1;
-        $this->to = new AcademicYear(['year' => 2027]);
+        $this->to = new AcademicYear(['year' => 2027, 'start_date' => '2027-01-01', 'end_date' => '2027-12-31']);
         $this->to->id = 2;
     }
 
@@ -138,6 +138,41 @@ class PromotionServiceTest extends TestCase
         ]));
 
         $this->addToAssertionCount(1); // the ordered() expectations are the assertion
+    }
+
+    public function test_skip_writes_nothing_and_an_already_enrolled_student_can_be_skipped(): void
+    {
+        $this->section(50, 6);
+        $this->section(60, 7);
+        $repo = $this->wire([$this->enrolment(1), $this->enrolment(2)], enrolledInTarget: [1]);
+        $repo->shouldNotReceive('update');
+        $enrolments = $this->mock(EnrolmentService::class);
+        $enrolments->shouldReceive('sectionClosedReason')->andReturn(null);
+        $enrolments->shouldReceive('placementErrors')->andReturn([]);
+        $enrolments->shouldReceive('save')->never();
+
+        $result = app(PromotionService::class)->apply($this->body(50, null, [
+            ['student_id' => 1, 'action' => 'skip'], ['student_id' => 2, 'action' => 'skip'],
+        ]));
+
+        $this->assertSame(['promoted' => 0, 'retained' => 0, 'left' => 0, 'graduated' => 0, 'skipped' => 2], $result['summary']);
+        $this->assertSame([], $result['target_sections']);
+    }
+
+    public function test_new_enrolments_are_created_from_the_target_years_start_date(): void
+    {
+        $this->section(50, 6);
+        $this->section(60, 7);
+        $repo = $this->wire([$this->enrolment(1)]);
+        $repo->shouldReceive('update')->once();
+        $enrolments = $this->mock(EnrolmentService::class);
+        $enrolments->shouldReceive('sectionClosedReason')->andReturn(null);
+        $enrolments->shouldReceive('placementErrors')->andReturn([]);
+        $enrolments->shouldReceive('save')->once()
+            ->withArgs(fn ($student, $year, array $data) => $data['enrolled_on'] === '2027-01-01')
+            ->andReturn(new StudentEnrolment);
+
+        app(PromotionService::class)->apply($this->body(50, 60));
     }
 
     /** Re-binds EnrolmentService to a mock that accepts the calls a successful batch makes. */
@@ -258,7 +293,7 @@ class PromotionServiceTest extends TestCase
 
         $result = app(PromotionService::class)->apply($this->body(50, null, [['student_id' => 2, 'action' => 'leave']]));
 
-        $this->assertSame(['promoted' => 0, 'retained' => 0, 'left' => 1, 'graduated' => 1], $result['summary']);
+        $this->assertSame(['promoted' => 0, 'retained' => 0, 'left' => 1, 'graduated' => 1, 'skipped' => 0], $result['summary']);
         Carbon::setTestNow();
     }
 

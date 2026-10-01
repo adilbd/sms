@@ -17,13 +17,17 @@ class TrustedProxies
 {
     public static function apply(mixed $value): void
     {
-        if (! is_string($value) || trim($value) === '') {
+        $value = is_string($value) ? trim($value) : '';
+        $list = array_values(array_filter(array_map('trim', explode(',', $value)), fn (string $entry) => $entry !== ''));
+
+        if ($list === []) {
+            // Clears any trust set earlier (state is static, so it outlives a config change in tests).
+            TrustProxies::flushState();
+
             return;
         }
 
-        $value = trim($value);
-
-        TrustProxies::at($value === '*' ? '*' : array_map('trim', explode(',', $value)));
+        TrustProxies::at($value === '*' ? '*' : $list);
         TrustProxies::withHeaders(Request::HEADER_X_FORWARDED_FOR | Request::HEADER_X_FORWARDED_PROTO | Request::HEADER_X_FORWARDED_PORT);
     }
 }

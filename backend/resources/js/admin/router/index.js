@@ -374,6 +374,13 @@ const routes = [
         component: () => import('@/views/Profile.vue'),
         meta: { title: 'Profile' },
       },
+      {
+        // An unknown /admin/... path (a stale bookmark, a typo) goes to the dashboard instead
+        // of rendering an empty layout. Last, so every real route matches first.
+        path: ':pathMatch(.*)*',
+        name: 'NotFound',
+        redirect: '/',
+      },
     ],
   },
 ]

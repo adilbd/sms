@@ -122,7 +122,7 @@ class PromotionApiTest extends TestCase
             ['student_id' => $elsewhere->student_id, 'action' => 'promote', 'target_section_id' => $other->id],
         ]))
             ->assertOk()
-            ->assertJsonPath('data.summary', ['promoted' => 2, 'retained' => 1, 'left' => 1, 'graduated' => 0])
+            ->assertJsonPath('data.summary', ['promoted' => 2, 'retained' => 1, 'left' => 1, 'graduated' => 0, 'skipped' => 0])
             ->assertJsonPath('message', 'Promotion applied successfully')
             ->assertJsonStructure(['data' => ['target_sections' => [['id', 'name', 'enrolled_after']]]]);
 
@@ -235,7 +235,7 @@ class PromotionApiTest extends TestCase
     {
         $this->apply($this->body($this->section(6), $this->section(7)))
             ->assertOk()
-            ->assertJsonPath('data.summary', ['promoted' => 0, 'retained' => 0, 'left' => 0, 'graduated' => 0]);
+            ->assertJsonPath('data.summary', ['promoted' => 0, 'retained' => 0, 'left' => 0, 'graduated' => 0, 'skipped' => 0]);
     }
 
     // ---- Apply: validation, nothing written ------------------------------------------------
@@ -606,7 +606,9 @@ class PromotionApiTest extends TestCase
 
         $this->preview($source, ['to_academic_year_id' => $this->to->id])->assertOk()
             ->assertJsonPath('data.rows.0.already_enrolled_in_target', true)
-            ->assertJsonPath('data.rows.1.already_enrolled_in_target', false);
+            ->assertJsonPath('data.rows.0.suggested_action', 'skip')
+            ->assertJsonPath('data.rows.1.already_enrolled_in_target', false)
+            ->assertJsonPath('data.rows.1.suggested_action', 'promote');
     }
 
     public function test_preview_of_an_empty_section_is_empty(): void
@@ -620,6 +622,96 @@ class PromotionApiTest extends TestCase
 
         $this->preview($this->section(6), ['class_id' => $other->id])
             ->assertUnprocessable()->assertJsonValidationErrors(['section_id']);
+    }
+
+    // ---- Skip, enrolment start and the result screen ---------------------------------------
+
+    public function test_a_skipped_student_is_left_untouched(): void
+    {
+        $source = $this->section(6);
+        $target = $this->section(7);
+        $skipped = $this->enrol($source, ['roll_number' => 1]);
+        $promoted = $this->enrol($source, ['roll_number' => 2]);
+
+        $this->apply($this->body($source, $target, [['student_id' => $skipped->student_id, 'action' => 'skip']]))
+            ->assertOk()
+            ->assertJsonPath('data.summary', ['promoted' => 1, 'retained' => 0, 'left' => 0, 'graduated' => 0, 'skipped' => 1])
+            ->assertJsonPath('data.target_sections.0.enrolled_after', 1);
+
+        $this->assertSame('active', $skipped->refresh()->status);
+        $this->assertSame('active', $skipped->student->refresh()->status);
+        $this->assertSame(0, StudentEnrolment::where('student_id', $skipped->student_id)->where('academic_year_id', $this->to->id)->count());
+        $this->assertSame('promoted', $promoted->refresh()->status);
+    }
+
+    public function test_a_skipped_student_takes_no_seat(): void
+    {
+        $source = $this->section(6);
+        $target = $this->section(7, 'A', ['capacity' => 1]);
+        $skipped = $this->enrol($source);
+        $this->enrol($source);
+
+        $this->apply($this->body($source, $target, [['student_id' => $skipped->student_id, 'action' => 'skip']]))
+            ->assertOk()->assertJsonPath('data.summary.promoted', 1);
+    }
+
+    public function test_an_already_enrolled_student_can_be_skipped_while_the_rest_is_promoted(): void
+    {
+        $source = $this->section(6);
+        $target = $this->section(7);
+        $done = $this->enrol($source);
+        $rest = $this->enrol($source);
+        $existing = $this->enrol($target, ['student_id' => $done->student_id], $this->to);
+
+        $this->apply($this->body($source, $target, [['student_id' => $done->student_id, 'action' => 'skip']]))
+            ->assertOk()
+            ->assertJsonPath('data.summary.promoted', 1)
+            ->assertJsonPath('data.summary.skipped', 1);
+
+        $this->assertSame('active', $done->refresh()->status);
+        $this->assertSame(1, StudentEnrolment::where('student_id', $done->student_id)->where('academic_year_id', $this->to->id)->count());
+        $this->assertSame($existing->section_id, $existing->refresh()->section_id);
+        $this->assertSame('promoted', $rest->refresh()->status);
+    }
+
+    public function test_skip_is_validated_like_the_other_actions(): void
+    {
+        $source = $this->section(6);
+        $stranger = $this->enrol($this->section(6, 'B'));
+        $target = $this->section(7);
+
+        $this->apply($this->body($source, $target, [['student_id' => $stranger->student_id, 'action' => 'skip']]))
+            ->assertUnprocessable()->assertJsonValidationErrors(['exceptions.0.student_id']);
+        $this->apply($this->body($source, $target, [['student_id' => $stranger->student_id, 'action' => 'jump']]))
+            ->assertUnprocessable()->assertJsonValidationErrors(['exceptions.0.action']);
+    }
+
+    public function test_new_enrolments_start_with_the_target_years_start_date(): void
+    {
+        $source = $this->section(6);
+        $target = $this->section(7);
+        $a = $this->enrol($source);
+        $b = $this->enrol($source);
+
+        $this->apply($this->body($source, $target, [['student_id' => $b->student_id, 'action' => 'retain']]))->assertOk();
+
+        foreach ([$a, $b] as $enrolment) {
+            $new = StudentEnrolment::where('student_id', $enrolment->student_id)->where('academic_year_id', $this->to->id)->firstOrFail();
+            $this->assertSame('2027-01-01', $new->enrolled_on->toDateString());
+        }
+    }
+
+    public function test_the_result_lists_target_sections_with_their_class_and_shift(): void
+    {
+        $source = $this->section(6);
+        $target = $this->section(7, 'A');
+        $this->enrol($source);
+
+        $this->apply($this->body($source, $target))
+            ->assertOk()
+            ->assertJsonPath('data.target_sections.0.name', 'Section A')
+            ->assertJsonPath('data.target_sections.0.class_name', $target->class->name)
+            ->assertJsonPath('data.target_sections.0.shift_name', $this->shift->name_en);
     }
 
     // ---- Authorization --------------------------------------------------------------------

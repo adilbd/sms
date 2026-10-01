@@ -70,9 +70,7 @@ class AttendanceService
     {
         $date ??= $this->today();
         $section = $this->sections->findOrFail($sectionId);
-        $year = $this->yearForDate($date, 'date');
-
-        $this->authorizeSection($user, $section, $year);
+        $year = $this->ensureInYear($this->accessibleYear($user, $section, $date), $date, 'date');
 
         return $this->buildSheet($section, $year, $date);
     }
@@ -89,9 +87,8 @@ class AttendanceService
     {
         $date = $data['date'] ?? $this->today();
         $section = $this->sections->findOrFail((int) $data['section_id']);
-        $year = $this->yearForDate($date, 'date');
+        $year = $this->ensureInYear($this->accessibleYear($user, $section, $date), $date, 'date');
 
-        $this->authorizeSection($user, $section, $year);
         $this->ensureCanMark($user, $date);
 
         try {
@@ -101,7 +98,7 @@ class AttendanceService
                 // Checked again now the lock is held: the class teacher may have changed.
                 $this->authorizeSection($user, $locked, $year);
 
-                $onSheet = $this->attendance->sheetEnrolments($locked->id, $year->id, $date)->keyBy('student_id');
+                $onSheet = $this->onRoll($this->attendance->candidateEnrolments($locked->id, $year->id, $date), $date)->keyBy('student_id');
                 $rows = $this->validatedRows($onSheet, array_values($data['entries']));
 
                 $this->attendance->saveRows($rows, $locked->id, $year->id, $date, $user->id);
@@ -128,16 +125,17 @@ class AttendanceService
     {
         [$month, $first, $last] = $this->monthRange($month);
         $section = $this->sections->findOrFail($sectionId);
-        $year = $this->yearForMonth($first);
-
-        $this->authorizeSection($user, $section, $year);
+        $year = $this->accessibleYear($user, $section, $first)
+            ?? throw ValidationException::withMessages(['month' => ['There is no academic year for this month.']]);
 
         $schoolDays = $this->schoolDays($year, $first, $last);
 
         $students = $this->attendance->reportEnrolments($section->id, $year->id, $first, $last)
+            // A student who joined after the month has no school days in it (unless a record exists).
+            ->filter(fn ($enrolment) => $this->enrolledOn($enrolment) <= $last || $enrolment->attendances->isNotEmpty())
             ->map(fn ($enrolment) => [
                 'student' => $this->studentSummary($enrolment->student, $enrolment->roll_number),
-                ...$this->summarise($schoolDays, $enrolment->attendances, $enrolment->status === StudentEnrolment::STATUS_ACTIVE),
+                ...$this->summarise($this->sinceEnrolment($schoolDays, $enrolment), $enrolment->attendances, $enrolment->status === StudentEnrolment::STATUS_ACTIVE),
             ])
             ->values()
             ->all();
@@ -185,7 +183,24 @@ class AttendanceService
     private function studentView(Student $student, ?string $month, ?User $staff): array
     {
         [$month, $first, $last] = $this->monthRange($month);
-        $year = $this->yearForMonth($first);
+        $year = $this->years->findByYear((int) substr($first, 0, 4));
+
+        if ($year === null) {
+            // No year to look the student up in. Staff without access still get 403 before
+            // the month error, like the sheet and the report (checked against the active year).
+            if ($staff !== null && ! $this->users->hasRole($staff, 'admin')) {
+                $active = $this->years->findActive();
+                $context = $active ? $this->teacherScope->forUser($staff, $active->id) : null;
+                abort_unless(
+                    $context !== null && $context->staff->status === Staff::STATUS_ACTIVE && $context->leadingSectionIds() !== [],
+                    403,
+                    "Only the section's class teacher or an admin can use its attendance."
+                );
+            }
+
+            $this->yearForMonth($first);
+        }
+
         $enrolment = $this->enrolments->forStudentAndYear($student, $year->id);
 
         abort_if($enrolment === null, 404, 'The student has no enrolment in this academic year.');
@@ -199,7 +214,7 @@ class AttendanceService
 
         // Year to date runs to today, or to the end of the requested month when that is
         // earlier, so a past month shows the figure as it stood then.
-        $yearToDate = $this->schoolDays($year, $yearStart, $last);
+        $yearToDate = $this->sinceEnrolment($this->schoolDays($year, $yearStart, $last), $enrolment);
         $records = $this->attendance->recordsForStudent($student->id, $yearStart, $year->end_date->toDateString());
 
         $monthDays = array_values(array_filter($yearToDate, fn (string $d) => $d >= $first));
@@ -279,7 +294,7 @@ class AttendanceService
             'academic_year' => $year,
             'date' => $date,
             'holiday' => $this->holidayOn($date),
-            'enrolments' => $this->attendance->sheetEnrolments($section->id, $year->id, $date),
+            'enrolments' => $this->onRoll($this->attendance->candidateEnrolments($section->id, $year->id, $date), $date),
         ];
     }
 
@@ -360,18 +375,85 @@ class AttendanceService
     }
 
     /**
-     * The academic year of the date's calendar year, with the date inside its start and
-     * end dates; 422 on $key otherwise.
+     * The academic year of the date's calendar year, after the access check, so a user with
+     * no access gets 403 even for a date outside any year. Null when there is no such year.
      */
-    private function yearForDate(string $date, string $key): AcademicYear
+    private function accessibleYear(User $user, Section $section, string $date): ?AcademicYear
     {
         $year = $this->years->findByYear((int) substr($date, 0, 4));
 
+        if ($year === null) {
+            // No year to check the class teacher against: use the active one, so a class
+            // teacher still gets the date error and anyone else gets 403.
+            if (! $this->users->hasRole($user, 'admin')) {
+                $active = $this->years->findActive();
+                abort_if($active === null, 403, "Only the section's class teacher or an admin can use its attendance.");
+                $this->authorizeSection($user, $section, $active);
+            }
+
+            return null;
+        }
+
+        $this->authorizeSection($user, $section, $year);
+
+        return $year;
+    }
+
+    /**
+     * The year, with the date inside its start and end dates; 422 on $key otherwise.
+     */
+    private function ensureInYear(?AcademicYear $year, string $date, string $key): AcademicYear
+    {
         if ($year === null || $date < $year->start_date->toDateString() || $date > $year->end_date->toDateString()) {
             throw ValidationException::withMessages([$key => ['The date is outside the academic year.']]);
         }
 
         return $year;
+    }
+
+    /**
+     * The enrolments that were on the roll on $date: began on or before it, and not left
+     * or graduated before it (the student's leaving date; a left/graduated student with no
+     * leaving date is not listed). Promoted and retained enrolments were active until the
+     * year ended, so they stay on the roll.
+     *
+     * @param  Collection<int, StudentEnrolment>  $candidates
+     * @return Collection<int, StudentEnrolment>
+     */
+    private function onRoll(Collection $candidates, string $date): Collection
+    {
+        return $candidates->filter(function (StudentEnrolment $enrolment) use ($date) {
+            if ($this->enrolledOn($enrolment) > $date) {
+                return false;
+            }
+
+            if (in_array($enrolment->status, [StudentEnrolment::STATUS_LEFT, StudentEnrolment::STATUS_GRADUATED], true)) {
+                $left = $enrolment->student?->leaving_date?->toDateString();
+
+                return $left !== null && $left >= $date;
+            }
+
+            return true;
+        })->values();
+    }
+
+    /** The day the enrolment began; an empty string (before any date) when it has no start. */
+    private function enrolledOn(StudentEnrolment $enrolment): string
+    {
+        return $enrolment->enrolled_on?->toDateString() ?? '';
+    }
+
+    /**
+     * The school days from the day the student's enrolment began: max(range start, enrolled_on).
+     *
+     * @param  list<string>  $schoolDays
+     * @return list<string>
+     */
+    private function sinceEnrolment(array $schoolDays, StudentEnrolment $enrolment): array
+    {
+        $from = $this->enrolledOn($enrolment);
+
+        return $from === '' ? $schoolDays : array_values(array_filter($schoolDays, fn (string $d) => $d >= $from));
     }
 
     private function yearForMonth(string $firstDay): AcademicYear

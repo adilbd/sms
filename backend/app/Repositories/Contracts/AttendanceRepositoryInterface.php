@@ -12,10 +12,12 @@ use Illuminate\Database\Eloquent\Collection;
 interface AttendanceRepositoryInterface
 {
     /**
-     * The section's active enrolments for the year (of students not deleted), ordered by
-     * roll number, each with its student and its `attendances` constrained to $date.
+     * Every enrolment of the section for the year, whatever its status (of students not
+     * deleted), ordered by roll number, each with its student and its `attendances`
+     * constrained to $date. Which of them were on the roll that day is the service's
+     * decision (AttendanceService::onRoll()).
      */
-    public function sheetEnrolments(int $sectionId, int $academicYearId, string $date): Collection;
+    public function candidateEnrolments(int $sectionId, int $academicYearId, string $date): Collection;
 
     /**
      * Creates or updates one row per (enrolment, date), stamping `marked_by`. Rows for

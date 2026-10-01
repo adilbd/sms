@@ -25,7 +25,7 @@ class ApplyPromotionRequest extends FormRequest
             'default_target_section_id' => 'sometimes|nullable|integer|exists:sections,id',
             'exceptions' => 'sometimes|array|max:500',
             'exceptions.*.student_id' => 'required|integer|exists:students,id',
-            'exceptions.*.action' => ['required', Rule::in(['promote', 'retain', 'leave'])],
+            'exceptions.*.action' => ['required', Rule::in(['promote', 'retain', 'leave', 'skip'])],
             'exceptions.*.target_section_id' => 'sometimes|nullable|integer|exists:sections,id',
             'exceptions.*.group' => ['sometimes', 'nullable', Rule::in(AcademicGroup::VALUES)],
             // An explicit null means "no 4th subject", so the key's presence is kept.
