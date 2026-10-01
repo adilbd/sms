@@ -143,7 +143,7 @@ Promoting a class to the next year is Task B (`feat/student-promotion`). The ful
 - `CLAUDE.md` domain rules: Class 1–12, groups from Class 9, Bangla names, Asia/Dhaka for date-only defaults, and "Class", not "Grade".
 
 ## Acceptance criteria
-- [ ] The migrations run on SQLite and MySQL, including rollback. The old student and parent data and tables are gone. SQLite, rollback and data deletion are verified. MySQL hasn't been run yet; `php artisan migrate` on Docker will delete that database's student and guardian data by design.
+- [x] The migrations run on SQLite and MySQL, including rollback. The old student and parent data and tables are gone. On Docker MySQL 8.0, migrate, then rollback --step=4, then migrate all worked. The `parents` table is gone, and the parent role no longer has `view-students`. Seeding gave 60 students, 60 enrolments and 49 guardian logins, and re-seeding added nothing. A student-ID login returned 200.
 - [x] `StudentController` and `AuthController` are thin. They contain no Eloquent, no `DB::` calls, no inline validation and no try/catch.
 - [x] Every students and auth endpoint returns the guideline shapes, and the SPA reads them.
 - [x] Every enrolment rule and account rule above is enforced, with errors keyed to the field (`enrolment.group`, and so on).
