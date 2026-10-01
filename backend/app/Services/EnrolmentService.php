@@ -119,9 +119,6 @@ class EnrolmentService
      */
     private function ensureValid(Section $section, AcademicYear $year, array $data, ?StudentEnrolment $existing, string $newStatus): void
     {
-        $class = $section->class;
-        $group = $data['group'] ?? null;
-        $optionalSubjectId = $data['optional_subject_id'] ?? null;
         $roll = $data['roll_number'] ?? null;
         $errors = [];
 
@@ -136,14 +133,55 @@ class EnrolmentService
                 || $existing->status !== StudentEnrolment::STATUS_ACTIVE);
 
         if ($takesSeat) {
-            if (! $section->is_active) {
-                $errors['enrolment.section_id'][] = 'The section is not active.';
-            } elseif (! $section->shift || ! $section->shift->is_active) {
-                $errors['enrolment.section_id'][] = "The section's shift is not active.";
+            if ($reason = $this->sectionClosedReason($section)) {
+                $errors['enrolment.section_id'][] = $reason;
             } elseif ($this->enrolments->countActiveInSection($section->id, $year->id) >= $section->capacity) {
                 $errors['enrolment.section_id'][] = 'The section is full.';
             }
         }
+
+        $errors = array_merge($errors, $this->placementErrors($section, $data['group'] ?? null, $data['optional_subject_id'] ?? null));
+
+        if ($roll !== null && $this->enrolments->rollNumberTaken($section->id, $year->id, (int) $roll, $existing?->id)) {
+            $errors['enrolment.roll_number'][] = 'This roll number is already taken in the section.';
+        }
+
+        if ($errors !== []) {
+            throw ValidationException::withMessages($errors);
+        }
+    }
+
+    /**
+     * Why a section cannot take new students (it, or its shift, is inactive), or null.
+     * $section must have its `shift` loaded (lockSection() does). Capacity is separate.
+     */
+    public function sectionClosedReason(Section $section): ?string
+    {
+        if (! $section->is_active) {
+            return 'The section is not active.';
+        }
+
+        if (! $section->shift || ! $section->shift->is_active) {
+            return "The section's shift is not active.";
+        }
+
+        return null;
+    }
+
+    /**
+     * The group and 4th-subject rules for placing a student in $section (which must have
+     * its `class` loaded): a group is required from Class 9, forbidden below it and must
+     * match the section's group; the 4th subject is forbidden below Class 9 and must be an
+     * optional curriculum row for the class and group. Returns errors keyed
+     * `enrolment.{field}`, empty when valid. Shared with PromotionService so a promotion
+     * applies exactly the rules of a normal enrolment.
+     *
+     * @return array<string, list<string>>
+     */
+    public function placementErrors(Section $section, ?string $group, ?int $optionalSubjectId): array
+    {
+        $class = $section->class;
+        $errors = [];
 
         if ($class->hasGroups()) {
             if ($group === null) {
@@ -168,13 +206,7 @@ class EnrolmentService
             $errors['enrolment.optional_subject_id'][] = 'This is not an optional (4th) subject for the class and group.';
         }
 
-        if ($roll !== null && $this->enrolments->rollNumberTaken($section->id, $year->id, (int) $roll, $existing?->id)) {
-            $errors['enrolment.roll_number'][] = 'This roll number is already taken in the section.';
-        }
-
-        if ($errors !== []) {
-            throw ValidationException::withMessages($errors);
-        }
+        return $errors;
     }
 
     private function isOptionalChoice(Classes $class, string $group, int $subjectId): bool

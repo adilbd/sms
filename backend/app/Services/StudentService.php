@@ -283,6 +283,30 @@ class StudentService
         });
     }
 
+    /**
+     * Marks the student as left or graduated on $leavingDate: the same status change as an
+     * edit (leaving-date rules, the student's login deactivated with its tokens revoked,
+     * the guardian login switched off when no active child remains). Used by promotion,
+     * inside the caller's transaction; the enrolment status is the caller's to sync.
+     */
+    public function changeStatus(Student $student, string $status, string $leavingDate): Student
+    {
+        $attributes = ['status' => $status, 'leaving_date' => $leavingDate];
+        $this->ensureLeavingDateRules((clone $student)->fill($attributes));
+
+        return DB::transaction(function () use ($student, $attributes) {
+            $student = $this->students->update($student, $attributes);
+
+            $this->syncStudentLogin($student, null);
+
+            if ($student->guardian_user_id) {
+                $this->syncGuardianAccessById($student->guardian_user_id);
+            }
+
+            return $student;
+        });
+    }
+
     private function activeYear(): AcademicYear
     {
         $year = $this->years->findActive();
@@ -417,17 +441,29 @@ class StudentService
 
     private function ensureLeavingDateRules(Student $student): void
     {
+        if ($errors = $this->leavingDateErrors($student)) {
+            throw ValidationException::withMessages($errors);
+        }
+    }
+
+    /**
+     * The leaving-date rules for the student with the new status and date applied, as
+     * validation messages keyed by field (empty when they hold). Promotion uses it to
+     * check leavers before its first write.
+     *
+     * @return array<string, list<string>>
+     */
+    public function leavingDateErrors(Student $student): array
+    {
         if ($student->status !== Student::STATUS_ACTIVE && ! $student->leaving_date) {
-            throw ValidationException::withMessages([
-                'leaving_date' => ['The leaving date is required when the student is not active.'],
-            ]);
+            return ['leaving_date' => ['The leaving date is required when the student is not active.']];
         }
 
         if ($student->leaving_date && $student->admission_date && $student->leaving_date->lt($student->admission_date)) {
-            throw ValidationException::withMessages([
-                'leaving_date' => ['The leaving date must be on or after the admission date.'],
-            ]);
+            return ['leaving_date' => ['The leaving date must be on or after the admission date.']];
         }
+
+        return [];
     }
 
     /**

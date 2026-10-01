@@ -138,4 +138,25 @@ class ExamResultRepository implements ExamResultRepositoryInterface
             ->orderBy('exam_subjects.id')
             ->get();
     }
+
+    public function latestPublishedAnnualExam(int $academicYearId, int $classId): ?Exam
+    {
+        return Exam::query()
+            ->where('academic_year_id', $academicYearId)
+            ->where('type', Exam::TYPE_ANNUAL)
+            ->where('status', Exam::STATUS_PUBLISHED)
+            ->whereHas('results', fn (Builder $q) => $q->where('class_id', $classId))
+            ->orderByDesc('published_at')
+            ->orderByDesc('id')
+            ->first();
+    }
+
+    public function resultsForEnrolments(Exam $exam, array $enrolmentIds): Collection
+    {
+        return ExamResult::query()
+            ->where('exam_id', $exam->id)
+            ->whereIn('enrolment_id', $enrolmentIds)
+            ->get()
+            ->keyBy('enrolment_id');
+    }
 }

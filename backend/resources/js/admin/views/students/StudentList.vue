@@ -2,9 +2,14 @@
   <div class="space-y-6">
     <div class="flex justify-between items-center">
       <h1 class="text-2xl font-bold text-gray-900">Students</h1>
-      <router-link to="/students/create" class="btn btn-primary">
-        ➕ Add Student
-      </router-link>
+      <div class="flex gap-2">
+        <router-link v-if="canSeeSensitive" to="/students/promotion" class="btn btn-secondary">
+          Promote a section
+        </router-link>
+        <router-link to="/students/create" class="btn btn-primary">
+          ➕ Add Student
+        </router-link>
+      </div>
     </div>
 
     <!-- Filters -->
