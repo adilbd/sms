@@ -30,6 +30,8 @@ class PublicSeoTest extends TestCase
             'news index' => ['/news'],
             'events index' => ['/events'],
             'gallery index' => ['/gallery'],
+            'results lookup' => ['/results'],
+            'results archive' => ['/results/archive'],
         ];
     }
 
@@ -225,6 +227,25 @@ class PublicSeoTest extends TestCase
         $this->get('/sitemap.xml')->assertDontSee($page->url(), false);
     }
 
+    public function test_a_result_marksheet_is_noindex_with_one_h1_and_no_store(): void
+    {
+        $result = \App\Models\ExamResult::factory()->create([
+            'exam_id' => \App\Models\Exam::factory()->create(['status' => \App\Models\Exam::STATUS_PUBLISHED, 'published_at' => now()]),
+        ]);
+        $student = $result->student;
+
+        $response = $this->post('/results', [
+            'exam_id' => $result->exam_id,
+            'student_id' => $student->student_id,
+            'date_of_birth' => $student->date_of_birth->toDateString(),
+        ])->assertOk();
+        $html = $response->getContent();
+
+        $this->assertStringContainsString('<meta name="robots" content="noindex, nofollow">', $html);
+        $this->assertStringContainsString('no-store', $response->headers->get('Cache-Control'));
+        $this->assertSame(1, substr_count($html, '<h1'));
+    }
+
     public function test_home_has_organization_schema(): void
     {
         $blocks = $this->jsonLd($this->get('/')->getContent());
@@ -269,7 +290,7 @@ class PublicSeoTest extends TestCase
             $locs->push((string) $url->loc);
         }
 
-        foreach (['/', '/about', '/admissions', '/contact', '/news', '/events'] as $uri) {
+        foreach (['/', '/about', '/admissions', '/contact', '/news', '/events', '/results', '/results/archive'] as $uri) {
             $this->assertContains(url($uri), $locs);
         }
 

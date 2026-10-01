@@ -5,6 +5,7 @@ namespace App\Repositories\Contracts;
 use App\Models\Exam;
 use App\Models\ExamResult;
 use App\Models\ExamSubject;
+use App\Models\Section;
 use App\Models\StudentEnrolment;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Collection;
@@ -88,4 +89,30 @@ interface ExamResultRepositoryInterface
      * @return Collection<int, ExamResult>
      */
     public function resultsForEnrolments(Exam $exam, array $enrolmentIds): Collection;
+
+    /**
+     * The published exams, newest academic year first, then newest exam first, with the
+     * academic year and the exam's classes, each with its active sections and their shift.
+     */
+    public function publishedExams(): Collection;
+
+    /**
+     * The exam when it exists and is published, otherwise null.
+     */
+    public function findPublishedExam(int $id): ?Exam;
+
+    /**
+     * The section with its class, or null.
+     */
+    public function findSectionWithClass(int $sectionId): ?Section;
+
+    /**
+     * The exam's result for the one student who matches the date of birth and either the
+     * student ID code (`student_code`) or the section, group and roll of the enrolment the
+     * result was processed from (`section_id`, `group`, `roll_number`), with everything the
+     * breakdown shows. Null when nobody matches. Students that were deleted never match.
+     *
+     * @param  array{student_code?: string, section_id?: int, group?: ?string, roll_number?: int}  $criteria
+     */
+    public function findForPublicLookup(Exam $exam, array $criteria, string $dateOfBirth): ?ExamResult;
 }

@@ -18,6 +18,8 @@ Route::prefix('public')->middleware('throttle:60,1')->group(function () {
     Route::get('galleries/{slug}', [\App\Http\Controllers\Api\PublicContentController::class, 'galleriesShow']);
     Route::get('staff', [\App\Http\Controllers\Api\PublicContentController::class, 'staff']);
     Route::get('staff/{staff}', [\App\Http\Controllers\Api\PublicContentController::class, 'staffShow'])->where('staff', '[0-9]+');
+    Route::get('exams', [\App\Http\Controllers\Api\PublicContentController::class, 'exams']);
+    Route::post('results', [\App\Http\Controllers\Api\PublicContentController::class, 'results'])->middleware('throttle:result-lookup');
     Route::post('contact', [\App\Http\Controllers\Api\PublicContentController::class, 'contact'])->middleware('throttle:5,1');
 });
 

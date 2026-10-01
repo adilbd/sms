@@ -33,6 +33,8 @@ class SeoController extends Controller
                     'lastmod' => Post::published()->ofType(Post::TYPE_EVENT)->max('updated_at')],
                 ['loc' => route('gallery.index'), 'changefreq' => 'weekly', 'priority' => '0.7',
                     'lastmod' => $this->galleries->latestPublishedUpdatedAt()],
+                ['loc' => route('results.index'), 'changefreq' => 'monthly', 'priority' => '0.7'],
+                ['loc' => route('results.archive'), 'changefreq' => 'monthly', 'priority' => '0.5'],
                 ['loc' => route('staff.head'), 'changefreq' => 'monthly', 'priority' => '0.6'],
                 ['loc' => route('staff.assistant_head'), 'changefreq' => 'monthly', 'priority' => '0.6'],
                 ['loc' => route('staff.teachers'), 'changefreq' => 'monthly', 'priority' => '0.6'],

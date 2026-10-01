@@ -6,6 +6,7 @@ use App\Models\Exam;
 use App\Models\ExamMark;
 use App\Models\ExamResult;
 use App\Models\ExamSubject;
+use App\Models\Section;
 use App\Models\StudentEnrolment;
 use App\Repositories\Contracts\ExamResultRepositoryInterface;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
@@ -158,5 +159,59 @@ class ExamResultRepository implements ExamResultRepositoryInterface
             ->whereIn('enrolment_id', $enrolmentIds)
             ->get()
             ->keyBy('enrolment_id');
+    }
+
+    public function publishedExams(): Collection
+    {
+        return Exam::query()
+            ->where('exams.status', Exam::STATUS_PUBLISHED)
+            ->join('academic_years', 'academic_years.id', '=', 'exams.academic_year_id')
+            ->select('exams.*')
+            ->with(['academicYear', 'classes.sections' => fn ($q) => $q
+                ->where('sections.is_active', true)
+                ->with('shift')
+                ->orderBy('sections.shift_id')
+                ->orderBy('sections.code')
+                ->orderBy('sections.id')])
+            ->orderByDesc('academic_years.year')
+            ->orderByDesc('exams.start_date')
+            ->orderByDesc('exams.id')
+            ->get();
+    }
+
+    public function findPublishedExam(int $id): ?Exam
+    {
+        return Exam::query()
+            ->where('status', Exam::STATUS_PUBLISHED)
+            ->find($id);
+    }
+
+    public function findSectionWithClass(int $sectionId): ?Section
+    {
+        return Section::query()->with('class')->find($sectionId);
+    }
+
+    public function findForPublicLookup(Exam $exam, array $criteria, string $dateOfBirth): ?ExamResult
+    {
+        $query = ExamResult::query()
+            ->where('exam_id', $exam->id)
+            ->whereHas('student', function (Builder $q) use ($criteria, $dateOfBirth) {
+                $q->whereDate('date_of_birth', $dateOfBirth);
+
+                if (isset($criteria['student_code'])) {
+                    $q->where('student_id', $criteria['student_code']);
+                }
+            });
+
+        if (! isset($criteria['student_code'])) {
+            $query->whereHas('enrolment', function (Builder $q) use ($criteria) {
+                $q->where('section_id', $criteria['section_id'])
+                    ->where('roll_number', $criteria['roll_number']);
+
+                $criteria['group'] === null ? $q->whereNull('group') : $q->where('group', $criteria['group']);
+            });
+        }
+
+        return $query->with(self::DETAIL)->first();
     }
 }

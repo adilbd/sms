@@ -4,6 +4,7 @@ namespace App\Providers;
 
 use App\Services\InstituteSettingsService;
 use App\Support\Mobile;
+use App\Support\TrustedProxies;
 use App\View\Composers\HeaderMenuComposer;
 use App\View\Composers\InstituteComposer;
 use Illuminate\Cache\RateLimiting\Limit;
@@ -31,6 +32,9 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        // Behind a proxy, config('app.trusted_proxies') makes $request->ip() the visitor's.
+        TrustedProxies::apply(config('app.trusted_proxies'));
+
         // 5 sign-in attempts a minute per login identifier and IP (one person retrying one
         // login, so successes counting is fine). The per-IP and per-account failure limits
         // live in AuthService::login(), which counts failed passwords only.
@@ -40,6 +44,10 @@ class AppServiceProvider extends ServiceProvider
 
             return Limit::perMinute(5)->by($login.'|'.$request->ip());
         });
+
+        // 10 public result lookups a minute per IP, successes included. The hourly cap on
+        // failed lookups per IP lives in ResultService::publicLookup().
+        RateLimiter::for('result-lookup', fn (Request $request) => Limit::perMinute(10)->by((string) $request->ip()));
 
         View::composer('layouts.public', HeaderMenuComposer::class);
         View::composer(['layouts.public', 'public.*', 'components.seo', 'admin'], InstituteComposer::class);

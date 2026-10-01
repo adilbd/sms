@@ -3,6 +3,9 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Result\LookupResultRequest;
+use App\Http\Resources\ExamResource;
+use App\Http\Resources\ExamResultResource;
 use App\Http\Resources\GalleryResource;
 use App\Http\Resources\PostResource;
 use App\Http\Resources\StaffResource;
@@ -12,6 +15,7 @@ use App\Services\ContactService;
 use App\Services\GalleryService;
 use App\Services\InstituteSettingsService;
 use App\Services\PostService;
+use App\Services\ResultService;
 use App\Services\StaffService;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -28,6 +32,7 @@ class PublicContentController extends Controller
         private InstituteSettingsService $institute,
         private GalleryService $galleries,
         private StaffService $staff,
+        private ResultService $results,
     ) {}
 
     public function school()
@@ -130,6 +135,22 @@ class PublicContentController extends Controller
     public function staffShow(int $staff)
     {
         return (new StaffResource($this->staff->publicFind($staff)))->public();
+    }
+
+    /**
+     * Published exams with their classes and sections, for the result lookup's selects.
+     * Same data as the website's /results form.
+     */
+    public function exams()
+    {
+        return ExamResource::collection($this->results->publishedExams());
+    }
+
+    public function results(LookupResultRequest $request)
+    {
+        $result = $this->results->publicLookup($request->validated(), (string) $request->ip());
+
+        return (new ExamResultResource($result))->withSubjects();
     }
 
     public function contact(Request $request, ContactService $contact)
