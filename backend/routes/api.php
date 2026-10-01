@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\PromotionController;
 use App\Http\Controllers\Api\StudentController;
 use Illuminate\Support\Facades\Route;
 
@@ -33,8 +34,8 @@ Route::middleware('auth:sanctum')->group(function () {
         ->where(['student' => '[0-9]+']);
 
     // Promotion of a section to the next academic year (edit-students).
-    Route::get('promotions/preview', [\App\Http\Controllers\Api\PromotionController::class, 'preview']);
-    Route::post('promotions', [\App\Http\Controllers\Api\PromotionController::class, 'store']);
+    Route::get('promotions/preview', [PromotionController::class, 'preview']);
+    Route::post('promotions', [PromotionController::class, 'store']);
 
     // Own records for the student and guardian roles (no broad students permission).
     Route::get('my/student', [\App\Http\Controllers\Api\MyRecordsController::class, 'student'])

@@ -37,12 +37,9 @@ class PromotionPreviewResource extends JsonResource
                         : null,
                     'exam_result' => $row['exam_result'],
                     'suggested_action' => $row['suggested_action'],
+                    // null when no target year was asked for.
+                    'already_enrolled_in_target' => $row['already_enrolled_in_target'],
                 ];
-
-                // Only present when the target year was asked for.
-                if ($row['already_enrolled_in_target'] !== null) {
-                    $item['already_enrolled_in_target'] = $row['already_enrolled_in_target'];
-                }
 
                 return $item;
             }, $data['rows']),

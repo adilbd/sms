@@ -441,17 +441,29 @@ class StudentService
 
     private function ensureLeavingDateRules(Student $student): void
     {
+        if ($errors = $this->leavingDateErrors($student)) {
+            throw ValidationException::withMessages($errors);
+        }
+    }
+
+    /**
+     * The leaving-date rules for the student with the new status and date applied, as
+     * validation messages keyed by field (empty when they hold). Promotion uses it to
+     * check leavers before its first write.
+     *
+     * @return array<string, list<string>>
+     */
+    public function leavingDateErrors(Student $student): array
+    {
         if ($student->status !== Student::STATUS_ACTIVE && ! $student->leaving_date) {
-            throw ValidationException::withMessages([
-                'leaving_date' => ['The leaving date is required when the student is not active.'],
-            ]);
+            return ['leaving_date' => ['The leaving date is required when the student is not active.']];
         }
 
         if ($student->leaving_date && $student->admission_date && $student->leaving_date->lt($student->admission_date)) {
-            throw ValidationException::withMessages([
-                'leaving_date' => ['The leaving date must be on or after the admission date.'],
-            ]);
+            return ['leaving_date' => ['The leaving date must be on or after the admission date.']];
         }
+
+        return [];
     }
 
     /**

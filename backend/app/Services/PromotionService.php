@@ -110,7 +110,8 @@ class PromotionService
     /**
      * Applies the promotion. Every rule is checked after the sections are locked and before
      * the first write, and the whole batch is one transaction, so an error writes nothing.
-     * Errors are keyed `exceptions.N.field` for a listed student, top-level otherwise.
+     * Errors are keyed `exceptions.N.field` for a listed student, top-level otherwise
+     * (`section_capacity` names an over-full section in every case).
      *
      * @param  array<string, mixed>  $data  Validated: from/to academic year, section_id, class_id?, default_target_section_id?, exceptions[].
      * @return array{summary: array<string, int>, target_sections: list<array{id: int, name: string, enrolled_after: int}>}
@@ -148,17 +149,18 @@ class PromotionService
         $exceptions = array_values($data['exceptions'] ?? []);
         $defaultId = filled($data['default_target_section_id'] ?? null) ? (int) $data['default_target_section_id'] : null;
 
-        // Lock order: the source section first, then every target in ascending id order, so
-        // two concurrent promotions can never wait on each other in a cycle.
-        $source = $this->enrolmentRows->lockSection((int) $data['section_id']);
-        $sections = [$source->id => $source];
+        // Lock order: the source and every target section in one ascending id pass, so two
+        // concurrent promotions can never wait on each other in a cycle.
+        $sourceId = (int) $data['section_id'];
+        $lockIds = collect($exceptions)->pluck('target_section_id')->push($defaultId)->push($sourceId)
+            ->filter()->map(fn ($id) => (int) $id)->unique()->sort()->values();
 
-        $targetIds = collect($exceptions)->pluck('target_section_id')->push($defaultId)
-            ->filter()->map(fn ($id) => (int) $id)->unique()->reject(fn ($id) => $id === $source->id)->sort()->values();
-
-        foreach ($targetIds as $id) {
+        $sections = [];
+        foreach ($lockIds as $id) {
             $sections[$id] = $this->enrolmentRows->lockSection($id);
         }
+
+        $source = $sections[$sourceId];
 
         $this->ensureSectionInClass($source, $data['class_id'] ?? null);
 
@@ -166,6 +168,8 @@ class PromotionService
         $isFinal = $this->isFinal($class);
         $enrolments = $this->promotions->activeEnrolments($source->id, $fromYear->id)->keyBy('student_id');
         $enrolledIds = $this->promotions->enrolledStudentIds($enrolments->keys()->map(fn ($id) => (int) $id)->all(), $toYear->id);
+
+        $today = Carbon::now('Asia/Dhaka')->toDateString();
 
         $errors = [];
         $addError = function (string $key, string $message) use (&$errors) {
@@ -205,8 +209,31 @@ class PromotionService
 
             $plan = ['enrolment' => $enrolment, 'action' => $action, 'index' => $index, 'target' => null, 'group' => null, 'optional' => null];
 
+            if (in_array((int) $studentId, $enrolledIds, true)) {
+                if ($index !== null) {
+                    $addError("exceptions.{$index}.student_id", 'This student is already enrolled in the target academic year.');
+                } else {
+                    $alreadyEnrolled[] = $name;
+                }
+
+                continue;
+            }
+
             if (in_array($action, [self::LEAVE, self::GRADUATE], true)) {
-                $plans[] = $plan;
+                $status = $action === self::GRADUATE ? Student::STATUS_GRADUATED : Student::STATUS_LEFT;
+                $problems = $this->students->leavingDateErrors((clone $enrolment->student)->fill(['status' => $status, 'leaving_date' => $today]));
+
+                foreach ($problems as $messages) {
+                    if ($index !== null) {
+                        $addError("exceptions.{$index}.action", $messages[0]);
+                    } else {
+                        $addError('graduates', "{$name}: {$messages[0]}");
+                    }
+                }
+
+                if ($problems === []) {
+                    $plans[] = $plan;
+                }
 
                 continue;
             }
@@ -220,16 +247,6 @@ class PromotionService
                     $addError($shared ?? $field, "{$name}: {$message}");
                 }
             };
-
-            if (in_array((int) $studentId, $enrolledIds, true)) {
-                if ($index !== null) {
-                    $addError("exceptions.{$index}.student_id", 'This student is already enrolled in the target academic year.');
-                } else {
-                    $alreadyEnrolled[] = $name;
-                }
-
-                continue;
-            }
 
             $targetId = $action === self::RETAIN
                 ? (int) ($exception['target_section_id'] ?? $source->id)
@@ -312,23 +329,27 @@ class PromotionService
             $addError('already_enrolled', 'Already enrolled in the target academic year: '.implode(', ', $alreadyEnrolled).'.');
         }
 
-        // Capacity is checked for the whole batch per target section.
+        // Capacity is checked for the whole batch per target section actually used, including
+        // students retained into the source section.
         foreach ($newSeats as $sectionId => $count) {
-            $free = $sections[$sectionId]->capacity - $this->enrolmentRows->countActiveInSection($sectionId, $toYear->id);
+            $free = max($sections[$sectionId]->capacity - $this->enrolmentRows->countActiveInSection($sectionId, $toYear->id), 0);
 
             if ($count <= $free) {
                 continue;
             }
 
-            $message = 'The section does not have enough free seats ('.max($free, 0)." free, {$count} students).";
-
-            if ($sectionId === $defaultId) {
-                $addError('default_target_section_id', $message);
-            }
+            $message = "{$sections[$sectionId]->name} does not have enough free seats ({$free} free, {$count} students).";
+            $addError('section_capacity', $message);
 
             foreach ($plans as $plan) {
-                if ($plan['index'] !== null && $plan['target']?->id === $sectionId && ! empty($exceptions[$plan['index']]['target_section_id'])) {
+                if ($plan['target']?->id !== $sectionId) {
+                    continue;
+                }
+
+                if ($plan['index'] !== null && ($plan['action'] === self::RETAIN || ! empty($exceptions[$plan['index']]['target_section_id']))) {
                     $addError("exceptions.{$plan['index']}.target_section_id", $message);
+                } elseif ($sectionId === $defaultId && $plan['action'] === self::PROMOTE) {
+                    $errors['default_target_section_id'] = [$message];
                 }
             }
         }
@@ -337,7 +358,7 @@ class PromotionService
             throw ValidationException::withMessages($errors);
         }
 
-        return $this->write($plans, $fromYear, $toYear, $newSeats, $sections);
+        return $this->write($plans, $fromYear, $toYear, $newSeats, $sections, $today);
     }
 
     /**
@@ -345,10 +366,9 @@ class PromotionService
      * @param  array<int, int>  $newSeats
      * @param  array<int, Section>  $sections
      */
-    private function write(array $plans, AcademicYear $fromYear, AcademicYear $toYear, array $newSeats, array $sections): array
+    private function write(array $plans, AcademicYear $fromYear, AcademicYear $toYear, array $newSeats, array $sections, string $today): array
     {
         $summary = ['promoted' => 0, 'retained' => 0, 'left' => 0, 'graduated' => 0];
-        $today = Carbon::now('Asia/Dhaka')->toDateString();
 
         foreach ($plans as $plan) {
             /** @var StudentEnrolment $enrolment */

@@ -116,7 +116,7 @@ class PromotionServiceTest extends TestCase
         }
     }
 
-    public function test_the_source_section_is_locked_first_then_targets_in_ascending_id_order(): void
+    public function test_the_source_and_target_sections_are_locked_in_one_ascending_id_pass(): void
     {
         $this->section(50, 6);
         $this->section(30, 7);
@@ -125,10 +125,10 @@ class PromotionServiceTest extends TestCase
         $enrolments = [$this->enrolment(1), $this->enrolment(2), $this->enrolment(3)];
 
         $repo = $this->wire($enrolments);
-        $repo->shouldReceive('lockSection')->once()->with(50)->ordered()->andReturn($this->sections[50]);
         $repo->shouldReceive('lockSection')->once()->with(20)->ordered()->andReturn($this->sections[20]);
         $repo->shouldReceive('lockSection')->once()->with(30)->ordered()->andReturn($this->sections[30]);
         $repo->shouldReceive('lockSection')->once()->with(40)->ordered()->andReturn($this->sections[40]);
+        $repo->shouldReceive('lockSection')->once()->with(50)->ordered()->andReturn($this->sections[50]);
         $repo->shouldReceive('update')->times(3);
         $this->acceptingEnrolments();
 
@@ -252,6 +252,7 @@ class PromotionServiceTest extends TestCase
         $enrolments->shouldReceive('syncStatus')->twice();
 
         $students = $this->mock(StudentService::class);
+        $students->shouldReceive('leavingDateErrors')->andReturn([]);
         $students->shouldReceive('changeStatus')->once()->with(\Mockery::type(Student::class), Student::STATUS_GRADUATED, '2027-01-01')->andReturnUsing(fn ($s) => $s);
         $students->shouldReceive('changeStatus')->once()->with(\Mockery::type(Student::class), Student::STATUS_LEFT, '2027-01-01')->andReturnUsing(fn ($s) => $s);
 
@@ -259,5 +260,50 @@ class PromotionServiceTest extends TestCase
 
         $this->assertSame(['promoted' => 0, 'retained' => 0, 'left' => 1, 'graduated' => 1], $result['summary']);
         Carbon::setTestNow();
+    }
+
+    public function test_retaining_into_a_nearly_full_source_section_names_the_section_and_writes_nothing(): void
+    {
+        $this->section(50, 6, ['name' => 'Section A']);
+        $this->section(60, 7);
+        $repo = $this->wire([$this->enrolment(1), $this->enrolment(2)], [], seatsTaken: 39);
+        $repo->shouldNotReceive('update');
+        $this->mock(StudentService::class)->shouldNotReceive('changeStatus');
+
+        try {
+            app(PromotionService::class)->apply($this->body(50, 60, [
+                ['student_id' => 1, 'action' => 'retain'],
+                ['student_id' => 2, 'action' => 'retain'],
+            ]));
+            $this->fail('Expected a validation error.');
+        } catch (ValidationException $e) {
+            $this->assertSame('Section A does not have enough free seats (1 free, 2 students).', $e->errors()['section_capacity'][0]);
+            $this->assertArrayHasKey('exceptions.0.target_section_id', $e->errors());
+            $this->assertArrayHasKey('exceptions.1.target_section_id', $e->errors());
+        }
+    }
+
+    public function test_leaving_date_rule_failures_are_reported_before_any_write(): void
+    {
+        $this->section(50, 12);
+        $repo = $this->wire([$this->enrolment(1), $this->enrolment(2)]);
+        $repo->shouldNotReceive('update');
+
+        $students = $this->mock(StudentService::class);
+        $students->shouldReceive('leavingDateErrors')->andReturn(['leaving_date' => ['The leaving date must be on or after the admission date.']]);
+        $students->shouldNotReceive('changeStatus');
+
+        $this->assertInvalid($this->body(50, null, [['student_id' => 1, 'action' => 'leave']]), 'exceptions.0.action');
+        $this->assertInvalid($this->body(50, null, [['student_id' => 1, 'action' => 'leave']]), 'graduates');
+    }
+
+    public function test_a_leaver_already_enrolled_in_the_target_year_is_rejected(): void
+    {
+        $this->section(50, 6);
+        $repo = $this->wire([$this->enrolment(1)], [1]);
+        $repo->shouldNotReceive('update');
+        $this->mock(StudentService::class)->shouldNotReceive('changeStatus');
+
+        $this->assertInvalid($this->body(50, null, [['student_id' => 1, 'action' => 'leave']]), 'exceptions.0.student_id');
     }
 }

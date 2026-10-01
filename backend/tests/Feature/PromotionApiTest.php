@@ -357,6 +357,64 @@ class PromotionApiTest extends TestCase
         $this->apply($this->body($source, $target))->assertOk()->assertJsonPath('data.target_sections.0.enrolled_after', 4);
     }
 
+    public function test_retaining_into_a_nearly_full_source_section_names_the_section_and_writes_nothing(): void
+    {
+        $source = $this->section(6, 'A', ['capacity' => 2]);
+        $target = $this->section(7);
+        $this->enrol($source, [], $this->to, []); // one seat already taken in the source section next year
+        $first = $this->enrol($source);
+        $second = $this->enrol($source);
+
+        $this->apply($this->body($source, $target, [
+            ['student_id' => $first->student_id, 'action' => 'retain'],
+            ['student_id' => $second->student_id, 'action' => 'retain'],
+        ]))
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['section_capacity', 'exceptions.0.target_section_id', 'exceptions.1.target_section_id'])
+            ->assertJsonPath('errors.section_capacity.0', 'Section A does not have enough free seats (1 free, 2 students).');
+        $this->assertSame(3, StudentEnrolment::count());
+        $this->assertSame(0, StudentEnrolment::where('status', 'retained')->count());
+    }
+
+    public function test_a_leaver_admitted_after_today_is_rejected_on_the_row_before_any_write(): void
+    {
+        $source = $this->section(6);
+        $target = $this->section(7);
+        $ok = $this->enrol($source);
+        $future = $this->enrol($source, [], null, ['admission_date' => Carbon::now('Asia/Dhaka')->addDays(5)->toDateString()]);
+
+        $this->apply($this->body($source, $target, [['student_id' => $future->student_id, 'action' => 'leave']]))
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['exceptions.0.action'])
+            ->assertJsonMissingValidationErrors(['leaving_date']);
+        $this->assertNothingWritten(2, 2);
+        $this->assertSame('active', $ok->refresh()->status);
+    }
+
+    public function test_an_unlisted_class_12_graduate_admitted_after_today_is_reported_by_name(): void
+    {
+        $source = $this->section(12);
+        $this->enrol($source, [], null, ['name_en' => 'Future Student', 'admission_date' => Carbon::now('Asia/Dhaka')->addDays(5)->toDateString()]);
+
+        $this->apply($this->body($source, null))
+            ->assertUnprocessable()
+            ->assertJsonPath('errors.graduates.0', 'Future Student: The leaving date must be on or after the admission date.');
+        $this->assertNothingWritten(1, 1);
+    }
+
+    public function test_a_leaver_already_enrolled_in_the_target_year_is_rejected(): void
+    {
+        $source = $this->section(6);
+        $target = $this->section(7);
+        $leaver = $this->enrol($source);
+        $this->enrol($target, ['student_id' => $leaver->student_id], $this->to);
+
+        $this->apply($this->body($source, $target, [['student_id' => $leaver->student_id, 'action' => 'leave']]))
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['exceptions.0.student_id']);
+        $this->assertSame('active', $leaver->student->refresh()->status);
+    }
+
     public function test_entering_class_nine_without_a_group_lists_the_missing_groups(): void
     {
         $source = $this->section(8);
@@ -484,7 +542,8 @@ class PromotionApiTest extends TestCase
             ->assertJsonPath('data.rows.2.student.id', $noResult->student_id)
             ->assertJsonPath('data.rows.2.exam_result', null)
             ->assertJsonPath('data.rows.2.suggested_action', 'promote');
-        $this->assertArrayNotHasKey('already_enrolled_in_target', $response->json('data.rows.0'));
+        $this->assertArrayHasKey('already_enrolled_in_target', $response->json('data.rows.0'));
+        $this->assertNull($response->json('data.rows.0.already_enrolled_in_target'));
     }
 
     public function test_preview_ignores_unpublished_and_non_annual_exams(): void
