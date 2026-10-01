@@ -33,7 +33,7 @@ Example: a student with 700 marks and 1 failed subject must rank below a student
 ## Acceptance criteria
 - [x] Positions follow GPA → passed subjects → total, with ties sharing a position.
 - [x] `passed_count` is stored, backfilled for existing results, returned by the API, and shown on report cards and the tabulation.
-- [ ] The migration works on SQLite and MySQL, including rollback. Verified on SQLite. MySQL is checked on the next `php artisan migrate` against Docker.
+- [x] The migration works on SQLite and MySQL, including rollback. On Docker MySQL 8, migrate backfilled 10 rows (104 passed units), then rollback and migrate both worked. After reprocessing, Class 10 has a student with 11 subjects passed and 648 marks ranked above one with 10 passed and 722, and a three-way tie on GPA, passed count and total ranks 2, 2, then 4.
 - [x] The full suite, Pint, `npm run build` and smoke all pass. CLAUDE.md is updated.
 
 ## Test cases
