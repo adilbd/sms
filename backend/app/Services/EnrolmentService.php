@@ -177,7 +177,7 @@ class EnrolmentService
      * The group and 4th-subject rules for placing a student in $section (which must have
      * its `class` loaded): a group is required from Class 9, forbidden below it and must
      * match the section's group; the 4th subject is forbidden below Class 9 and must be an
-     * optional curriculum row for the class and group. Returns errors keyed
+     * optional curriculum row or a member of a choice pair for the class and group. Returns errors keyed
      * `enrolment.{field}`, empty when valid. Shared with PromotionService so a promotion
      * applies exactly the rules of a normal enrolment.
      *
@@ -216,7 +216,10 @@ class EnrolmentService
 
     private function isOptionalChoice(Classes $class, string $group, int $subjectId): bool
     {
+        // Either member of a choice pair qualifies (Biology or Higher Mathematics: choosing
+        // one makes the other compulsory), as does any plain optional row.
         return $this->curriculum->forClassAndGroup($class, $group)
-            ->contains(fn (ClassSubject $row) => $row->type === ClassSubject::TYPE_OPTIONAL && (int) $row->subject_id === $subjectId);
+            ->contains(fn (ClassSubject $row) => ($row->type === ClassSubject::TYPE_OPTIONAL || $row->choice_group !== null)
+                && (int) $row->subject_id === $subjectId);
     }
 }

@@ -30,8 +30,8 @@ interface ClassSubjectRepositoryInterface
      *
      * A row may carry the marks scheme. Only the keys present are applied: with none of the
      * six part fields a saved row keeps its marks and a new row takes its subject's
-     * total/pass marks as the written part; with `paper_group` absent a saved row keeps its
-     * pairing. Any part field present sets all six (a missing one becomes null).
+     * total/pass marks as the written part; with `paper_group` or `choice_group` absent a saved row
+     * keeps it. Any part field present sets all six (a missing one becomes null).
      *
      * @param  list<array<string, mixed>>  $rows  subject_id, group, type and optionally the marks fields
      */
@@ -63,6 +63,13 @@ interface ClassSubjectRepositoryInterface
      * @return array<string, string>
      */
     public function savedPaperGroups(Classes $class): array;
+
+    /**
+     * The saved `choice_group` of each curriculum row of $class, keyed like savedPaperGroups().
+     *
+     * @return array<string, string>
+     */
+    public function savedChoiceGroups(Classes $class): array;
 
     /**
      * The subject-teacher assignments of $class that still matter, one entry per distinct

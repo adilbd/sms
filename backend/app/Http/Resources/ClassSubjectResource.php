@@ -26,6 +26,7 @@ class ClassSubjectResource extends JsonResource
             'practical_full' => $this->practical_full,
             'practical_pass' => $this->practical_pass,
             'paper_group' => $this->paper_group,
+            'choice_group' => $this->choice_group,
         ];
     }
 }

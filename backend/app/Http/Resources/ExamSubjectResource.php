@@ -21,6 +21,7 @@ class ExamSubjectResource extends JsonResource
             'group' => $this->group,
             'type' => $this->type,
             'paper_group' => $this->paper_group,
+            'choice_group' => $this->choice_group,
             'written_full' => $this->written_full,
             'written_pass' => $this->written_pass,
             'mcq_full' => $this->mcq_full,

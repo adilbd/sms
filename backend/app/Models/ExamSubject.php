@@ -23,6 +23,7 @@ class ExamSubject extends Model
         'group',
         'type',
         'paper_group',
+        'choice_group',
         'written_full',
         'written_pass',
         'mcq_full',
@@ -34,6 +35,9 @@ class ExamSubject extends Model
         'end_time',
         'sort_order',
     ];
+
+    /** @var list<int>|null */
+    private ?array $choiceSubjectIdsCache = null;
 
     protected $attributes = [
         'type' => ClassSubject::TYPE_COMPULSORY,
@@ -69,6 +73,28 @@ class ExamSubject extends Model
     public function marks(): HasMany
     {
         return $this->hasMany(ExamMark::class);
+    }
+
+    /**
+     * The subject ids of this subject's choice pair (itself and its partner in the same
+     * exam, class and group), or [] when it is in none. Read once per instance.
+     *
+     * @return list<int>
+     */
+    public function choiceSubjectIds(): array
+    {
+        if ($this->choice_group === null) {
+            return [];
+        }
+
+        return $this->choiceSubjectIdsCache ??= self::query()
+            ->where('exam_id', $this->exam_id)
+            ->where('class_id', $this->class_id)
+            ->where('choice_group', $this->choice_group)
+            ->where('group', $this->group)
+            ->pluck('subject_id')
+            ->map(fn ($id) => (int) $id)
+            ->all();
     }
 
     /** The parts (written, mcq, practical) this subject is marked in. */

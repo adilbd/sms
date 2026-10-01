@@ -40,6 +40,7 @@ class ClassSubject extends Model
         'practical_full',
         'practical_pass',
         'paper_group',
+        'choice_group',
     ];
 
     protected $casts = [

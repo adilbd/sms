@@ -77,13 +77,16 @@ class StudentEnrolment extends Model
      * which subject" (the mark sheets and result processing both use it). A subject is
      * taken when it is compulsory and common to the class (no group) or for the student's
      * group, or when it is optional and is the student's chosen 4th subject (and, for a
-     * group's row, the student is in that group).
+     * group's row, the student is in that group). The optional row of a choice pair is
+     * also taken by a student who chose its partner as the 4th subject.
      */
     public function scopeTakingSubject(Builder $query, ExamSubject $subject): Builder
     {
         return $query->where(function (Builder $q) use ($subject) {
             foreach (self::subjectRequirements($subject) as $column => $value) {
-                $q->where("student_enrolments.{$column}", $value);
+                is_array($value)
+                    ? $q->whereIn("student_enrolments.{$column}", $value)
+                    : $q->where("student_enrolments.{$column}", $value);
             }
         });
     }
@@ -96,7 +99,11 @@ class StudentEnrolment extends Model
     {
         foreach (self::subjectRequirements($subject) as $column => $value) {
             // Compared as strings: the driver may hand back the id as a string.
-            if ((string) $this->{$column} !== (string) $value) {
+            $matches = is_array($value)
+                ? in_array((string) $this->{$column}, array_map('strval', $value), true)
+                : (string) $this->{$column} === (string) $value;
+
+            if (! $matches) {
                 return false;
             }
         }
@@ -105,18 +112,39 @@ class StudentEnrolment extends Model
     }
 
     /**
+     * Whether the subject is this student's 4th (optional) subject, which is how it is
+     * graded. A plain optional row is the 4th subject of whoever chose it; a member of a
+     * choice pair (Biology or Higher Mathematics) is the 4th subject of the student who
+     * chose it, and the pair's other member is then compulsory, whichever row is optional
+     * in the curriculum.
+     */
+    public function hasAsFourth(ExamSubject $subject): bool
+    {
+        if ($subject->choice_group !== null) {
+            return $this->optional_subject_id !== null
+                && (string) $this->optional_subject_id === (string) $subject->subject_id;
+        }
+
+        return $subject->type === ClassSubject::TYPE_OPTIONAL;
+    }
+
+    /**
      * The enrolment columns that must equal a value for the student to take the subject:
      * `optional_subject_id` for an optional subject, `group` for a group's row. Empty for a
      * compulsory row common to the class. The one place the rule is written down.
      *
-     * @return array<string, int|string>
+     * @return array<string, int|string|list<int>>
      */
     private static function subjectRequirements(ExamSubject $subject): array
     {
         $requirements = [];
 
         if ($subject->type === ClassSubject::TYPE_OPTIONAL) {
-            $requirements['optional_subject_id'] = $subject->subject_id;
+            // The optional row of a choice pair is taken by a student whose 4th subject is
+            // either member (the compulsory member is taken by everyone in the group).
+            $requirements['optional_subject_id'] = $subject->choice_group !== null
+                ? $subject->choiceSubjectIds()
+                : $subject->subject_id;
         }
 
         if ($subject->group !== null) {

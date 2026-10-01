@@ -291,6 +291,7 @@ class ExamService
                 'group' => $row->group,
                 'type' => $row->type,
                 'paper_group' => $row->paper_group,
+                'choice_group' => $row->choice_group,
                 'written_full' => $row->written_full,
                 'written_pass' => $row->written_pass,
                 'mcq_full' => $row->mcq_full,

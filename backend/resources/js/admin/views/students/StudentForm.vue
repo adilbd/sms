@@ -223,6 +223,7 @@
                   {{ row.subject?.name }}
                 </option>
               </select>
+              <p v-if="choiceHint" class="text-xs text-gray-500 mt-1">{{ choiceHint }}</p>
               <p v-if="err('enrolment.optional_subject_id')" class="text-sm text-red-600 mt-1">{{ err('enrolment.optional_subject_id') }}</p>
             </div>
           </template>
@@ -360,6 +361,17 @@ const copyGuardian = (who) => {
   form.guardian_mobile = form[`${who}_mobile`] || form.guardian_mobile
 }
 
+// "Choosing Biology makes Higher Math compulsory": shown while the 4th subject is a member of
+// an either-or pair, and for the two members of a pair as the choices.
+const choiceHint = computed(() => {
+  const pairs = optionalSubjects.value.filter((row) => row.choice_group)
+  if (pairs.length < 2) return ''
+  const chosen = pairs.find((row) => String(row.subject_id) === String(form.enrolment.optional_subject_id))
+  const [a, b] = pairs
+  if (chosen) return `Choosing ${chosen.subject?.name} makes ${(chosen === a ? b : a).subject?.name} compulsory`
+  return `Choosing ${a.subject?.name} makes ${b.subject?.name} compulsory, and the other way round`
+})
+
 const loadOptionalSubjects = async () => {
   optionalSubjects.value = []
   const section = selectedSection.value
@@ -367,7 +379,7 @@ const loadOptionalSubjects = async () => {
 
   try {
     const { data } = await api.get(`/classes/${section.class_id}/subjects`, { params: { group: form.enrolment.group } })
-    optionalSubjects.value = data.data.filter((row) => row.type === 'optional')
+    optionalSubjects.value = data.data.filter((row) => row.type === 'optional' || !!row.choice_group)
     const chosen = form.enrolment.optional_subject_id
     if (chosen && !optionalSubjects.value.some((row) => row.subject_id === chosen)) {
       form.enrolment.optional_subject_id = ''

@@ -38,8 +38,10 @@ class ClassSubjectRepository implements ClassSubjectRepositoryInterface
             $attributes = ['type' => $row['type'], 'sort_order' => $position];
             $current = $existing->get($key);
 
-            if (array_key_exists('paper_group', $row)) {
-                $attributes['paper_group'] = $row['paper_group'];
+            foreach (['paper_group', 'choice_group'] as $field) {
+                if (array_key_exists($field, $row)) {
+                    $attributes[$field] = $row[$field];
+                }
             }
 
             if (array_intersect(ClassSubject::MARK_FIELDS, array_keys($row)) !== []) {
@@ -74,6 +76,13 @@ class ClassSubjectRepository implements ClassSubjectRepositoryInterface
     {
         return $class->curriculum()->whereNotNull('paper_group')->get()
             ->mapWithKeys(fn (ClassSubject $row) => [$this->key($row->subject_id, $row->group) => $row->paper_group])
+            ->all();
+    }
+
+    public function savedChoiceGroups(Classes $class): array
+    {
+        return $class->curriculum()->whereNotNull('choice_group')->get()
+            ->mapWithKeys(fn (ClassSubject $row) => [$this->key($row->subject_id, $row->group) => $row->choice_group])
             ->all();
     }
 

@@ -37,7 +37,7 @@ class CurriculumService
      * A row may carry the marks scheme (`written_full` ... `practical_pass`, `paper_group`).
      * Only the keys a row sends are passed on: a row that sends no part field keeps its
      * saved marks (a new row gets its subject's total/pass as written marks), and a row
-     * that omits `paper_group` keeps its saved pairing.
+     * that omits `paper_group` or `choice_group` keeps its saved pairing.
      *
      * @param  list<array{subject_id: int, group?: ?string, type: string}>  $subjects
      */
@@ -50,11 +50,11 @@ class CurriculumService
                 'type' => $row['type'],
             ];
 
-            foreach ([...ClassSubject::MARK_FIELDS, 'paper_group'] as $field) {
+            foreach ([...ClassSubject::MARK_FIELDS, 'paper_group', 'choice_group'] as $field) {
                 if (array_key_exists($field, $row)) {
                     $normalized[$field] = $row[$field] === null || $row[$field] === ''
                         ? null
-                        : ($field === 'paper_group' ? (string) $row[$field] : (int) $row[$field]);
+                        : (in_array($field, ['paper_group', 'choice_group'], true) ? (string) $row[$field] : (int) $row[$field]);
                 }
             }
 
@@ -126,6 +126,10 @@ class CurriculumService
             $errors["subjects.{$i}.paper_group"][] = $message;
         }
 
+        foreach ($this->choiceGroupErrors($class, $rows) as $i => $message) {
+            $errors["subjects.{$i}.choice_group"][] = $message;
+        }
+
         // An assignment stays valid while some listed row for its subject is common or
         // matches its section's group (a section without a group accepts any row).
         foreach ($this->curriculum->assignedSubjects($class) as $assignment) {
@@ -177,20 +181,10 @@ class CurriculumService
      */
     private function paperGroupErrors(Classes $class, array $rows): array
     {
-        $saved = null;
         $members = [];
 
-        foreach ($rows as $i => $row) {
-            if (array_key_exists('paper_group', $row)) {
-                $paperGroup = $row['paper_group'];
-            } else {
-                $saved ??= $this->curriculum->savedPaperGroups($class);
-                $paperGroup = $saved[$row['subject_id'].'|'.($row['group'] ?? '')] ?? null;
-            }
-
-            if ($paperGroup !== null) {
-                $members[$paperGroup][] = $i;
-            }
+        foreach ($this->effectiveGroups($class, $rows, 'paper_group') as $i => $paperGroup) {
+            $members[$paperGroup][] = $i;
         }
 
         $errors = [];
@@ -210,5 +204,88 @@ class CurriculumService
         }
 
         return $errors;
+    }
+
+    /**
+     * A choice group is an either-or pair (Biology or Higher Mathematics as the compulsory
+     * subject, the other being the 4th subject): Class 9 and above, exactly 2 rows, one
+     * compulsory and one optional, both in the same (non-null) group and neither in a paper
+     * group. Every member of a broken pair is blamed. A row that omits `choice_group` keeps
+     * its saved one. Keyed by row index.
+     *
+     * @param  list<array<string, mixed>>  $rows
+     * @return array<int, string>
+     */
+    private function choiceGroupErrors(Classes $class, array $rows): array
+    {
+        $members = [];
+
+        foreach ($this->effectiveGroups($class, $rows, 'choice_group') as $i => $choiceGroup) {
+            $members[$choiceGroup][] = $i;
+        }
+
+        if ($members === []) {
+            return [];
+        }
+
+        $paperGroups = $this->effectiveGroups($class, $rows, 'paper_group');
+        $errors = [];
+
+        foreach ($members as $choiceGroup => $indexes) {
+            $label = "The choice group \"{$choiceGroup}\"";
+            $message = null;
+
+            if (! $class->hasGroups()) {
+                $message = "{$label} is only allowed for Class 9 and above.";
+            } elseif (count($indexes) !== 2) {
+                $message = "{$label} needs exactly 2 subjects.";
+            } elseif (collect($indexes)->contains(fn (int $i) => ($rows[$i]['group'] ?? null) === null)
+                || $rows[$indexes[0]]['group'] !== $rows[$indexes[1]]['group']) {
+                $message = "Both subjects in {$label} must be in the same group.";
+            } elseif ($rows[$indexes[0]]['type'] === $rows[$indexes[1]]['type']) {
+                $message = "{$label} needs one compulsory and one optional subject.";
+            }
+
+            foreach ($indexes as $i) {
+                if ($message !== null) {
+                    $errors[$i] = $message;
+                } elseif (isset($paperGroups[$i])) {
+                    $errors[$i] = 'A subject cannot be in both a paper group and a choice group.';
+                }
+            }
+        }
+
+        return $errors;
+    }
+
+    /**
+     * The paper or choice group of each row that has one (index => slug), taking a row
+     * that omits the key from the saved curriculum. The saved values are read only when some
+     * row needs them.
+     *
+     * @param  list<array<string, mixed>>  $rows
+     * @return array<int, string>
+     */
+    private function effectiveGroups(Classes $class, array $rows, string $field): array
+    {
+        $saved = null;
+        $groups = [];
+
+        foreach ($rows as $i => $row) {
+            if (array_key_exists($field, $row)) {
+                $value = $row[$field];
+            } else {
+                $saved ??= $field === 'paper_group'
+                    ? $this->curriculum->savedPaperGroups($class)
+                    : $this->curriculum->savedChoiceGroups($class);
+                $value = $saved[$row['subject_id'].'|'.($row['group'] ?? '')] ?? null;
+            }
+
+            if ($value !== null) {
+                $groups[$i] = $value;
+            }
+        }
+
+        return $groups;
     }
 }

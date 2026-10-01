@@ -188,26 +188,22 @@ class AttendanceService
         if ($year === null) {
             // No year to look the student up in. Staff without access still get 403 before
             // the month error, like the sheet and the report (checked against the active year).
-            if ($staff !== null && ! $this->users->hasRole($staff, 'admin')) {
-                $active = $this->years->findActive();
-                $context = $active ? $this->teacherScope->forUser($staff, $active->id) : null;
-                abort_unless(
-                    $context !== null && $context->staff->status === Staff::STATUS_ACTIVE && $context->leadingSectionIds() !== [],
-                    403,
-                    "Only the section's class teacher or an admin can use its attendance."
-                );
+            if ($staff !== null) {
+                $this->authorizeStaff($staff, $this->years->findActive(), null);
             }
 
-            $this->yearForMonth($first);
+            $year = $this->yearForMonth($first);
         }
 
         $enrolment = $this->enrolments->forStudentAndYear($student, $year->id);
 
-        abort_if($enrolment === null, 404, 'The student has no enrolment in this academic year.');
-
+        // Access comes first, so a user without it can't tell whether the student has an
+        // enrolment: with none there is no section, so they need to lead some section.
         if ($staff !== null) {
-            $this->authorizeSection($staff, $this->sections->findOrFail((int) $enrolment->section_id), $year);
+            $this->authorizeStaff($staff, $year, $enrolment === null ? null : (int) $enrolment->section_id);
         }
+
+        abort_if($enrolment === null, 404, 'The student has no enrolment in this academic year.');
 
         $active = $enrolment->status === StudentEnrolment::STATUS_ACTIVE;
         $yearStart = $year->start_date->toDateString();
@@ -359,16 +355,27 @@ class AttendanceService
      */
     private function authorizeSection(User $user, Section $section, AcademicYear $year): void
     {
+        $this->authorizeStaff($user, $year, (int) $section->id);
+    }
+
+    /**
+     * 403 unless the user is an admin, or an active staff member who leads $sectionId in
+     * $year (any section when $sectionId is null). With no $year (none exists to check
+     * against) only an admin passes.
+     */
+    private function authorizeStaff(User $user, ?AcademicYear $year, ?int $sectionId): void
+    {
         if ($this->users->hasRole($user, 'admin')) {
             return;
         }
 
-        $context = $this->teacherScope->forUser($user, $year->id);
+        $context = $year ? $this->teacherScope->forUser($user, $year->id) : null;
+        $leading = $context?->leadingSectionIds() ?? [];
 
         abort_unless(
             $context !== null
                 && $context->staff->status === Staff::STATUS_ACTIVE
-                && in_array((int) $section->id, $context->leadingSectionIds(), true),
+                && ($sectionId === null ? $leading !== [] : in_array($sectionId, $leading, true)),
             403,
             "Only the section's class teacher or an admin can use its attendance."
         );

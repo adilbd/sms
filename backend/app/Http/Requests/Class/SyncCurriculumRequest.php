@@ -34,6 +34,8 @@ class SyncCurriculumRequest extends FormRequest
             'subjects.*.practical_full' => ['sometimes', 'nullable', 'integer', 'min:0', 'max:1000'],
             'subjects.*.practical_pass' => ['sometimes', 'nullable', 'integer', 'min:0', 'max:1000'],
             'subjects.*.paper_group' => ['sometimes', 'nullable', 'string', 'max:50', 'regex:/^[a-z0-9-]+$/'],
+            // An either-or pair (Biology or Higher Math as compulsory); rules in CurriculumService.
+            'subjects.*.choice_group' => ['sometimes', 'nullable', 'string', 'max:50', 'regex:/^[a-z0-9-]+$/'],
         ];
     }
 }

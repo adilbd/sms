@@ -52,6 +52,11 @@
                   class="badge badge-info ml-1"
                   :title="`Graded together with ${pairedWith(row).map((r) => r.subject?.name).join(', ')}`"
                 >Paired: {{ row.paper_group }}</span>
+                <span
+                  v-if="choiceWith(row).length"
+                  class="badge badge-info ml-1"
+                  :title="`Either-or with ${choiceWith(row).map((r) => r.subject?.name).join(', ')}: the one a student takes as the 4th subject makes the other compulsory`"
+                >Either/or: {{ row.choice_group }}</span>
               </span>
               <span class="flex items-center space-x-2">
                 <button type="button" class="text-gray-600 disabled:opacity-30" :disabled="pos === 0" title="Move up" @click="move(type.value, pos, -1)">▲</button>
@@ -73,6 +78,10 @@
               <label class="col-span-2">
                 <span class="block text-xs text-gray-500">Paper group (pairs two papers)</span>
                 <input v-model="row.paper_group" type="text" maxlength="50" placeholder="e.g. bangla" class="input" @input="clearErrors" />
+              </label>
+              <label v-if="hasGroups" class="col-span-2">
+                <span class="block text-xs text-gray-500">Choice group (either-or pair)</span>
+                <input v-model="row.choice_group" type="text" maxlength="50" placeholder="e.g. science-4th" class="input" @input="clearErrors" />
               </label>
               <div class="col-span-2 text-gray-700">
                 <span class="block text-xs text-gray-500">Total (full / pass)</span>
@@ -152,6 +161,7 @@ const makeRow = (data) => ({
   // Part marks: null (shown empty) when the part doesn't exist for the subject.
   ...Object.fromEntries(MARK_FIELDS.map((f) => [f, data[f] ?? ''])),
   paper_group: data.paper_group ?? '',
+  choice_group: data.choice_group ?? '',
 })
 
 const toMark = (value) => (value === '' || value === null || value === undefined ? null : Number(value))
@@ -164,6 +174,13 @@ const pairedWith = (row) => {
   const group = (row.paper_group || '').trim()
   if (!group) return []
   return rows.value.filter((r) => r !== row && (r.paper_group || '').trim() === group)
+}
+
+// The other row sharing this row's choice group (its either-or partner).
+const choiceWith = (row) => {
+  const group = (row.choice_group || '').trim()
+  if (!group) return []
+  return rows.value.filter((r) => r !== row && (r.choice_group || '').trim() === group)
 }
 
 const hasGroups = computed(() => !!cls.value?.has_groups)
@@ -284,6 +301,7 @@ const save = async () => {
       type: r.type,
       ...Object.fromEntries(MARK_FIELDS.map((f) => [f, toMark(r[f])])),
       paper_group: (r.paper_group || '').trim() || null,
+      choice_group: (r.choice_group || '').trim() || null,
     }))
     const { data } = await api.put(`/classes/${route.params.id}/subjects`, { subjects: payload })
     rows.value = data.data.map(makeRow)
