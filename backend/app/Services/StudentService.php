@@ -283,6 +283,30 @@ class StudentService
         });
     }
 
+    /**
+     * Marks the student as left or graduated on $leavingDate: the same status change as an
+     * edit (leaving-date rules, the student's login deactivated with its tokens revoked,
+     * the guardian login switched off when no active child remains). Used by promotion,
+     * inside the caller's transaction; the enrolment status is the caller's to sync.
+     */
+    public function changeStatus(Student $student, string $status, string $leavingDate): Student
+    {
+        $attributes = ['status' => $status, 'leaving_date' => $leavingDate];
+        $this->ensureLeavingDateRules((clone $student)->fill($attributes));
+
+        return DB::transaction(function () use ($student, $attributes) {
+            $student = $this->students->update($student, $attributes);
+
+            $this->syncStudentLogin($student, null);
+
+            if ($student->guardian_user_id) {
+                $this->syncGuardianAccessById($student->guardian_user_id);
+            }
+
+            return $student;
+        });
+    }
+
     private function activeYear(): AcademicYear
     {
         $year = $this->years->findActive();

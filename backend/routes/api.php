@@ -32,6 +32,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::apiResource('students', StudentController::class)
         ->where(['student' => '[0-9]+']);
 
+    // Promotion of a section to the next academic year (edit-students).
+    Route::get('promotions/preview', [\App\Http\Controllers\Api\PromotionController::class, 'preview']);
+    Route::post('promotions', [\App\Http\Controllers\Api\PromotionController::class, 'store']);
+
     // Own records for the student and guardian roles (no broad students permission).
     Route::get('my/student', [\App\Http\Controllers\Api\MyRecordsController::class, 'student'])
         ->middleware('role:student');

@@ -74,4 +74,18 @@ interface ExamResultRepositoryInterface
      * students (not a draft), with `exam` and `subject` loaded, in exam then schedule order.
      */
     public function scheduleFor(int $classId, int $academicYearId): Collection;
+
+    /**
+     * The latest published exam of type `annual` in the academic year that has results for
+     * $classId (latest by publish time, then id), or null.
+     */
+    public function latestPublishedAnnualExam(int $academicYearId, int $classId): ?Exam;
+
+    /**
+     * The exam's results for the given enrolments, keyed by enrolment id.
+     *
+     * @param  list<int>  $enrolmentIds
+     * @return Collection<int, ExamResult>
+     */
+    public function resultsForEnrolments(Exam $exam, array $enrolmentIds): Collection;
 }
