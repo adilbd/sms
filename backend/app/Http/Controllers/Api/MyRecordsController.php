@@ -3,11 +3,14 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\MyRecords\IndexMyAssignmentsRequest;
 use App\Http\Resources\ExamResultResource;
+use App\Http\Resources\MyAssignmentsResource;
 use App\Http\Resources\MyExamScheduleResource;
 use App\Http\Resources\StudentResource;
 use App\Services\ResultService;
 use App\Services\StudentService;
+use App\Services\TeacherScope;
 use Illuminate\Http\Request;
 
 /**
@@ -17,7 +20,11 @@ use Illuminate\Http\Request;
  */
 class MyRecordsController extends Controller
 {
-    public function __construct(private StudentService $students, private ResultService $results) {}
+    public function __construct(
+        private StudentService $students,
+        private ResultService $results,
+        private TeacherScope $teacherScope,
+    ) {}
 
     public function student(Request $request)
     {
@@ -28,6 +35,19 @@ class MyRecordsController extends Controller
     public function children(Request $request)
     {
         return StudentResource::collectionFor($this->students->childrenOf($request->user()), sensitive: true);
+    }
+
+    /**
+     * The signed-in teacher's subjects and class-teacher sections for the active (or
+     * given) academic year. A teacher with no linked staff row gets an empty block.
+     */
+    public function assignments(IndexMyAssignmentsRequest $request)
+    {
+        $yearId = $request->validated('academic_year_id');
+
+        return new MyAssignmentsResource(
+            $this->teacherScope->forUser($request->user(), filled($yearId) ? (int) $yearId : null)
+        );
     }
 
     public function results(Request $request)

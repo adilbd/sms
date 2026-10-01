@@ -43,6 +43,12 @@ interface SubjectAssignmentRepositoryInterface extends RepositoryInterface
     public function forSectionAndYear(Section $section, int $academicYearId): Collection;
 
     /**
+     * Every assignment held by staff member $staffId in $academicYearId, with its
+     * subject, class and section (and their shift), in section then subject order.
+     */
+    public function forStaffAndYear(int $staffId, int $academicYearId): Collection;
+
+    /**
      * Makes $section's assignments for the year exactly $subjectStaff (subject_id => staff_id):
      * assignments of other subjects are deleted, existing ones get the new teacher and the
      * rest are created, with class_id filled from the section.

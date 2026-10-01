@@ -39,7 +39,7 @@ class StudentService
      * Lists the students enrolled in $filters['academic_year_id'], which defaults to the
      * active year.
      *
-     * @param  array{academic_year_id?: mixed, class_id?: mixed, section_id?: mixed, shift_id?: mixed, group?: string, status?: string, search?: string, search_sensitive?: bool}  $filters
+     * @param  array{academic_year_id?: mixed, class_id?: mixed, section_id?: mixed, shift_id?: mixed, group?: string, status?: string, search?: string, search_sensitive?: bool, scope_section_ids?: list<int>}  $filters
      */
     public function list(array $filters, int $perPage): LengthAwarePaginator
     {
@@ -48,6 +48,28 @@ class StudentService
         }
 
         return $this->students->paginate($filters, $perPage);
+    }
+
+    /**
+     * 403 unless $student is enrolled, in $academicYearId (default: the active year), in
+     * one of $sectionIds. A null $sectionIds means the caller isn't restricted (see
+     * TeacherScope::sectionIdsFor()).
+     *
+     * @param  list<int>|null  $sectionIds
+     */
+    public function ensureInSections(Student $student, ?array $sectionIds, ?int $academicYearId = null): void
+    {
+        if ($sectionIds === null) {
+            return;
+        }
+
+        $yearId = $academicYearId ?? $this->years->findActive()?->id;
+
+        abort_if(
+            $yearId === null || ! $this->students->isEnrolledInSections($student, $yearId, $sectionIds),
+            403,
+            'This student is not in one of your sections.'
+        );
     }
 
     public function find(Student $student): Student

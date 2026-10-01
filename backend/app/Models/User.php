@@ -16,6 +16,9 @@ class User extends Authenticatable
     /** @use HasFactory<\Database\Factories\UserFactory> */
     use HasApiTokens, HasFactory, HasRoles, Notifiable;
 
+    /** The roles a staff login can hold: teachers for teaching staff, office for the rest. */
+    public const STAFF_LOGIN_ROLES = ['teacher', 'office'];
+
     /**
      * The attributes that are mass assignable.
      *

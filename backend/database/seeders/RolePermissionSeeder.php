@@ -58,6 +58,14 @@ class RolePermissionSeeder extends Seeder
             'view-subjects', 'view-classes',
         ]);
 
+        // Non-teaching staff (admissions and the fee desk): students and fees, and a
+        // read-only view of classes and subjects. No deletes, settings or exam access.
+        Role::findOrCreate('office', 'web')->syncPermissions([
+            'view-students', 'create-students', 'edit-students',
+            'view-fees', 'create-fees', 'collect-fees',
+            'view-classes', 'view-subjects',
+        ]);
+
         // Students and guardians no longer hold view-exams/view-results: those list every
         // exam and (later) every student's result. They read their own through /api/my/*.
         Role::findOrCreate('student', 'web')->syncPermissions([

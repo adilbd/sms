@@ -7,9 +7,11 @@ use App\Models\Classes;
 use App\Models\ClassSubject;
 use App\Models\Section;
 use App\Models\Shift;
+use App\Models\Staff;
 use App\Models\Student;
 use App\Models\StudentEnrolment;
 use App\Models\Subject;
+use App\Models\SubjectAssignment;
 use App\Models\User;
 use Database\Seeders\RolePermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -88,6 +90,23 @@ class StudentApiTest extends TestCase
             'class_id' => $section->class_id,
             ...$attributes,
         ]);
+    }
+
+    /**
+     * A teacher login who teaches a subject in $section (default: Class 5) this year, so
+     * the teacher scope lets them see that section's students.
+     */
+    private function teacherOf(?Section $section = null): User
+    {
+        $section ??= $this->section5;
+        $teacher = User::factory()->create();
+        $teacher->assignRole('teacher');
+        $staff = Staff::factory()->create(['user_id' => $teacher->id]);
+        SubjectAssignment::factory()->create([
+            'staff_id' => $staff->id, 'section_id' => $section->id, 'academic_year_id' => $this->year->id,
+        ]);
+
+        return $teacher;
     }
 
     // --- happy path -------------------------------------------------------------------
@@ -212,8 +231,7 @@ class StudentApiTest extends TestCase
     {
         $a = Student::factory()->create(['name_en' => 'Anika Rahman', 'guardian_mobile' => '01755555555', 'birth_registration_number' => '20140123456789012']);
         $this->enrolStudent($a);
-        $teacher = User::factory()->create(['email' => 't@example.com']);
-        $teacher->assignRole('teacher');
+        $teacher = $this->teacherOf();
 
         foreach (['01755555555', '20140123456789012'] as $term) {
             $this->actingAs($teacher, 'sanctum')->getJson("/api/students?search={$term}")
@@ -701,9 +719,9 @@ class StudentApiTest extends TestCase
 
     public function test_a_teacher_can_read_but_not_write_students(): void
     {
-        $teacher = User::factory()->create();
-        $teacher->assignRole('teacher');
+        $teacher = $this->teacherOf();
         $student = Student::factory()->create();
+        $this->enrolStudent($student);
 
         $this->actingAs($teacher, 'sanctum')->getJson('/api/students')->assertOk();
         $this->actingAs($teacher, 'sanctum')->getJson("/api/students/{$student->id}")->assertOk();
@@ -900,8 +918,7 @@ class StudentApiTest extends TestCase
             ->assertJsonPath('data.guardian.mobile', '01711111111')
             ->assertJsonPath('data.user_id', Student::findOrFail($id)->user_id);
 
-        $teacher = User::factory()->create();
-        $teacher->assignRole('teacher');
+        $teacher = $this->teacherOf();
 
         $hidden = ['birth_registration_number', 'present_address', 'permanent_address', 'user_id'];
         $show = $this->actingAs($teacher, 'sanctum')->getJson("/api/students/{$id}")->assertOk();

@@ -91,6 +91,45 @@
       </section>
 
       <section class="card space-y-4">
+        <h2 class="text-lg font-semibold text-gray-900">Login</h2>
+        <label class="flex items-center gap-2">
+          <input v-model="login.enabled" type="checkbox" id="login_enabled" />
+          <span class="text-sm text-gray-700">Allow this staff member to sign in to the admin</span>
+        </label>
+        <p v-if="errors['login.enabled']" class="text-sm text-red-600">{{ errors['login.enabled'][0] }}</p>
+        <p v-if="loginInfo?.enabled && !loginInfo.is_active" class="text-sm text-amber-700">
+          This login is currently deactivated (turned off, or the staff member is no longer active).
+        </p>
+
+        <div v-if="login.enabled" class="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <p class="md:col-span-2 text-sm text-gray-600">
+            Signs in with the Employee ID<span v-if="form.employee_id"> (<strong>{{ form.employee_id }}</strong>)</span>
+            <span v-else class="text-red-600"> — enter an Employee ID above first</span>
+            <span v-if="login.email"> or the email below</span>.
+          </p>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Role</label>
+            <select :value="loginRole" class="input" disabled>
+              <option value="teacher">Teacher (own subjects and sections)</option>
+              <option value="office">Office (students and fees)</option>
+            </select>
+            <p class="mt-1 text-xs text-gray-500">Set automatically from the position.</p>
+            <p v-if="errors['login.role']" class="text-sm text-red-600 mt-1">{{ errors['login.role'][0] }}</p>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Password</label>
+            <input v-model="login.password" type="password" autocomplete="new-password" class="input" :placeholder="loginInfo?.enabled ? 'Leave blank to keep the current password' : 'At least 8 characters'" />
+            <p v-if="errors['login.password']" class="text-sm text-red-600 mt-1">{{ errors['login.password'][0] }}</p>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Login email (optional)</label>
+            <input v-model="login.email" type="email" class="input" />
+            <p v-if="errors['login.email']" class="text-sm text-red-600 mt-1">{{ errors['login.email'][0] }}</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="card space-y-4">
         <h2 class="text-lg font-semibold text-gray-900">Shifts</h2>
         <div class="flex flex-wrap gap-4">
           <label v-for="shift in shiftOptions" :key="shift.id" class="flex items-center gap-2">
@@ -339,6 +378,11 @@ watch(() => form.position, (position) => {
   form.category = position === 'staff' ? 'staff' : 'teacher'
 }, { immediate: true })
 
+// The Login section. `loginInfo` is what the API says about the member's current login.
+const loginInfo = ref(null)
+const login = reactive({ enabled: false, password: '', email: '' })
+const loginRole = computed(() => (form.category === 'staff' ? 'office' : 'teacher'))
+
 const sameAsPresent = ref(false)
 watch(sameAsPresent, (value) => {
   if (value) form.permanent_address = form.present_address
@@ -439,6 +483,9 @@ const fetchStaff = async () => {
       is_published: member.is_published,
       shift_ids: (member.shifts || []).map((s) => s.id),
     })
+    loginInfo.value = member.login
+    login.enabled = !!member.login?.enabled
+    login.email = member.login?.email || ''
     sameAsPresent.value = !!member.present_address && member.present_address === member.permanent_address
     memberShifts.value = member.shifts || []
     existingPhotoUrl.value = member.photo_url
@@ -494,6 +541,19 @@ const save = async () => {
       payload.append(`trainings[${index}][duration]`, row.duration || '')
       payload.append(`trainings[${index}][year]`, row.year || '')
     })
+  }
+
+  // Sent when the login is on (to apply the role, email or a new password) or when it was
+  // just turned off. The toggle mirrors staff.login_enabled, so a login that was switched
+  // off stays off when the member returns to active, and one that is on comes back.
+  const hadLoginOn = !!loginInfo.value?.enabled
+  if (login.enabled || hadLoginOn) {
+    payload.append('login[enabled]', login.enabled ? '1' : '0')
+    if (login.enabled) {
+      payload.append('login[role]', loginRole.value)
+      if (login.password) payload.append('login[password]', login.password)
+      payload.append('login[email]', login.email || '')
+    }
   }
 
   if (photoFile.value) payload.append('photo', photoFile.value)

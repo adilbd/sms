@@ -4,7 +4,7 @@
       <h1 class="text-2xl font-bold text-gray-900">Student</h1>
       <div class="flex space-x-2">
         <router-link to="/students" class="btn btn-secondary">Back</router-link>
-        <router-link v-if="student" :to="`/students/${student.id}/edit`" class="btn btn-primary">Edit</router-link>
+        <router-link v-if="student && authStore.hasPermission('edit-students')" :to="`/students/${student.id}/edit`" class="btn btn-primary">Edit</router-link>
       </div>
     </div>
 
@@ -98,6 +98,9 @@
 import { computed, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import api from '@/services/api'
+import { useAuthStore } from '@/stores/auth'
+
+const authStore = useAuthStore()
 
 const GROUP_LABELS = {
   science: 'Science',

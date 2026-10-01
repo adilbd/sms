@@ -19,6 +19,12 @@ interface ClassTeacherRepositoryInterface
     public function forSection(Section $section): Collection;
 
     /**
+     * The class-teacher rows where staff member $staffId leads a section in
+     * $academicYearId, with the section (and its class and shift).
+     */
+    public function forStaffAndYear(int $staffId, int $academicYearId): Collection;
+
+    /**
      * Creates or updates the (section, academic year) row with $staffId, filling
      * class_id from the section.
      */

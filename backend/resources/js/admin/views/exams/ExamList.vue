@@ -2,7 +2,7 @@
   <div class="space-y-6">
     <div class="flex justify-between items-center">
       <h1 class="text-2xl font-bold text-gray-900">Exams</h1>
-      <router-link to="/exams/create" class="btn btn-primary">➕ Add Exam</router-link>
+      <router-link v-if="authStore.hasPermission('create-exams')" to="/exams/create" class="btn btn-primary">➕ Add Exam</router-link>
     </div>
 
     <div class="card">
@@ -54,12 +54,12 @@
               </td>
               <td>
                 <div class="flex flex-wrap gap-x-3 gap-y-1 text-sm">
-                  <router-link :to="`/exams/${exam.id}/schedule`" class="text-primary-600 hover:text-primary-800">Schedule</router-link>
-                  <router-link :to="`/exams/${exam.id}/marks`" class="text-primary-600 hover:text-primary-800">Marks</router-link>
-                  <router-link v-if="exam.status !== 'draft'" :to="`/exams/${exam.id}/results`" class="text-primary-600 hover:text-primary-800">Results</router-link>
-                  <button v-if="exam.status === 'draft'" class="text-green-700 hover:text-green-900" @click="openMarksEntry(exam)">Open mark entry</button>
-                  <router-link :to="`/exams/${exam.id}/edit`" class="text-primary-600 hover:text-primary-800" title="Edit">✏️</router-link>
-                  <button class="text-red-600 hover:text-red-800" title="Delete" @click="deleteExam(exam)">🗑️</button>
+                  <router-link v-if="authStore.hasPermission('edit-exams')" :to="`/exams/${exam.id}/schedule`" class="text-primary-600 hover:text-primary-800">Schedule</router-link>
+                  <router-link v-if="authStore.hasPermission('enter-results')" :to="`/exams/${exam.id}/marks`" class="text-primary-600 hover:text-primary-800">Marks</router-link>
+                  <router-link v-if="exam.status !== 'draft' && authStore.hasPermission('publish-exams')" :to="`/exams/${exam.id}/results`" class="text-primary-600 hover:text-primary-800">Results</router-link>
+                  <button v-if="exam.status === 'draft' && authStore.hasPermission('edit-exams')" class="text-green-700 hover:text-green-900" @click="openMarksEntry(exam)">Open mark entry</button>
+                  <router-link v-if="authStore.hasPermission('edit-exams')" :to="`/exams/${exam.id}/edit`" class="text-primary-600 hover:text-primary-800" title="Edit">✏️</router-link>
+                  <button v-if="authStore.hasPermission('delete-exams')" class="text-red-600 hover:text-red-800" title="Delete" @click="deleteExam(exam)">🗑️</button>
                 </div>
               </td>
             </tr>
@@ -81,8 +81,10 @@
 <script setup>
 import { onMounted, reactive, ref } from 'vue'
 import api from '@/services/api'
+import { useAuthStore } from '@/stores/auth'
 import { EXAM_STATUS_BADGES, EXAM_STATUS_LABELS, EXAM_TYPE_LABELS, EXAM_TYPES } from '@/constants/exams'
 
+const authStore = useAuthStore()
 const exams = ref([])
 const years = ref([])
 const loading = ref(false)

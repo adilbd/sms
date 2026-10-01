@@ -20,6 +20,7 @@ class DatabaseSeeder extends Seeder
             GallerySeeder::class,
             ShiftSeeder::class,
             StaffSeeder::class,
+            StaffLoginSeeder::class,
             ClassSeeder::class,
             SubjectSeeder::class,
             CurriculumSeeder::class,

@@ -3,18 +3,24 @@
 namespace App\Http\Requests\Staff;
 
 use App\Http\Requests\Staff\Concerns\HasStaffChildRules;
+use App\Http\Requests\Staff\Concerns\HasStaffLoginRules;
 use App\Models\Staff;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
 class UpdateStaffRequest extends FormRequest
 {
-    use HasStaffChildRules;
+    use HasStaffChildRules, HasStaffLoginRules;
 
     // Access is enforced by the permission middleware in StaffController.
     public function authorize(): bool
     {
         return true;
+    }
+
+    protected function prepareForValidation(): void
+    {
+        $this->normalizeLoginEmail();
     }
 
     public function rules(): array
@@ -48,7 +54,7 @@ class UpdateStaffRequest extends FormRequest
             'bio' => 'sometimes|nullable|string|max:5000',
             'sort_order' => 'sometimes|integer|min:0|max:65535',
             'is_published' => 'sometimes|boolean',
-        ], $this->shiftRules(required: false, alwaysAllowedShiftIds: $this->currentShiftIds()), $this->educationRules(), $this->trainingRules());
+        ], $this->shiftRules(required: false, alwaysAllowedShiftIds: $this->currentShiftIds()), $this->educationRules(), $this->trainingRules(), $this->loginRules());
     }
 
     /**

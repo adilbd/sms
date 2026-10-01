@@ -72,6 +72,16 @@ class StaffResource extends JsonResource
             'district' => $this->district,
             'sort_order' => $this->sort_order,
             'is_published' => (bool) $this->is_published,
+            // Only when the controller's service loaded `user.roles` (never on the public
+            // or other narrow shapes). `enabled` is the admin's switch (staff.login_enabled);
+            // `is_active` says whether that account can currently sign in.
+            'login' => $this->when($this->resource->relationLoaded('user'), fn () => [
+                'enabled' => (bool) $this->login_enabled && $this->user !== null,
+                'username' => $this->user?->username,
+                'email' => $this->user?->email,
+                'role' => $this->user?->roles->first()?->name,
+                'is_active' => (bool) $this->user?->is_active,
+            ]),
             'created_at' => $this->created_at?->toIso8601String(),
             'updated_at' => $this->updated_at?->toIso8601String(),
         ]);

@@ -51,6 +51,11 @@ class SectionRepository extends EloquentRepository implements SectionRepositoryI
                 ->orWhere('sections.code', 'like', "%{$search}%"));
         }
 
+        // Built by the controller from the signed-in teacher, never from input.
+        if (is_array($filters['scope_section_ids'] ?? null)) {
+            $query->whereIn('sections.id', $filters['scope_section_ids']);
+        }
+
         if (filled($filters['class_id'] ?? null)) {
             $query->where('sections.class_id', $filters['class_id']);
         }

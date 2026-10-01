@@ -46,9 +46,13 @@ interface ExamRepositoryInterface extends RepositoryInterface
 
     /**
      * The exam's subjects with their subject and class, in class then curriculum order,
-     * optionally for one class.
+     * optionally for one class. With $onlyAssigned (a list of `['class_id' => .., 'subject_id' => ..]`
+     * pairs, e.g. one teacher's assignments) only the exam subjects matching a pair are
+     * returned; an empty list returns none, and null means no restriction.
+     *
+     * @param  list<array{class_id: int, subject_id: int}>|null  $onlyAssigned
      */
-    public function subjectsFor(Exam $exam, ?int $classId = null): Collection;
+    public function subjectsFor(Exam $exam, ?int $classId = null, ?array $onlyAssigned = null): Collection;
 
     /**
      * The subject with this id if it belongs to $exam (with its subject and class loaded),

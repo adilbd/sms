@@ -55,6 +55,14 @@ class StudentRepository extends EloquentRepository implements StudentRepositoryI
             ->exists();
     }
 
+    public function isEnrolledInSections(Student $student, int $academicYearId, array $sectionIds): bool
+    {
+        return $student->enrolments()
+            ->where('academic_year_id', $academicYearId)
+            ->whereIn('section_id', $sectionIds)
+            ->exists();
+    }
+
     public function hasAttendances(Student $student): bool
     {
         return $student->attendances()->exists();
@@ -118,6 +126,11 @@ class StudentRepository extends EloquentRepository implements StudentRepositoryI
                 ->orderBy('se.roll_number')
                 ->orderBy('students.id');
 
+            // Built by the controller from the signed-in teacher, never from input.
+            if (is_array($filters['scope_section_ids'] ?? null)) {
+                $query->whereIn('se.section_id', $filters['scope_section_ids']);
+            }
+
             foreach (['class_id', 'section_id', 'group'] as $column) {
                 if (filled($filters[$column] ?? null)) {
                     $query->where("se.{$column}", $filters[$column]);
@@ -132,6 +145,10 @@ class StudentRepository extends EloquentRepository implements StudentRepositoryI
         }
 
         // No year to list (no active academic year yet): filter on any enrolment.
+        if (is_array($filters['scope_section_ids'] ?? null)) {
+            $query->whereHas('enrolments', fn (Builder $q) => $q->whereIn('section_id', $filters['scope_section_ids']));
+        }
+
         foreach (['class_id', 'section_id', 'group'] as $column) {
             if (filled($filters[$column] ?? null)) {
                 $query->whereHas('enrolments', fn (Builder $q) => $q->where($column, $filters[$column]));

@@ -40,11 +40,21 @@ class ExamRepository extends EloquentRepository implements ExamRepositoryInterfa
             ->map(fn ($id) => (int) $id)->all();
     }
 
-    public function subjectsFor(Exam $exam, ?int $classId = null): Collection
+    public function subjectsFor(Exam $exam, ?int $classId = null, ?array $onlyAssigned = null): Collection
     {
         return $exam->examSubjects()
             ->with(['subject', 'class'])
             ->when($classId !== null, fn (Builder $q) => $q->where('exam_subjects.class_id', $classId))
+            ->when($onlyAssigned !== null, fn (Builder $q) => $q->where(function (Builder $q) use ($onlyAssigned) {
+                // Grouped so the ORs can't escape the other filters; no pairs matches nothing.
+                $q->whereRaw('1 = 0');
+
+                foreach ($onlyAssigned as $pair) {
+                    $q->orWhere(fn (Builder $q) => $q
+                        ->where('exam_subjects.class_id', $pair['class_id'])
+                        ->where('exam_subjects.subject_id', $pair['subject_id']));
+                }
+            }))
             ->join('classes', 'classes.id', '=', 'exam_subjects.class_id')
             ->select('exam_subjects.*')
             ->orderBy('classes.number')

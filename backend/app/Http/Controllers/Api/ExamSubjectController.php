@@ -9,6 +9,7 @@ use App\Http\Resources\ExamSubjectResource;
 use App\Models\Exam;
 use App\Models\ExamSubject;
 use App\Services\ExamScheduleService;
+use App\Services\TeacherScope;
 use Illuminate\Routing\Controllers\HasMiddleware;
 use Illuminate\Routing\Controllers\Middleware;
 
@@ -17,7 +18,7 @@ use Illuminate\Routing\Controllers\Middleware;
  */
 class ExamSubjectController extends Controller implements HasMiddleware
 {
-    public function __construct(private ExamScheduleService $schedule) {}
+    public function __construct(private ExamScheduleService $schedule, private TeacherScope $teacherScope) {}
 
     public static function middleware(): array
     {
@@ -31,7 +32,13 @@ class ExamSubjectController extends Controller implements HasMiddleware
     {
         $classId = $request->safe()->only(['class_id'])['class_id'] ?? null;
 
-        return ExamSubjectResource::collection($this->schedule->list($exam, filled($classId) ? (int) $classId : null));
+        // A teacher only sees the subjects they are assigned to in the exam's year (built
+        // from the signed-in user, never from input).
+        $assigned = $this->teacherScope->classSubjectPairsFor($request->user(), $exam->academic_year_id);
+
+        return ExamSubjectResource::collection(
+            $this->schedule->list($exam, filled($classId) ? (int) $classId : null, $assigned)
+        );
     }
 
     public function update(UpdateExamSubjectRequest $request, Exam $exam, ExamSubject $examSubject)

@@ -4,7 +4,16 @@ import api from '@/services/api'
 import router from '@/router'
 
 export const useAuthStore = defineStore('auth', () => {
-  const user = ref(null)
+  // Restored from the last login so permission checks work on the first navigation after a
+  // page reload; checkAuth() refreshes it from /me.
+  const storedUser = (() => {
+    try {
+      return JSON.parse(localStorage.getItem('user') || 'null')
+    } catch {
+      return null
+    }
+  })()
+  const user = ref(storedUser)
   const token = ref(localStorage.getItem('token') || null)
   const loading = ref(false)
 

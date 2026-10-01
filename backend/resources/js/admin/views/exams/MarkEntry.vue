@@ -33,7 +33,7 @@
         <label class="block text-sm font-medium text-gray-700 mb-1">Section</label>
         <select v-model="sectionId" class="input" :disabled="!classId" @change="loadSheet">
           <option value="" disabled>Select a section</option>
-          <option v-for="section in sections" :key="section.id" :value="section.id">
+          <option v-for="section in sectionOptions" :key="section.id" :value="section.id">
             {{ section.name }}<template v-if="section.group"> · {{ GROUP_LABELS[section.group] || section.group }}</template>
           </option>
         </select>
@@ -124,10 +124,18 @@
 import { computed, nextTick, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import api from '@/services/api'
+import { useAuthStore } from '@/stores/auth'
+import { isTeacherOnly } from '@/utils/access'
 import { GROUP_LABELS } from '@/constants/academic'
 import { MARK_PARTS } from '@/constants/exams'
 
 const route = useRoute()
+const authStore = useAuthStore()
+
+// A teacher only picks from their own assignments (/my/assignments, for the exam's year).
+// The API enforces this too: the exam's subject list is already limited to theirs.
+const teacherOnly = isTeacherOnly(authStore)
+const myAssignments = ref([])
 
 const exam = ref(null)
 const classId = ref('')
@@ -159,6 +167,20 @@ const parts = computed(() => {
 })
 
 const fullTotal = computed(() => parts.value.reduce((sum, p) => sum + p.full, 0))
+
+// The sections to choose from: all of the class's sections, or for a teacher only the ones
+// they teach (the chosen subject, once picked).
+const sectionOptions = computed(() => {
+  if (!teacherOnly) return sections.value
+
+  const chosen = subjects.value.find((s) => s.id === examSubjectId.value)
+  const seen = new Set()
+
+  return myAssignments.value
+    .filter((a) => a.class?.id === classId.value && (!chosen || a.subject.id === chosen.subject_id))
+    .map((a) => a.section)
+    .filter((section) => !seen.has(section.id) && seen.add(section.id))
+})
 
 const parse = (value) => {
   const text = String(value ?? '').trim()
@@ -199,10 +221,16 @@ const onClassChange = async () => {
 
   try {
     const [sectionsRes, subjectsRes] = await Promise.all([
-      api.get('/sections', { params: { class_id: classId.value, per_page: 100 } }),
+      teacherOnly
+        ? api.get('/my/assignments', { params: { academic_year_id: exam.value.academic_year_id } })
+        : api.get('/sections', { params: { class_id: classId.value, per_page: 100 } }),
       api.get(`/exams/${exam.value.id}/subjects`, { params: { class_id: classId.value } }),
     ])
-    sections.value = sectionsRes.data.data
+    if (teacherOnly) {
+      myAssignments.value = sectionsRes.data.data.subjects
+    } else {
+      sections.value = sectionsRes.data.data
+    }
     subjects.value = subjectsRes.data.data
   } catch (error) {
     notice.value = { ok: false, text: error.response?.data?.message || 'Failed to load the sections and subjects' }

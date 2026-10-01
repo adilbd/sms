@@ -52,6 +52,18 @@ class SubjectAssignmentRepository extends EloquentRepository implements SubjectA
             ->get();
     }
 
+    public function forStaffAndYear(int $staffId, int $academicYearId): Collection
+    {
+        return SubjectAssignment::query()
+            ->where('staff_id', $staffId)
+            ->where('academic_year_id', $academicYearId)
+            ->with(['subject', 'class', 'section.class', 'section.shift'])
+            ->orderBy('section_id')
+            ->orderBy('subject_id')
+            ->orderBy('id')
+            ->get();
+    }
+
     public function replaceForSection(Section $section, int $academicYearId, array $subjectStaff): void
     {
         SubjectAssignment::query()

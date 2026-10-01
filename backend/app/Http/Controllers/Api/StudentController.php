@@ -10,12 +10,13 @@ use App\Http\Resources\StudentEnrolmentResource;
 use App\Http\Resources\StudentResource;
 use App\Models\Student;
 use App\Services\StudentService;
+use App\Services\TeacherScope;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controllers\HasMiddleware;
 
 class StudentController extends Controller implements HasMiddleware
 {
-    public function __construct(private StudentService $students) {}
+    public function __construct(private StudentService $students, private TeacherScope $teacherScope) {}
 
     public static function middleware(): array
     {
@@ -30,13 +31,20 @@ class StudentController extends Controller implements HasMiddleware
 
         $sensitive = $this->canSeeSensitive($request);
 
+        $filters = $request->safe()->only(['academic_year_id', 'class_id', 'section_id', 'shift_id', 'group', 'status', 'search'])
+            // search_sensitive comes from the caller's permission, never from input.
+            + ['search_sensitive' => $sensitive];
+
+        // A teacher only lists students in the sections they teach or lead in the listed
+        // year. Built from the signed-in user, never from input.
+        $sectionIds = $this->teacherScope->sectionIdsFor($request->user(), $filters['academic_year_id'] ?? null);
+
+        if ($sectionIds !== null) {
+            $filters['scope_section_ids'] = $sectionIds;
+        }
+
         return StudentResource::collectionFor(
-            $this->students->list(
-                // search_sensitive comes from the caller's permission, never from input.
-                $request->safe()->only(['academic_year_id', 'class_id', 'section_id', 'shift_id', 'group', 'status', 'search'])
-                    + ['search_sensitive' => $sensitive],
-                $perPage,
-            ),
+            $this->students->list($filters, $perPage),
             $sensitive,
         );
     }
@@ -54,6 +62,8 @@ class StudentController extends Controller implements HasMiddleware
 
     public function show(Request $request, Student $student)
     {
+        $this->students->ensureInSections($student, $this->teacherScope->sectionIdsFor($request->user()));
+
         return (new StudentResource($this->students->find($student)))->withSensitive($this->canSeeSensitive($request));
     }
 
@@ -87,8 +97,10 @@ class StudentController extends Controller implements HasMiddleware
         return response()->noContent();
     }
 
-    public function enrolments(Student $student)
+    public function enrolments(Request $request, Student $student)
     {
+        $this->students->ensureInSections($student, $this->teacherScope->sectionIdsFor($request->user()));
+
         return StudentEnrolmentResource::collection($this->students->enrolmentHistory($student));
     }
 }

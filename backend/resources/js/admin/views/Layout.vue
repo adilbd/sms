@@ -22,7 +22,7 @@
           </router-link>
 
           <!-- Academic group: Classes, Sections, Subjects and Academic Years -->
-          <div>
+          <div v-if="academicItems.length">
             <button
               type="button"
               class="flex w-full items-center justify-between px-6 py-3 text-gray-700 hover:bg-primary-50 hover:text-primary-600 transition-colors"
@@ -51,7 +51,7 @@
           </div>
 
           <!-- CMS group: News, Events and Pages -->
-          <div>
+          <div v-if="cmsItems.length">
             <button
               type="button"
               class="flex w-full items-center justify-between px-6 py-3 text-gray-700 hover:bg-primary-50 hover:text-primary-600 transition-colors"
@@ -131,47 +131,51 @@
 import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import { canAccess, isTeacherOnly } from '@/utils/access'
 
 const route = useRoute()
 const router = useRouter()
 const authStore = useAuthStore()
 
-const menuItems = computed(() => {
-  const items = [
-    { name: 'Dashboard', path: '/', icon: '📊' },
-    { name: 'Students', path: '/students', icon: '👨‍🎓' },
-    { name: 'Staff', path: '/staff', icon: '👨‍🏫' },
-    { name: 'Attendance', path: '/attendance', icon: '📋' },
-    { name: 'Exams', path: '/exams', icon: '📝' },
-    { name: 'Fees', path: '/fees', icon: '💰' },
-  ]
+// Each entry declares what it needs (see utils/access.js); the sidebar only shows what the
+// signed-in user can open. A teacher who isn't also an admin gets the short teacher menu.
+const teacherOnly = computed(() => isTeacherOnly(authStore))
+const visible = (items) => items.filter((item) => canAccess(authStore, item.access) && !(teacherOnly.value && item.hideForTeacher))
 
-  // Filter menu based on user role
-  return items
-})
+const menuItems = computed(() => visible([
+  { name: 'Dashboard', path: '/', icon: '📊' },
+  { name: 'My subjects', path: '/my-subjects', icon: '🧑‍🏫', access: { role: 'teacher' } },
+  { name: 'Students', path: '/students', icon: '👨‍🎓', access: { permission: 'view-students' } },
+  { name: 'Staff', path: '/staff', icon: '👨‍🏫', access: { permission: 'view-teachers' } },
+  { name: 'Attendance', path: '/attendance', icon: '📋', access: { permission: 'edit-attendance' } },
+  // A teacher's only exam page is mark entry.
+  { name: teacherOnly.value ? 'Mark entry' : 'Exams', path: '/exams', icon: '📝', access: { permission: 'view-exams' } },
+  { name: 'Fees', path: '/fees', icon: '💰', access: { permission: 'view-fees' } },
+]))
 
-const cmsItems = [
-  { name: 'Institute', path: '/institute', icon: '🏛️' },
-  { name: 'Shifts', path: '/shifts', icon: '⏰' },
-  { name: 'News', path: '/news', icon: '📰' },
-  { name: 'Events', path: '/events', icon: '📅' },
-  { name: 'Pages', path: '/pages', icon: '📄' },
-  { name: 'Media', path: '/media', icon: '🖼️' },
-  { name: 'Galleries', path: '/galleries', icon: '📸' },
-  { name: 'Menu', path: '/menu', icon: '🧭' },
-]
+const cmsItems = computed(() => visible([
+  { name: 'Institute', path: '/institute', icon: '🏛️', access: { permission: 'edit-settings' } },
+  { name: 'Shifts', path: '/shifts', icon: '⏰', access: { permission: 'edit-settings' } },
+  { name: 'News', path: '/news', icon: '📰', access: { role: 'admin' } },
+  { name: 'Events', path: '/events', icon: '📅', access: { role: 'admin' } },
+  { name: 'Pages', path: '/pages', icon: '📄', access: { role: 'admin' } },
+  { name: 'Media', path: '/media', icon: '🖼️', access: { role: 'admin' } },
+  { name: 'Galleries', path: '/galleries', icon: '📸', access: { role: 'admin' } },
+  { name: 'Menu', path: '/menu', icon: '🧭', access: { role: 'admin' } },
+]))
 
-const academicItems = [
-  { name: 'Classes', path: '/classes', icon: '🏫' },
-  { name: 'Sections', path: '/sections', icon: '🧑‍🤝‍🧑' },
-  { name: 'Subjects', path: '/subjects', icon: '📚' },
-  { name: 'Academic Years', path: '/academic-years', icon: '📆' },
-]
+// Classes and Subjects are read-only for office staff (view permissions only).
+const academicItems = computed(() => visible([
+  { name: 'Classes', path: '/classes', icon: '🏫', access: { permission: 'view-classes' }, hideForTeacher: true },
+  { name: 'Sections', path: '/sections', icon: '🧑‍🤝‍🧑', access: { permission: 'edit-classes' } },
+  { name: 'Subjects', path: '/subjects', icon: '📚', access: { permission: 'view-subjects' }, hideForTeacher: true },
+  { name: 'Academic Years', path: '/academic-years', icon: '📆', access: { permission: 'edit-settings' } },
+]))
 
 const isChildActive = (child) => route.path === child.path || route.path.startsWith(`${child.path}/`)
 
-const isCmsActive = computed(() => cmsItems.some(isChildActive))
-const isAcademicActive = computed(() => academicItems.some(isChildActive))
+const isCmsActive = computed(() => cmsItems.value.some(isChildActive))
+const isAcademicActive = computed(() => academicItems.value.some(isChildActive))
 
 const cmsOpen = ref(isCmsActive.value)
 const academicOpen = ref(isAcademicActive.value)
@@ -185,8 +189,9 @@ watch(isAcademicActive, (active) => {
   if (active) academicOpen.value = true
 })
 
+// Titles come from the route's meta (an unnamed fallback keeps new routes readable).
 const currentPageTitle = computed(() => {
-  return route.name || 'Dashboard'
+  return route.meta.title || route.name || 'Dashboard'
 })
 
 const userInitials = computed(() => {

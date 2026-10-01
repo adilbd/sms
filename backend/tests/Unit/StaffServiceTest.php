@@ -3,8 +3,10 @@
 namespace Tests\Unit;
 
 use App\Models\Staff;
+use App\Models\User;
 use App\Repositories\Contracts\ShiftRepositoryInterface;
 use App\Repositories\Contracts\StaffRepositoryInterface;
+use App\Repositories\Contracts\UserRepositoryInterface;
 use App\Services\StaffService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
@@ -305,5 +307,280 @@ class StaffServiceTest extends TestCase
         } catch (HttpException $e) {
             $this->assertSame(409, $e->getStatusCode());
         }
+    }
+
+    // --- logins -------------------------------------------------------------------------
+
+    private function loginData(array $login = [], array $override = []): array
+    {
+        return $override + [
+            'name_en' => 'Md. Karim',
+            'employee_id' => 'VHBUB-12',
+            'category' => Staff::CATEGORY_TEACHER,
+            'position' => Staff::POSITION_TEACHER,
+            'status' => Staff::STATUS_ACTIVE,
+            'shift_ids' => [1],
+            'login' => $login + ['enabled' => true, 'role' => 'teacher', 'password' => 'secret-pass'],
+        ];
+    }
+
+    private function savedStaff(array $attributes = []): Staff
+    {
+        $staff = Staff::factory()->make($attributes + ['employee_id' => 'VHBUB-12']);
+        $staff->id = 5;
+        $staff->exists = true;
+        $staff->syncOriginal();
+
+        return $staff;
+    }
+
+    private function user(int $id, array $attributes = []): User
+    {
+        $user = new User($attributes + ['username' => 'vhbub-12']);
+        $user->id = $id;
+        $user->exists = true;
+        $user->syncOriginal();
+
+        return $user;
+    }
+
+    private function assertLoginRejected(array $data, string $field): void
+    {
+        try {
+            app(StaffService::class)->create($data, null);
+            $this->fail('Expected a ValidationException.');
+        } catch (ValidationException $e) {
+            $this->assertArrayHasKey($field, $e->errors());
+        }
+    }
+
+    public function test_create_with_a_login_requires_an_employee_id(): void
+    {
+        $this->mock(StaffRepositoryInterface::class, fn (MockInterface $mock) => $mock->shouldNotReceive('create'));
+        $this->mock(UserRepositoryInterface::class, fn (MockInterface $mock) => $mock->shouldNotReceive('createWithRole'));
+
+        $this->assertLoginRejected($this->loginData([], ['employee_id' => null]), 'employee_id');
+        $this->assertLoginRejected($this->loginData([], ['employee_id' => '  ']), 'employee_id');
+    }
+
+    public function test_create_with_a_login_requires_the_role_to_match_the_category(): void
+    {
+        $this->mock(StaffRepositoryInterface::class, fn (MockInterface $mock) => $mock->shouldNotReceive('create'));
+        $this->mock(UserRepositoryInterface::class, fn (MockInterface $mock) => $mock->shouldNotReceive('createWithRole'));
+
+        $this->assertLoginRejected($this->loginData(['role' => 'office']), 'login.role');
+        $this->assertLoginRejected($this->loginData(['role' => 'teacher'], ['category' => 'staff', 'position' => 'staff']), 'login.role');
+    }
+
+    public function test_create_with_a_login_rejects_a_taken_username_or_email_and_a_missing_password(): void
+    {
+        $this->mock(StaffRepositoryInterface::class, function (MockInterface $mock) {
+            $mock->shouldReceive('create')->andReturn($this->savedStaff());
+            $mock->shouldReceive('syncShifts');
+            $mock->shouldReceive('syncEducations');
+            $mock->shouldReceive('syncTrainings');
+        });
+
+        $this->mock(UserRepositoryInterface::class, function (MockInterface $mock) {
+            // vhbub-12 belongs to somebody else; nobody owns vhbub-13.
+            $mock->shouldReceive('findForLogin')->with('vhbub-12')->andReturn($this->user(99));
+            $mock->shouldReceive('findForLogin')->with('vhbub-13')->andReturn(null);
+            $mock->shouldReceive('findForLogin')->with('taken@example.com')->andReturn($this->user(98));
+            $mock->shouldNotReceive('createWithRole');
+        });
+
+        $this->assertLoginRejected($this->loginData(), 'employee_id');
+
+        $this->mock(StaffRepositoryInterface::class, function (MockInterface $mock) {
+            $mock->shouldReceive('create')->andReturn($this->savedStaff(['employee_id' => 'VHBUB-13']));
+            $mock->shouldReceive('syncShifts');
+            $mock->shouldReceive('syncEducations');
+            $mock->shouldReceive('syncTrainings');
+        });
+        $this->assertLoginRejected($this->loginData(['email' => 'taken@example.com'], ['employee_id' => 'VHBUB-13']), 'login.email');
+        $this->assertLoginRejected($this->loginData(['password' => null], ['employee_id' => 'VHBUB-13']), 'login.password');
+    }
+
+    public function test_create_with_a_login_creates_the_user_with_the_role_and_links_it(): void
+    {
+        $user = $this->user(77);
+
+        $this->mock(StaffRepositoryInterface::class, function (MockInterface $mock) {
+            $mock->shouldReceive('create')->once()->andReturn($this->savedStaff(['login_enabled' => true]));
+            $mock->shouldReceive('syncShifts');
+            $mock->shouldReceive('syncEducations');
+            $mock->shouldReceive('syncTrainings');
+            $mock->shouldReceive('update')->once()->withArgs(fn ($staff, $data) => $data === ['user_id' => 77])->andReturn($this->savedStaff(['user_id' => 77]));
+        });
+        $this->mock(UserRepositoryInterface::class, function (MockInterface $mock) use ($user) {
+            $mock->shouldReceive('findForLogin')->with('vhbub-12')->andReturn(null);
+            $mock->shouldReceive('findForLogin')->with('karim@example.com')->andReturn(null);
+            $mock->shouldReceive('createWithRole')->once()->withArgs(fn (array $attributes, string $role) => $role === 'teacher'
+                && $attributes['username'] === 'vhbub-12'
+                && $attributes['email'] === 'karim@example.com'
+                && $attributes['password'] === 'secret-pass'
+                && $attributes['is_active'] === true)->andReturn($user);
+        });
+
+        app(StaffService::class)->create($this->loginData(['email' => 'Karim@Example.com']), null);
+    }
+
+    public function test_update_disabling_the_login_deactivates_the_user_and_revokes_tokens(): void
+    {
+        $staff = $this->savedStaff(['user_id' => 77]);
+        $user = $this->user(77);
+
+        $this->mock(ShiftRepositoryInterface::class);
+        $this->mock(StaffRepositoryInterface::class, function (MockInterface $mock) use ($staff) {
+            $mock->shouldReceive('shiftIdsFor')->andReturn([1]);
+            $mock->shouldReceive('update')->andReturn($staff);
+        });
+        $this->mock(UserRepositoryInterface::class, function (MockInterface $mock) use ($user) {
+            $mock->shouldReceive('find')->with(77)->andReturn($user);
+            $mock->shouldReceive('roleNames')->andReturn(['teacher']);
+            $mock->shouldReceive('update')->once()->with($user, ['is_active' => false]);
+            $mock->shouldReceive('revokeAllTokens')->once()->with($user);
+        });
+
+        app(StaffService::class)->update($staff, ['login' => ['enabled' => false]], null, false);
+    }
+
+    public function test_update_to_a_former_status_deactivates_the_login_and_returning_reactivates_it(): void
+    {
+        $staff = $this->savedStaff(['user_id' => 77, 'login_enabled' => true]);
+        $user = $this->user(77);
+        $captured = [];
+
+        $this->mock(ShiftRepositoryInterface::class);
+        $this->mock(StaffRepositoryInterface::class, function (MockInterface $mock) use ($staff) {
+            $mock->shouldReceive('shiftIdsFor')->andReturn([1]);
+            $mock->shouldReceive('update')->andReturnUsing(function ($model, $data) use ($staff) {
+                $staff->fill($data);
+
+                return $staff;
+            });
+        });
+        $this->mock(UserRepositoryInterface::class, function (MockInterface $mock) use ($user, &$captured) {
+            $mock->shouldReceive('find')->with(77)->andReturn($user);
+            $mock->shouldReceive('roleNames')->andReturn(['teacher']);
+            $mock->shouldReceive('findForLogin')->andReturn(null);
+            $mock->shouldReceive('update')->andReturnUsing(function ($model, $attributes) use (&$captured) {
+                $captured[] = $attributes;
+
+                return $model;
+            });
+            $mock->shouldReceive('revokeAllTokens')->once()->with($user);
+        });
+
+        app(StaffService::class)->update($staff, ['status' => Staff::STATUS_RETIRED, 'leaving_date' => '2026-06-30'], null, false);
+        $this->assertFalse($captured[0]['is_active']);
+
+        // Back to active: reactivated, and no token revocation this time (once() above).
+        $staff->syncOriginal();
+        $captured = [];
+        app(StaffService::class)->update($staff, ['status' => Staff::STATUS_ACTIVE], null, false);
+        $this->assertTrue($captured[0]['is_active']);
+    }
+
+    public function test_update_refuses_to_use_a_student_or_parent_account_as_a_login(): void
+    {
+        $staff = $this->savedStaff(['user_id' => 77]);
+        $user = $this->user(77);
+
+        $this->mock(ShiftRepositoryInterface::class);
+        $this->mock(StaffRepositoryInterface::class, function (MockInterface $mock) use ($staff) {
+            $mock->shouldReceive('shiftIdsFor')->andReturn([1]);
+            $mock->shouldReceive('update')->andReturn($staff);
+        });
+        $this->mock(UserRepositoryInterface::class, function (MockInterface $mock) use ($user) {
+            $mock->shouldReceive('find')->with(77)->andReturn($user);
+            $mock->shouldReceive('roleNames')->andReturn(['student']);
+            $mock->shouldNotReceive('update');
+            $mock->shouldNotReceive('syncRole');
+        });
+
+        try {
+            app(StaffService::class)->update($staff, ['login' => ['enabled' => true, 'role' => 'teacher', 'password' => 'secret-pass']], null, false);
+            $this->fail('Expected a ValidationException.');
+        } catch (ValidationException $e) {
+            $this->assertArrayHasKey('login.enabled', $e->errors());
+        }
+    }
+
+    public function test_update_changing_the_employee_id_changes_the_username_unless_taken(): void
+    {
+        $staff = $this->savedStaff(['user_id' => 77, 'login_enabled' => true]);
+        $user = $this->user(77);
+        $captured = [];
+
+        $this->mock(ShiftRepositoryInterface::class);
+        $this->mock(StaffRepositoryInterface::class, function (MockInterface $mock) use ($staff) {
+            $mock->shouldReceive('shiftIdsFor')->andReturn([1]);
+            $mock->shouldReceive('update')->andReturnUsing(function ($model, $data) use ($staff) {
+                $staff->fill($data);
+
+                return $staff;
+            });
+        });
+        $this->mock(UserRepositoryInterface::class, function (MockInterface $mock) use ($user, &$captured) {
+            $mock->shouldReceive('find')->with(77)->andReturn($user);
+            $mock->shouldReceive('roleNames')->andReturn(['teacher']);
+            $mock->shouldReceive('findForLogin')->with('vhbub-99')->andReturn(null);
+            $mock->shouldReceive('findForLogin')->with('vhbub-55')->andReturn($this->user(11, ['username' => 'vhbub-55']));
+            $mock->shouldReceive('update')->andReturnUsing(function ($model, $attributes) use (&$captured) {
+                $captured[] = $attributes;
+
+                return $model;
+            });
+        });
+
+        app(StaffService::class)->update($staff, ['employee_id' => 'VHBUB-99'], null, false);
+        $this->assertSame('vhbub-99', $captured[0]['username']);
+
+        try {
+            app(StaffService::class)->update($staff, ['employee_id' => 'VHBUB-55'], null, false);
+            $this->fail('Expected a ValidationException.');
+        } catch (ValidationException $e) {
+            $this->assertArrayHasKey('employee_id', $e->errors());
+        }
+    }
+
+    public function test_delete_deactivates_the_login(): void
+    {
+        $staff = $this->savedStaff(['user_id' => 77]);
+        $user = $this->user(77);
+
+        $this->mock(StaffRepositoryInterface::class, function (MockInterface $mock) use ($staff) {
+            $mock->shouldReceive('hasSubjectAssignments')->andReturn(false);
+            $mock->shouldReceive('isClassTeacher')->andReturn(false);
+            $mock->shouldReceive('delete')->once()->with($staff);
+        });
+        $this->mock(UserRepositoryInterface::class, function (MockInterface $mock) use ($user) {
+            $mock->shouldReceive('find')->with(77)->andReturn($user);
+            $mock->shouldReceive('roleNames')->andReturn(['office']);
+            $mock->shouldReceive('update')->once()->with($user, ['is_active' => false]);
+            $mock->shouldReceive('revokeAllTokens')->once()->with($user);
+        });
+
+        app(StaffService::class)->delete($staff);
+    }
+
+    public function test_delete_leaves_a_non_staff_account_linked_to_the_member_alone(): void
+    {
+        $staff = $this->savedStaff(['user_id' => 77]);
+
+        $this->mock(StaffRepositoryInterface::class, function (MockInterface $mock) {
+            $mock->shouldReceive('hasSubjectAssignments')->andReturn(false);
+            $mock->shouldReceive('isClassTeacher')->andReturn(false);
+            $mock->shouldReceive('delete')->once();
+        });
+        $this->mock(UserRepositoryInterface::class, function (MockInterface $mock) {
+            $mock->shouldReceive('find')->with(77)->andReturn($this->user(77));
+            $mock->shouldReceive('roleNames')->andReturn(['admin']);
+            $mock->shouldNotReceive('update');
+            $mock->shouldNotReceive('revokeAllTokens');
+        });
+
+        app(StaffService::class)->delete($staff);
     }
 }

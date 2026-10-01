@@ -63,6 +63,7 @@ class Staff extends Model
 
     protected $fillable = [
         'user_id',
+        'login_enabled',
         'employee_id',
         'name_en',
         'name_bn',
@@ -105,6 +106,7 @@ class Staff extends Model
         'joining_date' => 'date',
         'leaving_date' => 'date',
         'date_of_birth' => 'date',
+        'login_enabled' => 'boolean',
         'show_contact' => 'boolean',
         'is_published' => 'boolean',
         'sort_order' => 'integer',

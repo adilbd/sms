@@ -106,7 +106,7 @@ class StudentSeederTest extends TestCase
         $this->seed(RolePermissionSeeder::class);
 
         $this->assertSame(1, User::where('email', 'admin@sms.com')->count());
-        $this->assertSame(4, \Spatie\Permission\Models\Role::count());
+        $this->assertSame(5, \Spatie\Permission\Models\Role::count());
         $this->assertSame(Permission::count(), Permission::distinct('name')->count('name'));
         $this->assertFalse(\Spatie\Permission\Models\Role::findByName('parent')->hasPermissionTo('view-students'));
         $this->assertFalse(Permission::where('name', 'like', '%-parents')->exists());
