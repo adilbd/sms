@@ -2,11 +2,11 @@
 
 namespace Tests\Feature;
 
+use App\Models\ExamSubject;
 use App\Models\Subject;
 use App\Models\User;
 use Database\Seeders\RolePermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 class SubjectApiTest extends TestCase
@@ -295,14 +295,7 @@ class SubjectApiTest extends TestCase
     public function test_destroy_returns_409_when_subject_is_used_in_exam_schedules(): void
     {
         $subject = Subject::factory()->create();
-        $classId = DB::table('classes')->insertGetId(['name' => 'Class 1', 'code' => 'C1']);
-        $sectionId = DB::table('sections')->insertGetId(['class_id' => $classId, 'name' => 'A', 'code' => 'A']);
-        $yearId = DB::table('academic_years')->insertGetId(['name' => '2026', 'code' => 'AY26', 'start_date' => '2026-01-01', 'end_date' => '2026-12-31']);
-        $examId = DB::table('exams')->insertGetId(['name' => 'Midterm', 'code' => 'MID', 'academic_year_id' => $yearId, 'type' => 'term', 'start_date' => '2026-06-01', 'end_date' => '2026-06-10']);
-        DB::table('exam_schedules')->insert([
-            'exam_id' => $examId, 'class_id' => $classId, 'section_id' => $sectionId, 'subject_id' => $subject->id,
-            'exam_date' => '2026-06-02', 'start_time' => '09:00', 'end_time' => '11:00',
-        ]);
+        ExamSubject::factory()->create(['subject_id' => $subject->id]);
 
         $this->actingAs($this->admin, 'sanctum')
             ->deleteJson("/api/subjects/{$subject->id}")

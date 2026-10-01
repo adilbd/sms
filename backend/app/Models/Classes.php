@@ -81,9 +81,9 @@ class Classes extends Model
         return $this->hasMany(FeeStructure::class, 'class_id');
     }
 
-    public function examSchedules(): HasMany
+    public function examSubjects(): HasMany
     {
-        return $this->hasMany(ExamSchedule::class, 'class_id');
+        return $this->hasMany(ExamSubject::class, 'class_id');
     }
 
     public function subjectAssignments(): HasMany

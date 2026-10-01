@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Classes;
 use App\Models\ClassSubject;
 use App\Repositories\Contracts\ClassSubjectRepositoryInterface;
+use App\Support\MarkParts;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -125,12 +126,23 @@ class CurriculumService
             $errors["subjects.{$i}.paper_group"][] = $message;
         }
 
-        $assigned = $this->curriculum->assignedSubjects($class);
-        $listed = array_column($rows, 'subject_id');
+        // An assignment stays valid while some listed row for its subject is common or
+        // matches its section's group (a section without a group accepts any row).
+        foreach ($this->curriculum->assignedSubjects($class) as $assignment) {
+            $covered = false;
 
-        foreach ($assigned as $subjectId => $name) {
-            if (! in_array($subjectId, $listed, true)) {
-                $errors['subjects'][] = "{$name} still has subject-teacher assignments in this class. Unassign it first, then remove it from the curriculum.";
+            foreach ($rows as $row) {
+                if ($row['subject_id'] === $assignment['subject_id']
+                    && ($assignment['group'] === null || $row['group'] === null || $row['group'] === $assignment['group'])) {
+                    $covered = true;
+                    break;
+                }
+            }
+
+            $message = "{$assignment['name']} still has subject-teacher assignments in this class. Unassign it first, then remove it from the curriculum.";
+
+            if (! $covered && ! in_array($message, $errors['subjects'] ?? [], true)) {
+                $errors['subjects'][] = $message;
             }
         }
 
@@ -140,8 +152,8 @@ class CurriculumService
     }
 
     /**
-     * The part rules for a row that sends any part field: at least one part, each part's
-     * full and pass set together, pass <= full, full >= 1. Keyed by the field to blame.
+     * The part rules (see MarkParts) for a row that sends any part field. Keyed by the
+     * field to blame.
      *
      * @param  array<string, mixed>  $row
      * @return array<string, string>
@@ -152,35 +164,7 @@ class CurriculumService
             return [];
         }
 
-        $errors = [];
-        $anySet = false;
-
-        foreach (ClassSubject::PARTS as $part) {
-            $full = $row["{$part}_full"] ?? null;
-            $pass = $row["{$part}_pass"] ?? null;
-
-            if ($full === null && $pass === null) {
-                continue;
-            }
-
-            $anySet = true;
-
-            if ($full === null) {
-                $errors["{$part}_full"] = "The {$part} full marks are required when the pass marks are set.";
-            } elseif ($pass === null) {
-                $errors["{$part}_pass"] = "The {$part} pass marks are required when the full marks are set.";
-            } elseif ($full < 1) {
-                $errors["{$part}_full"] = "The {$part} full marks must be at least 1.";
-            } elseif ($pass > $full) {
-                $errors["{$part}_pass"] = "The {$part} pass marks cannot be more than the full marks.";
-            }
-        }
-
-        if (! $anySet) {
-            $errors['written_full'] = 'At least one marks part (written, MCQ or practical) must be set.';
-        }
-
-        return $errors;
+        return MarkParts::errors($row);
     }
 
     /**

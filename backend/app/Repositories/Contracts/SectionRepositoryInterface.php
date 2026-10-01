@@ -13,7 +13,5 @@ interface SectionRepositoryInterface extends RepositoryInterface
 
     public function hasAttendances(Section $section): bool;
 
-    public function hasExamSchedules(Section $section): bool;
-
     public function hasSubjectAssignments(Section $section): bool;
 }

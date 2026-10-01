@@ -12,7 +12,7 @@ class SubjectRepository extends EloquentRepository implements SubjectRepositoryI
 
     public function isUsedInExamSchedules(Subject $subject): bool
     {
-        return $subject->examSchedules()->exists();
+        return $subject->examSubjects()->exists();
     }
 
     public function hasTeacherAssignments(Subject $subject): bool

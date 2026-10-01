@@ -26,6 +26,7 @@ class DatabaseSeeder extends Seeder
             AcademicYearSeeder::class,
             SectionSeeder::class,
             StudentSeeder::class,
+            ExamSeeder::class,
             MenuSeeder::class,
         ]);
     }

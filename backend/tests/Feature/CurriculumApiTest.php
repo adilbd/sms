@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\AcademicYear;
 use App\Models\Classes;
 use App\Models\ClassSubject;
 use App\Models\Section;
@@ -507,5 +508,64 @@ class CurriculumApiTest extends TestCase
         $assignment->delete();
 
         $this->replace($class, [$this->row($keep)])->assertOk()->assertJsonCount(1, 'data');
+    }
+
+    public function test_a_past_years_assignment_does_not_block_removing_the_subject(): void
+    {
+        $class = Classes::factory()->create(['number' => 9]);
+        [$keep, $drop] = Subject::factory()->count(2)->create();
+        ClassSubject::factory()->create(['class_id' => $class->id, 'subject_id' => $keep->id]);
+        ClassSubject::factory()->create(['class_id' => $class->id, 'subject_id' => $drop->id]);
+        AcademicYear::factory()->active()->create(['year' => 2026]);
+        $past = AcademicYear::factory()->create(['year' => 2025]);
+        SubjectAssignment::factory()->create([
+            'class_id' => $class->id,
+            'section_id' => Section::factory()->create(['class_id' => $class->id])->id,
+            'subject_id' => $drop->id,
+            'academic_year_id' => $past->id,
+        ]);
+
+        $this->replace($class, [$this->row($keep)])->assertOk()->assertJsonCount(1, 'data');
+    }
+
+    public function test_the_active_or_a_later_years_assignment_blocks_removing_the_subject(): void
+    {
+        $class = Classes::factory()->create(['number' => 9]);
+        [$keep, $drop] = Subject::factory()->count(2)->create();
+        ClassSubject::factory()->create(['class_id' => $class->id, 'subject_id' => $keep->id]);
+        ClassSubject::factory()->create(['class_id' => $class->id, 'subject_id' => $drop->id]);
+        $active = AcademicYear::factory()->active()->create(['year' => 2026]);
+        $later = AcademicYear::factory()->create(['year' => 2027]);
+        $section = Section::factory()->create(['class_id' => $class->id]);
+        $assignment = SubjectAssignment::factory()->create([
+            'class_id' => $class->id, 'section_id' => $section->id, 'subject_id' => $drop->id, 'academic_year_id' => $active->id,
+        ]);
+
+        $this->replace($class, [$this->row($keep)])->assertUnprocessable()->assertJsonValidationErrors(['subjects']);
+
+        $assignment->update(['academic_year_id' => $later->id]);
+
+        $this->replace($class, [$this->row($keep)])->assertUnprocessable()->assertJsonValidationErrors(['subjects']);
+    }
+
+    public function test_the_removal_guard_is_group_aware(): void
+    {
+        $class = Classes::factory()->create(['number' => 9]);
+        $subject = Subject::factory()->create();
+        ClassSubject::factory()->create(['class_id' => $class->id, 'subject_id' => $subject->id, 'group' => 'science']);
+        ClassSubject::factory()->create(['class_id' => $class->id, 'subject_id' => $subject->id, 'group' => 'humanities']);
+        $science = Section::factory()->create(['class_id' => $class->id, 'group' => 'science']);
+        SubjectAssignment::factory()->create([
+            'class_id' => $class->id, 'section_id' => $science->id, 'subject_id' => $subject->id,
+            'academic_year_id' => AcademicYear::factory()->active()->create(['year' => 2026])->id,
+        ]);
+
+        // Dropping the humanities row is fine: the Science section's row stays.
+        $this->replace($class, [$this->row($subject, 'science')])->assertOk();
+
+        // Dropping the Science row would strand the assignment.
+        $this->replace($class, [$this->row($subject, 'humanities')])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['subjects']);
     }
 }

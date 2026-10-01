@@ -111,9 +111,9 @@ class Student extends Model
         return $this->hasMany(Attendance::class);
     }
 
-    public function examResults(): HasMany
+    public function examMarks(): HasMany
     {
-        return $this->hasMany(ExamResult::class);
+        return $this->hasMany(ExamMark::class);
     }
 
     public function feePayments(): HasMany

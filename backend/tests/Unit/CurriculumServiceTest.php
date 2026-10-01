@@ -344,7 +344,10 @@ class CurriculumServiceTest extends TestCase
     public function test_removing_a_subject_that_has_assignments_is_refused(): void
     {
         $this->mockRepo(function (MockInterface $mock) {
-            $mock->shouldReceive('assignedSubjects')->andReturn([1 => 'Physics', 2 => 'Chemistry']);
+            $mock->shouldReceive('assignedSubjects')->andReturn([
+                ['subject_id' => 1, 'name' => 'Physics', 'group' => null],
+                ['subject_id' => 2, 'name' => 'Chemistry', 'group' => null],
+            ]);
             $mock->shouldNotReceive('sync');
         });
 
@@ -353,5 +356,46 @@ class CurriculumServiceTest extends TestCase
         $this->assertSame(['subjects'], array_keys($errors));
         $this->assertStringContainsString('Physics', $errors['subjects'][0]);
         $this->assertStringContainsString('Unassign', $errors['subjects'][0]);
+    }
+
+    public function test_an_assignment_survives_when_a_row_for_its_sections_group_remains(): void
+    {
+        $this->mockRepo(function (MockInterface $mock) {
+            $mock->shouldReceive('assignedSubjects')->andReturn([
+                ['subject_id' => 1, 'name' => 'Physics', 'group' => 'science'],
+            ]);
+            $mock->shouldReceive('sync')->once();
+            $mock->shouldReceive('forClass')->andReturn(new Collection);
+        });
+
+        app(CurriculumService::class)->sync(new Classes(['number' => 9]), [$this->row(1, [], 'science')]);
+    }
+
+    public function test_removing_only_the_row_for_the_assigned_sections_group_is_refused(): void
+    {
+        $this->mockRepo(function (MockInterface $mock) {
+            $mock->shouldReceive('assignedSubjects')->andReturn([
+                ['subject_id' => 1, 'name' => 'Physics', 'group' => 'science'],
+            ]);
+            $mock->shouldNotReceive('sync');
+        });
+
+        // A row for another group doesn't cover a Science section's assignment.
+        $errors = $this->errorsFor(new Classes(['number' => 9]), [$this->row(1, [], 'humanities')]);
+
+        $this->assertSame(['subjects'], array_keys($errors));
+    }
+
+    public function test_an_assignment_in_a_section_without_a_group_survives_any_row_of_the_subject(): void
+    {
+        $this->mockRepo(function (MockInterface $mock) {
+            $mock->shouldReceive('assignedSubjects')->andReturn([
+                ['subject_id' => 1, 'name' => 'Physics', 'group' => null],
+            ]);
+            $mock->shouldReceive('sync')->once();
+            $mock->shouldReceive('forClass')->andReturn(new Collection);
+        });
+
+        app(CurriculumService::class)->sync(new Classes(['number' => 9]), [$this->row(1, [], 'humanities')]);
     }
 }

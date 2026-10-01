@@ -66,7 +66,10 @@ class ApiAuthorizationTest extends TestCase
         // Students can't list other students or staff.
         $this->actingAs($student, 'sanctum')->getJson('/api/students')->assertForbidden();
         $this->actingAs($student, 'sanctum')->getJson('/api/staff')->assertForbidden();
-        $this->actingAs($student, 'sanctum')->getJson('/api/exams')->assertOk();
+        $this->actingAs($student, 'sanctum')->getJson('/api/exams')->assertForbidden();
+        $this->actingAs($parent, 'sanctum')->getJson('/api/exams')->assertForbidden();
+        $this->actingAs($teacher, 'sanctum')->getJson('/api/exams')->assertOk();
+        $this->actingAs($teacher, 'sanctum')->postJson('/api/exams', [])->assertForbidden();
 
         // Parents can't list students (they read their own children instead) ...
         $this->actingAs($parent, 'sanctum')->getJson('/api/students')->assertForbidden();
