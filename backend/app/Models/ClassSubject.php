@@ -22,6 +22,9 @@ class ClassSubject extends Model
     public const TYPES = [self::TYPE_COMPULSORY, self::TYPE_OPTIONAL];
 
     /** Mirrors the column defaults in the class_subjects migration. */
+    /** @var list<int>|null */
+    private ?array $choiceSubjectIdsCache = null;
+
     protected $attributes = [
         'type' => self::TYPE_COMPULSORY,
         'sort_order' => 0,
