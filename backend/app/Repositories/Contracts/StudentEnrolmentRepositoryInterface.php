@@ -56,4 +56,16 @@ interface StudentEnrolmentRepositoryInterface
      * and 4th subject.
      */
     public function historyFor(Student $student): Collection;
+
+    /**
+     * The student's newest enrolment (by academic year), with its year, class and the
+     * section with its shift, or null.
+     */
+    public function latestFor(Student $student): ?StudentEnrolment;
+
+    /**
+     * The active enrolments of a section in a year (students not deleted), by roll number,
+     * with student, year, class and the section with its shift.
+     */
+    public function activeInSection(int $sectionId, int $academicYearId): Collection;
 }

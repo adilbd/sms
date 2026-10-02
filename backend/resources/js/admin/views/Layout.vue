@@ -194,6 +194,8 @@ const menuItems = computed(() => visible([
   { name: 'Homework', path: '/homework', icon: '📚', access: { permission: 'view-homework' } },
   { name: 'Students', path: '/students', icon: '👨‍🎓', access: { permission: 'view-students' } },
   { name: 'Admissions', path: '/admissions', icon: '📝', access: { permission: 'edit-students' } },
+  { name: 'Certificates', path: '/certificates', icon: '🎓', access: { permission: 'view-students' } },
+  { name: 'ID cards', path: '/id-cards', icon: '🪪', access: { permission: 'view-students' } },
   { name: 'Staff', path: '/staff', icon: '👨‍🏫', access: { permission: 'view-teachers' } },
   { name: 'Attendance', path: '/attendance', icon: '📋', access: { permission: 'view-attendance' }, when: () => !teacherOnly.value || leadsSection.value },
   // A teacher's only exam page is mark entry.

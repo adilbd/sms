@@ -75,6 +75,24 @@ const routes = [
         meta: { title: 'Admission Application', permission: 'view-students' },
       },
       {
+        path: 'certificates',
+        name: 'Certificates',
+        component: () => import('@/views/certificates/Certificates.vue'),
+        meta: { title: 'Certificates', permission: 'view-students' },
+      },
+      {
+        path: 'certificates/:id/print',
+        name: 'CertificatePrint',
+        component: () => import('@/views/certificates/CertificatePrint.vue'),
+        meta: { title: 'Print Certificate', permission: 'view-students' },
+      },
+      {
+        path: 'id-cards',
+        name: 'IdCards',
+        component: () => import('@/views/certificates/IdCards.vue'),
+        meta: { title: 'ID Cards', permission: 'view-students' },
+      },
+      {
         path: 'students/promotion',
         name: 'StudentPromotion',
         component: () => import('@/views/students/Promotion.vue'),

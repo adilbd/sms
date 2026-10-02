@@ -21,7 +21,7 @@ class HomeworkMigrationTest extends TestCase
         // Rows don't stop the rollback.
         Homework::factory()->create();
 
-        $this->artisan('migrate:rollback', ['--step' => 1])->assertSuccessful();
+        $this->artisan('migrate:rollback', ['--step' => 2])->assertSuccessful();
         $this->assertFalse(Schema::hasTable('homework'));
 
         $this->artisan('migrate')->assertSuccessful();

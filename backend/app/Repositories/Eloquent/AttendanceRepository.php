@@ -26,6 +26,13 @@ class AttendanceRepository implements AttendanceRepositoryInterface
             ->get();
     }
 
+    public function lastDateForStudent(int $studentId): ?string
+    {
+        $date = Attendance::query()->where('student_id', $studentId)->max('date');
+
+        return $date === null ? null : substr((string) $date, 0, 10);
+    }
+
     public function saveRows(array $rows, int $sectionId, int $academicYearId, string $date, ?int $userId): void
     {
         foreach ($rows as $row) {

@@ -6,6 +6,7 @@ use App\Repositories\Contracts\AcademicYearRepositoryInterface;
 use App\Repositories\Contracts\AdmissionApplicationRepositoryInterface;
 use App\Repositories\Contracts\AdmissionRoundRepositoryInterface;
 use App\Repositories\Contracts\AttendanceRepositoryInterface;
+use App\Repositories\Contracts\CertificateRepositoryInterface;
 use App\Repositories\Contracts\ClassRepositoryInterface;
 use App\Repositories\Contracts\ClassSubjectRepositoryInterface;
 use App\Repositories\Contracts\ClassTeacherRepositoryInterface;
@@ -42,6 +43,7 @@ use App\Repositories\Eloquent\AcademicYearRepository;
 use App\Repositories\Eloquent\AdmissionApplicationRepository;
 use App\Repositories\Eloquent\AdmissionRoundRepository;
 use App\Repositories\Eloquent\AttendanceRepository;
+use App\Repositories\Eloquent\CertificateRepository;
 use App\Repositories\Eloquent\ClassRepository;
 use App\Repositories\Eloquent\ClassSubjectRepository;
 use App\Repositories\Eloquent\ClassTeacherRepository;
@@ -120,5 +122,6 @@ class RepositoryServiceProvider extends ServiceProvider
         AdmissionRoundRepositoryInterface::class => AdmissionRoundRepository::class,
         AdmissionApplicationRepositoryInterface::class => AdmissionApplicationRepository::class,
         HomeworkRepositoryInterface::class => HomeworkRepository::class,
+        CertificateRepositoryInterface::class => CertificateRepository::class,
     ];
 }

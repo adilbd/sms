@@ -31,6 +31,13 @@ interface FeeDueRepositoryInterface extends RepositoryInterface
     public function openForStudent(int $studentId): Collection;
 
     /**
+     * The student's open dues that have fallen due by the end of $month (`YYYY-MM`): monthly
+     * dues whose period is on or before it, and dues without a month (`one_time`, `exam:*`)
+     * whose due date is on or before its last day. Later months' dues are left out.
+     */
+    public function openDueByMonth(int $studentId, string $month): Collection;
+
+    /**
      * The student's open dues with these ids, in the order of $ids. A due that is not the
      * student's, or is already paid or waived, is left out.
      *

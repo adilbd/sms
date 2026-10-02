@@ -121,6 +121,16 @@ class StaffRepository extends EloquentRepository implements StaffRepositoryInter
         return $staff->homework()->exists();
     }
 
+    public function activeHeadForShift(int $shiftId): ?Staff
+    {
+        return Staff::query()
+            ->where('position', Staff::POSITION_HEAD)
+            ->where('status', Staff::STATUS_ACTIVE)
+            ->whereHas('shifts', fn ($q) => $q->where('shifts.id', $shiftId))
+            ->orderBy('id')
+            ->first();
+    }
+
     protected function query(): Builder
     {
         return parent::query()

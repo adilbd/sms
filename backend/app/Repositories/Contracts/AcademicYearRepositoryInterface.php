@@ -45,4 +45,6 @@ interface AcademicYearRepositoryInterface extends RepositoryInterface
 
     /** Whether any homework belongs to the academic year. */
     public function hasHomework(AcademicYear $academicYear): bool;
+
+    public function hasCertificates(AcademicYear $academicYear): bool;
 }

@@ -68,6 +68,11 @@ class AcademicYearRepository extends EloquentRepository implements AcademicYearR
         return $academicYear->homework()->exists();
     }
 
+    public function hasCertificates(AcademicYear $academicYear): bool
+    {
+        return $academicYear->certificates()->exists();
+    }
+
     protected function query(): Builder
     {
         return parent::query()->orderBy('year', 'desc')->orderBy('id', 'desc');

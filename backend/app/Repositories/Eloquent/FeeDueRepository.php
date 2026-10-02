@@ -52,6 +52,22 @@ class FeeDueRepository extends EloquentRepository implements FeeDueRepositoryInt
             ->get();
     }
 
+    public function openDueByMonth(int $studentId, string $month): Collection
+    {
+        $monthEnd = Carbon::createFromFormat('!Y-m', $month)->endOfMonth()->toDateString();
+
+        return FeeDue::query()
+            ->where('student_id', $studentId)
+            ->whereIn('status', [FeeDue::STATUS_UNPAID, FeeDue::STATUS_PARTIAL])
+            ->where(function ($q) use ($month, $monthEnd) {
+                $q->where(fn ($m) => $m->where('period', 'like', '____-__')->where('period', '<=', $month))
+                    ->orWhere(fn ($o) => $o->where('period', 'not like', '____-__')->where('due_date', '<=', $monthEnd));
+            })
+            ->orderBy('due_date')
+            ->orderBy('id')
+            ->get();
+    }
+
     public function openByIdsForStudent(int $studentId, array $ids): Collection
     {
         $dues = FeeDue::query()

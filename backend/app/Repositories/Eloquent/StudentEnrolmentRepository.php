@@ -72,6 +72,26 @@ class StudentEnrolmentRepository implements StudentEnrolmentRepositoryInterface
         return $enrolment;
     }
 
+    public function latestFor(Student $student): ?StudentEnrolment
+    {
+        return $student->enrolments()
+            ->with(['academicYear', 'class', 'section.shift'])
+            ->newestYearFirst()
+            ->first();
+    }
+
+    public function activeInSection(int $sectionId, int $academicYearId): Collection
+    {
+        return StudentEnrolment::query()
+            ->activeIn($academicYearId)
+            ->where('student_enrolments.section_id', $sectionId)
+            ->with(['student', 'academicYear', 'class', 'section.shift'])
+            ->orderByRaw('roll_number is null')
+            ->orderBy('roll_number')
+            ->orderBy('student_enrolments.id')
+            ->get();
+    }
+
     public function historyFor(Student $student): Collection
     {
         return $student->enrolments()

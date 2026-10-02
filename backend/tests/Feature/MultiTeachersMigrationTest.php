@@ -22,7 +22,7 @@ class MultiTeachersMigrationTest extends TestCase
     {
         $this->assertTrue(Schema::hasColumn('class_sections', 'is_main'));
 
-        $this->artisan('migrate:rollback', ['--step' => 3])->assertSuccessful();
+        $this->artisan('migrate:rollback', ['--step' => 4])->assertSuccessful();
         $this->assertFalse(Schema::hasColumn('class_sections', 'is_main'));
 
         $this->artisan('migrate')->assertSuccessful();
@@ -31,7 +31,7 @@ class MultiTeachersMigrationTest extends TestCase
 
     public function test_the_backfill_makes_every_existing_class_teacher_the_main_one(): void
     {
-        $this->artisan('migrate:rollback', ['--step' => 3])->assertSuccessful();
+        $this->artisan('migrate:rollback', ['--step' => 4])->assertSuccessful();
 
         $year = AcademicYear::factory()->create();
         $first = Section::factory()->create();
@@ -54,7 +54,7 @@ class MultiTeachersMigrationTest extends TestCase
 
     public function test_the_old_unique_keys_are_restored_by_the_rollback(): void
     {
-        $this->artisan('migrate:rollback', ['--step' => 3])->assertSuccessful();
+        $this->artisan('migrate:rollback', ['--step' => 4])->assertSuccessful();
 
         $year = AcademicYear::factory()->create();
         $section = Section::factory()->create();
@@ -106,6 +106,6 @@ class MultiTeachersMigrationTest extends TestCase
 
         $this->expectException(UniqueConstraintViolationException::class);
 
-        $this->artisan('migrate:rollback', ['--step' => 3]);
+        $this->artisan('migrate:rollback', ['--step' => 4]);
     }
 }
