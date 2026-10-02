@@ -3,7 +3,7 @@
 namespace App\Http\Requests\Portal;
 
 /**
- * The print options of the portal's printable pages (marksheet, receipt, routine):
+ * The print options of the portal's printable pages (marksheet and receipt):
  * `language`, `orientation` and the paper `page`, which is `a4` here and narrowed or widened
  * by the marksheet and receipt requests.
  */

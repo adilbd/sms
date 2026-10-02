@@ -63,9 +63,13 @@ class RoutineRepository implements RoutineRepositoryInterface
 
     public function findRoomClash(int $academicYearId, int $exceptSectionId, string $roomKey, string $day, string $start, string $end, ?int $exceptPeriodId = null): ?RoutineSlot
     {
+        // MySQL's collation treats accents and case variants as equal, so the SQL match is a
+        // superset and the exact (byte for byte) room_key comparison is made here, like
+        // RoutineService does for a whole grid.
         return $this->clashQuery($academicYearId, $exceptSectionId, $day, $start, $end, $exceptPeriodId)
             ->where('room_key', $roomKey)
-            ->first();
+            ->get()
+            ->first(fn (RoutineSlot $slot) => $slot->room_key === $roomKey);
     }
 
     public function otherSectionSlots(int $academicYearId, int $exceptSectionId, array $staffIds, array $roomKeys): Collection

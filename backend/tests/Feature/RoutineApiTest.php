@@ -251,6 +251,17 @@ class RoutineApiTest extends TestCase
         $this->assertSame($one, $selects($many));
     }
 
+    public function test_unknown_ids_get_the_exists_message_with_the_field_name(): void
+    {
+        $response = $this->saveRoutine($this->section10, [
+            ['day' => 'saturday', 'period_id' => 999999, 'subject_id' => 999999, 'staff_id' => 999999, 'room' => null],
+        ])->assertUnprocessable();
+
+        $this->assertSame(['The selected slots.0.period_id is invalid.'], $response->json('errors')['slots.0.period_id']);
+        $this->assertSame(['The selected slots.0.subject_id is invalid.'], $response->json('errors')['slots.0.subject_id']);
+        $this->assertSame(['The selected slots.0.staff_id is invalid.'], $response->json('errors')['slots.0.staff_id']);
+    }
+
     public function test_the_same_teacher_at_non_overlapping_times_is_fine(): void
     {
         $this->assign($this->banglaTeacher, $this->section9, $this->bangla);

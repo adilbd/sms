@@ -645,8 +645,10 @@ class PortalTest extends TestCase
             $this->web($login)->get("{$url}?page=2")->assertOk();
         }
 
-        // The print pages still validate it.
-        $this->web($login)->getJson('/portal/routine?page=2')->assertUnprocessable()->assertJsonValidationErrors('page');
+        // The routine validates only its language; the marksheet and receipt validate the paper.
+        $this->web($login)->get('/portal/routine?page=2&orientation=x')->assertOk();
+        $this->web($login)->getJson('/portal/routine?language=xx')->assertUnprocessable()->assertJsonValidationErrors('language');
+        $this->web($login)->getJson('/portal/results/1?page=2')->assertUnprocessable()->assertJsonValidationErrors('page');
     }
 
     public function test_print_options_are_validated_per_page(): void

@@ -59,26 +59,28 @@ class PeriodService
         $data = $this->normalizeTimes($data);
 
         return DB::transaction(function () use ($period, $data) {
-            // Lock order: shift, then the period row, then (only when the times move) every
-            // academic year in ascending id. The period is re-read under its lock, so the
-            // checks below use its current state, not the route-bound copy.
+            // Lock order: shift, then (when the input carries a time) every academic year in
+            // ascending id, then the period row. The period comes after the years because a
+            // routine save locks section, then year, and its insert of routine_slots rows
+            // makes the foreign key check share-lock the parent periods row; taking the
+            // period first here would let the two wait on each other (a deadlock).
             $this->shifts->lockForUpdate([(int) $period->shift_id]);
+
+            // A save in ANY year may add or remove slots of this period, so every year is
+            // locked; once all are held no save is in flight and the slots read afterwards
+            // are final.
+            if (array_key_exists('start_time', $data) || array_key_exists('end_time', $data)) {
+                $this->routines->lockAcademicYears();
+            }
+
+            // Re-read under the lock, so the checks below use the current state, not the
+            // route-bound copy.
             $period = $this->periods->lockForUpdate($period);
 
             // Checked against the period with the input applied, so a partial update that
             // sends only one of the two times is still validated.
             $merged = (clone $period)->fill($data);
             $moves = $merged->start_time !== $period->start_time || $merged->end_time !== $period->end_time;
-
-            if ($moves) {
-                // A routine save in ANY year may add or remove slots of this period, and we
-                // can't know which years before looking. Routine saves lock section, then
-                // year, and never the shift or the period, so the year rows are the only
-                // locks both paths take and they are always taken last: no deadlock. Holding
-                // every year row means no save is in flight, so the slots read afterwards are
-                // final.
-                $this->routines->lockAcademicYears();
-            }
 
             $used = $this->periods->isUsedInRoutine($period);
 

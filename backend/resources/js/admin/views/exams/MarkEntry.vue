@@ -43,7 +43,7 @@
         <select v-model="examSubjectId" class="input" :disabled="!classId" @change="loadSheet">
           <option value="" disabled>Select a subject</option>
           <option v-for="subject in subjects" :key="subject.id" :value="subject.id">
-            {{ subject.subject?.name }}<template v-if="subject.group"> ({{ GROUP_LABELS[subject.group] || subject.group }})</template><template v-if="subject.type === 'optional'"> – {{ subject.choice_group ? 'Either/or' : '4th' }}</template>
+            {{ subject.subject?.name }}<template v-if="subject.group"> ({{ GROUP_LABELS[subject.group] || subject.group }})</template><template v-if="subject.choice_group"> – Either/or</template><template v-else-if="subject.type === 'optional'"> – 4th</template>
           </option>
         </select>
       </div>

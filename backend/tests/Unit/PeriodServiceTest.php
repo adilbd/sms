@@ -142,7 +142,7 @@ class PeriodServiceTest extends TestCase
         $this->assertArrayHasKey('start_time', $this->errors(fn () => app(PeriodService::class)->update($period, ['start_time' => '08:30', 'end_time' => '09:15'])));
     }
 
-    public function test_moving_a_period_locks_the_shift_then_the_period_then_every_year_before_reading_slots(): void
+    public function test_moving_a_period_locks_the_shift_then_every_year_then_the_period_before_reading_slots(): void
     {
         $period = $this->period();
         $order = [];
@@ -177,7 +177,7 @@ class PeriodServiceTest extends TestCase
 
         app(PeriodService::class)->update($period, ['start_time' => '08:30', 'end_time' => '09:15']);
 
-        $this->assertSame(['shift', 'period', 'years', 'used-check'], $order);
+        $this->assertSame(['shift', 'years', 'period', 'used-check'], $order);
     }
 
     public function test_a_rename_locks_the_period_but_no_years(): void

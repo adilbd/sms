@@ -70,7 +70,7 @@ class ReplaceSectionRoutineRequest extends FormRequest
 
                 foreach ($ids as $i => $id) {
                     if (! in_array($id, $found, true)) {
-                        $validator->errors()->add("slots.{$i}.{$field}", __('validation.exists', ['attribute' => str_replace('_', ' ', "slots.{$i}.{$field}")]));
+                        $validator->errors()->add("slots.{$i}.{$field}", __('validation.exists', ['attribute' => $validator->getDisplayableAttribute("slots.{$i}.{$field}")]));
                     }
                 }
             }
