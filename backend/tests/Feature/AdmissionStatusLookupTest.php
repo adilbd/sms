@@ -45,6 +45,20 @@ class AdmissionStatusLookupTest extends TestCase
         ], $overrides));
     }
 
+    public function test_a_validation_failure_never_flashes_the_date_of_birth(): void
+    {
+        $this->from(route('admissions.status'))
+            ->post(route('admissions.status.show'), ['application_no' => str_repeat('X', 40), 'date_of_birth' => '2014-05-20'])
+            ->assertRedirect(route('admissions.status'))
+            ->assertSessionHasErrors('application_no')
+            ->assertSessionHasInput('application_no');
+
+        $this->assertNull(session('_old_input.date_of_birth'));
+
+        $this->postJson('/api/public/admission-status', ['application_no' => str_repeat('X', 40), 'date_of_birth' => '2014-05-20'])
+            ->assertUnprocessable()->assertJsonValidationErrors('application_no');
+    }
+
     public function test_the_right_number_and_date_of_birth_show_the_status_and_test_details(): void
     {
         $response = $this->lookup()->assertOk();

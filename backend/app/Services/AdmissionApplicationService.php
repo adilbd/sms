@@ -125,38 +125,50 @@ class AdmissionApplicationService
      */
     public function convert(AdmissionApplication $application, array $data): AdmissionApplication
     {
-        return DB::transaction(function () use ($application, $data) {
-            $application = $this->applications->lockForUpdate($application);
+        $student = null;
 
-            abort_unless(
-                $application->status === AdmissionApplication::STATUS_APPROVED,
-                409,
-                'Only an approved application can be converted to a student.'
-            );
+        try {
+            return DB::transaction(function () use ($application, $data, &$student) {
+                $application = $this->applications->lockForUpdate($application);
 
-            $section = $this->sections->findOrFail((int) $data['section_id']);
+                abort_unless(
+                    $application->status === AdmissionApplication::STATUS_APPROVED,
+                    409,
+                    'Only an approved application can be converted to a student.'
+                );
 
-            if ((int) $section->class_id !== (int) $application->class_id) {
-                throw ValidationException::withMessages([
-                    'section_id' => ['The section must belong to the class the student was admitted to.'],
+                $section = $this->sections->findOrFail((int) $data['section_id']);
+
+                if ((int) $section->class_id !== (int) $application->class_id) {
+                    throw ValidationException::withMessages([
+                        'section_id' => ['The section must belong to the class the student was admitted to.'],
+                    ]);
+                }
+
+                $year = $this->years->findOrFail((int) $this->applications->loadDetail($application)->round->academic_year_id);
+
+                $student = $this->students->create(
+                    $this->studentPayload($application, $data, $year),
+                    $this->privateFileAsUpload($application->photo_path),
+                    $year,
+                );
+
+                $updated = $this->applications->update($application, [
+                    'status' => AdmissionApplication::STATUS_ADMITTED,
+                    'student_id' => $student->id,
                 ]);
+
+                return $this->applications->loadDetail($updated);
+            });
+        } catch (\Throwable $e) {
+            // StudentService stored the student's public photo before the outer transaction
+            // failed, so the row is rolled back but the file would be orphaned.
+            if ($student?->photo) {
+                Storage::disk('public')->delete($student->photo);
             }
 
-            $year = $this->years->findOrFail((int) $this->applications->loadDetail($application)->round->academic_year_id);
-
-            $student = $this->students->create(
-                $this->studentPayload($application, $data, $year),
-                $this->privateFileAsUpload($application->photo_path),
-                $year,
-            );
-
-            $updated = $this->applications->update($application, [
-                'status' => AdmissionApplication::STATUS_ADMITTED,
-                'student_id' => $student->id,
-            ]);
-
-            return $this->applications->loadDetail($updated);
-        });
+            throw $e;
+        }
     }
 
     /**

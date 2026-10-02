@@ -36,8 +36,8 @@ class AdmissionService
     /** The private disk applications' files are stored on. */
     public const DISK = 'local';
 
-    /** Saved applications allowed per IP per hour. */
-    public const MAX_SUBMISSIONS = 5;
+    /** Saved applications allowed per IP per hour (generous: mobile networks in Bangladesh share IPs via CGNAT). */
+    public const MAX_SUBMISSIONS = 10;
 
     /** Failed status lookups allowed per IP per hour before it is blocked. */
     public const MAX_STATUS_FAILURES = 10;

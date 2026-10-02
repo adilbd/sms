@@ -57,8 +57,7 @@ class AdmissionController extends Controller
             (string) $request->ip(),
         );
 
-        // Kept in the session (not flashed) so a refresh of the confirmation still shows
-        // the number the family needs to check the status later.
+        // One-shot: the confirmation pulls it, so the number is not shown again on refresh.
         $request->session()->put('admission.submitted', $application->id);
 
         return redirect()->route('admissions.submitted');
@@ -66,7 +65,7 @@ class AdmissionController extends Controller
 
     public function submitted()
     {
-        $id = session('admission.submitted');
+        $id = session()->pull('admission.submitted');
         $application = $id ? $this->admissions->findSubmitted((int) $id) : null;
 
         if ($application === null) {

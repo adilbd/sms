@@ -76,10 +76,12 @@ class AdmissionApplicationController extends Controller implements HasMiddleware
     {
         $file = $this->applications->file($admissionApplication, $kind);
 
+        $isPdf = strtolower(pathinfo($file['path'], PATHINFO_EXTENSION)) === 'pdf';
+
         return Storage::disk($file['disk'])->response($file['path'], $file['name'], [
             'Cache-Control' => 'private, no-store',
             'X-Content-Type-Options' => 'nosniff',
-        ]);
+        ], $isPdf ? 'attachment' : 'inline');
     }
 
     private function canSeeSensitive(Request $request): bool

@@ -188,6 +188,25 @@ class AdmissionApplicationApiTest extends TestCase
         Storage::disk('local')->assertExists($application->photo_path);
     }
 
+    public function test_a_failure_after_the_student_is_created_removes_the_copied_photo(): void
+    {
+        $application = $this->application(['status' => 'approved']);
+        $before = Storage::disk('public')->allFiles();
+
+        AdmissionApplication::updating(fn () => throw new \RuntimeException('forced'));
+
+        $this->withoutExceptionHandling();
+        try {
+            $this->as($this->admin)->postJson("/api/admission-applications/{$application->id}/convert", $this->convertPayload());
+            $this->fail('Expected the forced failure.');
+        } catch (\RuntimeException $e) {
+            $this->assertSame('forced', $e->getMessage());
+        }
+
+        $this->assertSame($before, Storage::disk('public')->allFiles());
+        $this->assertSame(0, Student::count());
+    }
+
     public function test_siblings_share_the_guardian_login(): void
     {
         $first = $this->application(['status' => 'approved', 'guardian_mobile' => '01712345678']);
@@ -254,6 +273,20 @@ class AdmissionApplicationApiTest extends TestCase
         $this->assertStringContainsString('no-store', $response->headers->get('Cache-Control'));
         $this->assertStringStartsWith('image/', $response->headers->get('Content-Type'));
         $this->as($this->admin)->get($url)->assertOk();
+    }
+
+    public function test_pdf_documents_download_as_attachments(): void
+    {
+        $application = $this->application();
+        Storage::disk('local')->put('admissions/doc.pdf', '%PDF-1.4 test');
+        $application->update(['birth_certificate_path' => 'admissions/doc.pdf']);
+
+        $response = $this->as($this->admin)->get("/api/admission-applications/{$application->id}/files/birth_certificate")->assertOk();
+        $this->assertStringStartsWith('attachment', $response->headers->get('Content-Disposition'));
+        $this->assertSame('nosniff', $response->headers->get('X-Content-Type-Options'));
+
+        $photo = $this->as($this->admin)->get("/api/admission-applications/{$application->id}/files/photo")->assertOk();
+        $this->assertStringStartsWith('inline', $photo->headers->get('Content-Disposition'));
     }
 
     public function test_missing_files_and_unknown_kinds_are_404(): void

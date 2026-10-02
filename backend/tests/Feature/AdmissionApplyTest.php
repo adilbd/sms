@@ -65,9 +65,11 @@ class AdmissionApplyTest extends TestCase
         $this->assertStringContainsString('noindex, nofollow', $html);
         $this->assertSame(1, substr_count($html, '<h1'));
 
-        $direct = $this->get(route('admissions.submitted'))->assertOk();
-        $this->assertStringContainsString('no-store', $direct->headers->get('Cache-Control'));
-        $this->assertSame('noindex', $direct->headers->get('X-Robots-Tag'));
+        $this->assertStringContainsString('no-store', $response->headers->get('Cache-Control'));
+        $this->assertSame('noindex', $response->headers->get('X-Robots-Tag'));
+
+        // One-shot: a refresh no longer shows the number.
+        $this->get(route('admissions.submitted'))->assertRedirect(route('admissions'));
     }
 
     public function test_the_confirmation_without_a_submission_goes_back_to_admissions(): void
@@ -221,12 +223,12 @@ class AdmissionApplyTest extends TestCase
 
     public function test_submitting_too_often_is_throttled(): void
     {
-        foreach (range(1, 5) as $i) {
+        foreach (range(1, 10) as $i) {
             $this->submitApplication()->assertRedirect(route('admissions.submitted'));
         }
 
         $this->submitApplication()->assertStatus(429);
-        $this->assertSame(5, AdmissionApplication::count());
+        $this->assertSame(10, AdmissionApplication::count());
     }
 
     public function test_the_apply_form_shows_the_rounds_classes_and_is_indexable(): void
