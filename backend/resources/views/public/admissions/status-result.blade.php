@@ -19,11 +19,13 @@
 
 @section('content')
     <div class="container-page py-12">
-        <x-breadcrumbs :items="['Home' => route('home'), 'Admissions' => route('admissions'), 'Status' => route('admissions.status')]" />
+        <div class="no-print">
+            <x-breadcrumbs :items="['Home' => route('home'), 'Admissions' => route('admissions'), 'Status' => route('admissions.status')]" />
+        </div>
 
-        <h1 class="mt-6 text-4xl font-bold text-gray-900">আবেদনের অবস্থা <span class="text-2xl font-medium text-gray-500">(Application status)</span></h1>
+        <h1 class="no-print mt-6 text-4xl font-bold text-gray-900">আবেদনের অবস্থা <span class="text-2xl font-medium text-gray-500">(Application status)</span></h1>
 
-        <div class="card-public mt-8 max-w-2xl p-6">
+        <div class="card-public no-print mt-8 max-w-2xl p-6">
             <dl class="grid gap-4 text-sm sm:grid-cols-2">
                 <div>
                     <dt class="font-medium text-gray-600">আবেদন নম্বর (Application number)</dt>
@@ -67,9 +69,14 @@
             @endif
 
             <div class="mt-6 flex flex-wrap gap-3">
+                <button type="button" class="btn-public" onclick="window.print()">আবেদনের কপি প্রিন্ট (Print application copy)</button>
                 <a href="{{ route('admissions.status') }}" class="btn-public-outline">আবার খুঁজুন (Search again)</a>
                 <a href="{{ route('admissions') }}" class="btn-public-outline">ভর্তি পাতা (Admissions)</a>
             </div>
         </div>
+
+        {{-- The copy is on this page, hidden on screen and shown by the print CSS, so there is no
+             second request and no URL carrying the application number or date of birth. --}}
+        @include('public.admissions.copy', ['application' => $application, 'photoUrl' => $photoUrl, 'hideOnScreen' => true])
     </div>
 @endsection

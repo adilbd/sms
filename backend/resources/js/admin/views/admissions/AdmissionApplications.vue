@@ -2,7 +2,10 @@
   <div class="space-y-6">
     <div class="flex justify-between items-center">
       <h1 class="text-2xl font-bold text-gray-900">Admission applications</h1>
-      <router-link to="/admissions/rounds" class="btn btn-secondary">Rounds</router-link>
+      <div class="flex gap-2">
+        <router-link :to="{ path: '/admissions/print', query: params() }" class="btn btn-secondary">Print list</router-link>
+        <router-link to="/admissions/rounds" class="btn btn-secondary">Rounds</router-link>
+      </div>
     </div>
 
     <div class="flex flex-wrap gap-2">

@@ -212,6 +212,22 @@ class AdmissionService
         return $application;
     }
 
+    /**
+     * The applicant's photo on the private disk, for the signed copy-photo route (the only
+     * file kind a family can ever load). 404 when the application has no photo or the
+     * file is gone.
+     *
+     * @return array{disk: string, path: string}
+     */
+    public function photoFile(AdmissionApplication $application): array
+    {
+        $path = $application->filePath('photo');
+
+        abort_if($path === null || ! Storage::disk(self::DISK)->exists($path), 404);
+
+        return ['disk' => self::DISK, 'path' => $path];
+    }
+
     public static function statusFailureKey(string $ip): string
     {
         return 'admission-status-fail:'.sha1($ip);

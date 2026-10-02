@@ -46,7 +46,7 @@ class AdmissionApplicationRepository extends EloquentRepository implements Admis
     public function findForStatusLookup(string $applicationNo, string $dateOfBirth): ?AdmissionApplication
     {
         return AdmissionApplication::query()
-            ->with(['round', 'class'])
+            ->with(['round', 'class', 'shift'])
             ->where('application_no', $applicationNo)
             ->whereDate('date_of_birth', $dateOfBirth)
             ->first();
@@ -54,7 +54,7 @@ class AdmissionApplicationRepository extends EloquentRepository implements Admis
 
     public function findWithRoundAndClass(int $id): ?AdmissionApplication
     {
-        return AdmissionApplication::query()->with(['round', 'class'])->find($id);
+        return AdmissionApplication::query()->with(['round', 'class', 'shift'])->find($id);
     }
 
     public function lockForUpdate(AdmissionApplication $application): AdmissionApplication

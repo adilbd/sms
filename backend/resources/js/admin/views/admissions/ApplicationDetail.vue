@@ -10,6 +10,7 @@
         </div>
         <div class="flex items-center gap-3">
           <span :class="['badge', STATUS_BADGES[app.status]]">{{ STATUS_LABELS[app.status] }}</span>
+          <router-link :to="`/admissions/applications/${app.id}/print`" class="btn btn-secondary">Print form</router-link>
           <router-link to="/admissions" class="btn btn-secondary">Back</router-link>
         </div>
       </div>

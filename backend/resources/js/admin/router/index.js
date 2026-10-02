@@ -57,6 +57,18 @@ const routes = [
         meta: { title: 'Edit Admission Round', permission: 'edit-students' },
       },
       {
+        path: 'admissions/print',
+        name: 'AdmissionApplicationListPrint',
+        component: () => import('@/views/admissions/ApplicationListPrint.vue'),
+        meta: { title: 'Print Applicants', permission: 'view-students' },
+      },
+      {
+        path: 'admissions/applications/:id/print',
+        name: 'AdmissionApplicationPrint',
+        component: () => import('@/views/admissions/ApplicationPrint.vue'),
+        meta: { title: 'Print Application', permission: 'view-students' },
+      },
+      {
         path: 'admissions/applications/:id',
         name: 'AdmissionApplicationDetail',
         component: () => import('@/views/admissions/ApplicationDetail.vue'),
