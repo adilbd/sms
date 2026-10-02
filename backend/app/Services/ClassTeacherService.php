@@ -13,8 +13,9 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 /**
- * Assigns/unassigns a section's class teacher (staff) per academic year. Managed
- * through SectionController's class-teacher actions, not a standalone CRUD endpoint.
+ * A section's class teachers (staff) per academic year: one main teacher plus any number
+ * of co-teachers, and a teacher may lead several sections. Managed through
+ * SectionController's class-teacher actions, not a standalone CRUD endpoint.
  */
 class ClassTeacherService
 {
@@ -24,7 +25,7 @@ class ClassTeacherService
     ) {}
 
     /**
-     * One row per academic year the section has ever had a class teacher assigned in.
+     * Every class-teacher row of the section, most recent year first, the main teacher first.
      */
     public function listForSection(Section $section): Collection
     {
@@ -32,81 +33,89 @@ class ClassTeacherService
     }
 
     /**
-     * A plain object, not an array: ClassTeacherResource reads section_id/
-     * academic_year_id/staff off it the same way it reads them off a real
-     * App\Models\ClassSection (JsonResource's magic __get only proxies object
-     * property access, not array access — see DelegatesToResource::__get()).
+     * Replaces the section's class teachers for the year with exactly $data['teachers']:
+     * one main teacher and any number of co-teachers (an empty list removes them all).
+     * Every rule is checked before anything is written, with errors keyed per row
+     * (`teachers.1.staff_id`), under a lock on the section row.
      *
-     * @param  array{academic_year_id: int, staff_id?: int|null}  $data
+     * @param  array{academic_year_id: int, teachers: list<array{staff_id: int, is_main: bool}>}  $data
+     * @return Collection<int, ClassSection>
      */
-    public function assign(Section $section, array $data): object
+    public function replace(Section $section, array $data): Collection
     {
         $academicYearId = (int) $data['academic_year_id'];
-        $staffId = $data['staff_id'] ?? null;
+        $teachers = array_values($data['teachers']);
 
-        return DB::transaction(function () use ($section, $academicYearId, $staffId) {
-            if ($staffId === null) {
-                // A no-op when nothing was assigned yet, same as deleting a
-                // non-existent row.
-                $this->classTeachers->deleteForSectionAndYear($section, $academicYearId);
+        return DB::transaction(function () use ($section, $academicYearId, $teachers) {
+            $locked = $this->classTeachers->lockSection($section);
+            $errors = [];
+            $mains = [];
 
-                return (object) ['section_id' => $section->id, 'academic_year_id' => $academicYearId, 'staff' => null];
+            foreach ($teachers as $i => $row) {
+                if (! empty($row['is_main'])) {
+                    $mains[] = $i;
+                }
+
+                $staff = $this->staff->findOrFail((int) $row['staff_id']);
+
+                if ($problem = $this->leadProblem($staff, $locked)) {
+                    $errors["teachers.{$i}.staff_id"][] = $problem;
+                }
             }
 
-            $staff = $this->staff->findOrFail((int) $staffId);
-            $this->ensureCanLead($staff, $section);
-            $this->ensureNotAlreadyLeading($academicYearId, $staff->id, $section->id);
+            if ($teachers !== [] && $mains === []) {
+                $errors['teachers'][] = 'Choose one main class teacher.';
+            }
 
-            $classSection = $this->withUniqueAssignment(
-                fn () => $this->classTeachers->upsert($section, $academicYearId, $staff->id)
-            );
+            foreach (array_slice($mains, 1) as $i) {
+                $errors["teachers.{$i}.is_main"][] = 'Only one class teacher can be the main teacher.';
+            }
 
-            return (object) ['section_id' => $section->id, 'academic_year_id' => $academicYearId, 'staff' => $classSection->staff];
+            if ($errors !== []) {
+                throw ValidationException::withMessages($errors);
+            }
+
+            $this->withUniqueAssignment(fn () => $this->classTeachers->replaceForSectionAndYear(
+                $locked,
+                $academicYearId,
+                array_map(fn (array $row) => ['staff_id' => (int) $row['staff_id'], 'is_main' => ! empty($row['is_main'])], $teachers),
+            ));
+
+            return $this->classTeachers->forSectionAndYear($locked, $academicYearId);
         });
     }
 
-    private function ensureCanLead(Staff $staff, Section $section): void
+    /**
+     * Why $staff can't lead $section, or null when they can.
+     */
+    private function leadProblem(Staff $staff, Section $section): ?string
     {
         if ($staff->status !== Staff::STATUS_ACTIVE) {
-            throw ValidationException::withMessages([
-                'staff_id' => ['The staff member must be active to lead a section.'],
-            ]);
+            return 'The staff member must be active to lead a section.';
         }
 
         if ($staff->category !== Staff::CATEGORY_TEACHER) {
-            throw ValidationException::withMessages([
-                'staff_id' => ['The staff member must be a teacher to lead a section.'],
-            ]);
+            return 'The staff member must be a teacher to lead a section.';
         }
 
         if (! $this->staff->belongsToShift($staff, $section->shift_id)) {
-            throw ValidationException::withMessages([
-                'staff_id' => ["The staff member must belong to the section's shift."],
-            ]);
+            return "The staff member must belong to the section's shift.";
         }
-    }
 
-    private function ensureNotAlreadyLeading(int $academicYearId, int $staffId, int $exceptSectionId): void
-    {
-        if ($this->classTeachers->teacherLeadsAnotherSection($academicYearId, $staffId, $exceptSectionId)) {
-            throw ValidationException::withMessages([
-                'staff_id' => ['This teacher already leads another section this academic year.'],
-            ]);
-        }
+        return null;
     }
 
     /**
-     * The uniqueness rule runs before the write, so a concurrent request can still hit
-     * the database index (see SubjectService::withUniqueCode()).
+     * The checks above run before the write, so a concurrent request can still hit the
+     * database index (see SubjectService::withUniqueCode()).
      */
-    private function withUniqueAssignment(callable $write): ClassSection
+    private function withUniqueAssignment(callable $write): void
     {
         try {
-            return $write();
+            $write();
         } catch (UniqueConstraintViolationException) {
-            // Two unique keys can trip: (section, year) and (year, staff).
             throw ValidationException::withMessages([
-                'staff_id' => ['This section or teacher already has a class-teacher assignment for this academic year.'],
+                'teachers' => ['The class teachers were just changed by someone else. Reload and try again.'],
             ]);
         }
     }

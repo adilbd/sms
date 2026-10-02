@@ -320,6 +320,27 @@ class DashboardApiTest extends TestCase
         $this->assertSame(1, $data['attendance_today']['sections_marked']);
     }
 
+    public function test_a_teacher_dashboard_names_the_main_class_teacher_of_each_section_they_lead(): void
+    {
+        $teacher = $this->teacherOf($this->section9, $this->physics);
+        $teacherStaff = Staff::where('user_id', $teacher->id)->firstOrFail();
+        $main = Staff::factory()->create(['name_en' => 'Main Teacher']);
+
+        // The teacher is a co-teacher of section 10, whose main teacher is someone else.
+        ClassSection::create(['class_id' => $this->section10->class_id, 'section_id' => $this->section10->id, 'academic_year_id' => $this->year->id, 'staff_id' => $teacherStaff->id, 'is_main' => false]);
+        ClassSection::create(['class_id' => $this->section10->class_id, 'section_id' => $this->section10->id, 'academic_year_id' => $this->year->id, 'staff_id' => $main->id, 'is_main' => true]);
+        $this->mark($this->enrol($this->section10, 'science', null, 1), 'present');
+
+        $section = $this->dashboard($teacher)->assertOk()->json('data.attendance_today.sections.0.section');
+
+        $this->assertSame($this->section10->id, $section['id']);
+        $this->assertSame($main->id, $section['class_teacher']['id']);
+        $this->assertSame('Main Teacher', $section['class_teacher']['name_en']);
+
+        $adminSections = array_column($this->dashboard($this->admin)->assertOk()->json('data.attendance_today.sections'), 'section');
+        $this->assertSame($main->id, collect($adminSections)->firstWhere('id', $this->section10->id)['class_teacher']['id']);
+    }
+
     public function test_a_teacher_sees_only_their_own_mark_sheets_with_counts(): void
     {
         $exam = $this->openExam();
@@ -498,7 +519,7 @@ class DashboardApiTest extends TestCase
             'staff_id' => $staff->id, 'subject_id' => $this->bangla->id, 'section_id' => $section->id,
             'class_id' => $section->class_id, 'academic_year_id' => $this->year->id,
         ]);
-        // A teacher leads at most one section a year, so only the first one grown is theirs to lead.
+        // Keyed on the staff member, so only the first section grown is theirs to lead (a section may have several class teachers).
         ClassSection::firstOrCreate(
             ['academic_year_id' => $this->year->id, 'staff_id' => $staff->id],
             ['class_id' => $section->class_id, 'section_id' => $section->id],

@@ -33,9 +33,10 @@ interface SubjectAssignmentRepositoryInterface extends RepositoryInterface
     public function curriculumSubjectIds(int $classId, ?string $group = null): array;
 
     /**
-     * The assignment of $subjectId in $sectionId for $academicYearId, or null.
+     * The assignment of staff member $staffId to $subjectId in $sectionId for
+     * $academicYearId, or null.
      */
-    public function findFor(int $sectionId, int $subjectId, int $academicYearId): ?SubjectAssignment;
+    public function findFor(int $sectionId, int $subjectId, int $academicYearId, int $staffId): ?SubjectAssignment;
 
     /**
      * Every assignment of $section in $academicYearId, with relations, in subject order.
@@ -49,16 +50,17 @@ interface SubjectAssignmentRepositoryInterface extends RepositoryInterface
     public function forStaffAndYear(int $staffId, int $academicYearId): Collection;
 
     /**
-     * Makes $section's assignments for the year exactly $subjectStaff (subject_id => staff_id):
-     * assignments of other subjects are deleted, existing ones get the new teacher and the
-     * rest are created, with class_id filled from the section.
+     * Makes $section's assignments for the year exactly $subjectStaff (subject_id => staff
+     * ids): assignments of other subjects are deleted, a listed subject keeps the rows of its
+     * staff, loses the others and gains the missing ones (an empty list removes the subject),
+     * with class_id filled from the section.
      *
-     * @param  array<int, int>  $subjectStaff
+     * @param  array<int, list<int>>  $subjectStaff
      */
     public function replaceForSection(Section $section, int $academicYearId, array $subjectStaff): void;
 
     /**
-     * Whether the staff member linked to user $userId (`staff.user_id`) holds the
+     * Whether the staff member linked to user $userId (`staff.user_id`) holds an
      * assignment of $subjectId in $sectionId for $academicYearId and is still active
      * (`staff.status = active`).
      */

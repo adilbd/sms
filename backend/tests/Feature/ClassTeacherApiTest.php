@@ -26,12 +26,35 @@ class ClassTeacherApiTest extends TestCase
         $this->admin = User::where('email', 'admin@sms.com')->firstOrFail();
     }
 
+    private function teacherIn(Shift $shift, array $attributes = []): Staff
+    {
+        $staff = Staff::factory()->create([...['status' => Staff::STATUS_ACTIVE, 'category' => Staff::CATEGORY_TEACHER], ...$attributes]);
+        $staff->shifts()->attach($shift);
+
+        return $staff;
+    }
+
+    private function replace(Section $section, AcademicYear $year, array $teachers, ?User $user = null)
+    {
+        return $this->actingAs($user ?? $this->admin, 'sanctum')
+            ->putJson("/api/sections/{$section->id}/class-teachers", ['academic_year_id' => $year->id, 'teachers' => $teachers]);
+    }
+
     public function test_requires_authentication(): void
     {
         $section = Section::factory()->create();
 
         $this->getJson("/api/sections/{$section->id}/class-teachers")->assertUnauthorized();
-        $this->putJson("/api/sections/{$section->id}/class-teacher", [])->assertUnauthorized();
+        $this->putJson("/api/sections/{$section->id}/class-teachers", [])->assertUnauthorized();
+    }
+
+    public function test_the_single_teacher_route_is_gone(): void
+    {
+        $section = Section::factory()->create();
+
+        $this->actingAs($this->admin, 'sanctum')
+            ->putJson("/api/sections/{$section->id}/class-teacher", [])
+            ->assertNotFound();
     }
 
     public function test_a_role_without_edit_classes_can_read_but_not_assign(): void
@@ -42,134 +65,150 @@ class ClassTeacherApiTest extends TestCase
         $year = AcademicYear::factory()->create();
 
         $this->actingAs($teacher, 'sanctum')->getJson("/api/sections/{$section->id}/class-teachers")->assertOk();
-        $this->actingAs($teacher, 'sanctum')
-            ->putJson("/api/sections/{$section->id}/class-teacher", ['academic_year_id' => $year->id, 'staff_id' => null])
-            ->assertForbidden();
+        $this->replace($section, $year, [], $teacher)->assertForbidden();
     }
 
-    public function test_assigning_an_active_teacher_from_the_sections_shift_returns_200(): void
+    public function test_one_main_and_two_co_teachers_save(): void
     {
         $shift = Shift::factory()->create();
         $section = Section::factory()->create(['shift_id' => $shift->id]);
         $year = AcademicYear::factory()->create();
-        $staff = Staff::factory()->create(['status' => Staff::STATUS_ACTIVE, 'category' => Staff::CATEGORY_TEACHER]);
-        $staff->shifts()->attach($shift);
+        [$main, $co1, $co2] = [$this->teacherIn($shift), $this->teacherIn($shift), $this->teacherIn($shift)];
 
-        $this->actingAs($this->admin, 'sanctum')
-            ->putJson("/api/sections/{$section->id}/class-teacher", [
-                'academic_year_id' => $year->id, 'staff_id' => $staff->id,
-            ])
+        $this->replace($section, $year, [
+            ['staff_id' => $co1->id, 'is_main' => false],
+            ['staff_id' => $main->id, 'is_main' => true],
+            ['staff_id' => $co2->id, 'is_main' => false],
+        ])
             ->assertOk()
-            ->assertJsonPath('data.staff.id', $staff->id)
-            ->assertJsonPath('data.section_id', $section->id)
-            ->assertJsonPath('data.academic_year_id', $year->id);
+            ->assertJsonCount(3, 'data')
+            ->assertJsonPath('data.0.staff_id', $main->id)
+            ->assertJsonPath('data.0.is_main', true)
+            ->assertJsonPath('data.1.is_main', false)
+            ->assertJsonPath('data.0.section_id', $section->id)
+            ->assertJsonPath('data.0.academic_year_id', $year->id)
+            ->assertJsonPath('message', 'Class teachers updated successfully');
 
-        $this->assertDatabaseHas('class_sections', [
-            'section_id' => $section->id, 'academic_year_id' => $year->id, 'staff_id' => $staff->id,
-        ]);
+        $this->assertDatabaseHas('class_sections', ['section_id' => $section->id, 'staff_id' => $main->id, 'is_main' => true]);
+        $this->assertSame(1, ClassSection::where('section_id', $section->id)->where('is_main', true)->count());
     }
 
-    public function test_index_lists_one_row_per_year(): void
+    public function test_the_put_replaces_the_whole_list_and_may_move_the_main_flag(): void
     {
-        $section = Section::factory()->create();
-        $yearA = AcademicYear::factory()->create();
-        $yearB = AcademicYear::factory()->create();
-        ClassSection::factory()->create(['section_id' => $section->id, 'academic_year_id' => $yearA->id]);
-        ClassSection::factory()->create(['section_id' => $section->id, 'academic_year_id' => $yearB->id]);
+        $shift = Shift::factory()->create();
+        $section = Section::factory()->create(['shift_id' => $shift->id]);
+        $year = AcademicYear::factory()->create();
+        [$a, $b, $c] = [$this->teacherIn($shift), $this->teacherIn($shift), $this->teacherIn($shift)];
 
-        $this->actingAs($this->admin, 'sanctum')
-            ->getJson("/api/sections/{$section->id}/class-teachers")
+        $this->replace($section, $year, [['staff_id' => $a->id, 'is_main' => true], ['staff_id' => $b->id, 'is_main' => false]])->assertOk();
+        $this->replace($section, $year, [['staff_id' => $b->id, 'is_main' => true], ['staff_id' => $c->id, 'is_main' => false]])
             ->assertOk()
-            ->assertJsonCount(2, 'data');
+            ->assertJsonCount(2, 'data')
+            ->assertJsonPath('data.0.staff_id', $b->id);
+
+        $this->assertDatabaseMissing('class_sections', ['section_id' => $section->id, 'staff_id' => $a->id]);
+
+        $this->replace($section, $year, [])->assertOk()->assertJsonCount(0, 'data');
+        $this->assertDatabaseMissing('class_sections', ['section_id' => $section->id, 'academic_year_id' => $year->id]);
     }
 
-    public function test_rejects_a_non_teacher(): void
+    public function test_two_mains_or_no_main_gives_422(): void
     {
         $shift = Shift::factory()->create();
         $section = Section::factory()->create(['shift_id' => $shift->id]);
         $year = AcademicYear::factory()->create();
-        $staff = Staff::factory()->create(['category' => Staff::CATEGORY_STAFF, 'position' => Staff::POSITION_STAFF]);
-        $staff->shifts()->attach($shift);
+        [$a, $b] = [$this->teacherIn($shift), $this->teacherIn($shift)];
 
-        $this->actingAs($this->admin, 'sanctum')
-            ->putJson("/api/sections/{$section->id}/class-teacher", ['academic_year_id' => $year->id, 'staff_id' => $staff->id])
+        $this->replace($section, $year, [['staff_id' => $a->id, 'is_main' => true], ['staff_id' => $b->id, 'is_main' => true]])
             ->assertUnprocessable()
-            ->assertJsonValidationErrors('staff_id');
+            ->assertJsonValidationErrors(['teachers.1.is_main']);
+
+        $this->replace($section, $year, [['staff_id' => $a->id, 'is_main' => false], ['staff_id' => $b->id, 'is_main' => false]])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['teachers']);
+
+        $this->assertDatabaseCount('class_sections', 0);
     }
 
-    public function test_rejects_an_inactive_teacher(): void
+    public function test_a_teacher_outside_the_shift_or_inactive_is_reported_on_their_row(): void
     {
         $shift = Shift::factory()->create();
         $section = Section::factory()->create(['shift_id' => $shift->id]);
         $year = AcademicYear::factory()->create();
-        $staff = Staff::factory()->create(['status' => Staff::STATUS_RETIRED, 'leaving_date' => '2020-01-01']);
-        $staff->shifts()->attach($shift);
+        $ok = $this->teacherIn($shift);
+        $otherShift = $this->teacherIn(Shift::factory()->create());
+        $retired = $this->teacherIn($shift, ['status' => Staff::STATUS_RETIRED, 'leaving_date' => '2020-01-01']);
+        $office = $this->teacherIn($shift, ['category' => Staff::CATEGORY_STAFF, 'position' => Staff::POSITION_STAFF]);
 
-        $this->actingAs($this->admin, 'sanctum')
-            ->putJson("/api/sections/{$section->id}/class-teacher", ['academic_year_id' => $year->id, 'staff_id' => $staff->id])
+        $this->replace($section, $year, [
+            ['staff_id' => $ok->id, 'is_main' => true],
+            ['staff_id' => $otherShift->id, 'is_main' => false],
+            ['staff_id' => $retired->id, 'is_main' => false],
+            ['staff_id' => $office->id, 'is_main' => false],
+        ])
             ->assertUnprocessable()
-            ->assertJsonValidationErrors('staff_id');
+            ->assertJsonValidationErrors(['teachers.1.staff_id', 'teachers.2.staff_id', 'teachers.3.staff_id'])
+            ->assertJsonMissingValidationErrors(['teachers.0.staff_id']);
+
+        $this->assertDatabaseCount('class_sections', 0);
     }
 
-    public function test_rejects_a_teacher_not_in_the_sections_shift(): void
-    {
-        $sectionShift = Shift::factory()->create();
-        $otherShift = Shift::factory()->create();
-        $section = Section::factory()->create(['shift_id' => $sectionShift->id]);
-        $year = AcademicYear::factory()->create();
-        $staff = Staff::factory()->create();
-        $staff->shifts()->attach($otherShift);
-
-        $this->actingAs($this->admin, 'sanctum')
-            ->putJson("/api/sections/{$section->id}/class-teacher", ['academic_year_id' => $year->id, 'staff_id' => $staff->id])
-            ->assertUnprocessable()
-            ->assertJsonValidationErrors('staff_id');
-    }
-
-    public function test_rejects_the_same_teacher_leading_a_second_section_in_the_same_year(): void
+    public function test_one_teacher_can_lead_two_sections_in_a_year(): void
     {
         $shift = Shift::factory()->create();
         $sectionA = Section::factory()->create(['shift_id' => $shift->id]);
         $sectionB = Section::factory()->create(['shift_id' => $shift->id]);
         $year = AcademicYear::factory()->create();
-        $staff = Staff::factory()->create();
-        $staff->shifts()->attach($shift);
+        $staff = $this->teacherIn($shift);
 
-        $this->actingAs($this->admin, 'sanctum')
-            ->putJson("/api/sections/{$sectionA->id}/class-teacher", ['academic_year_id' => $year->id, 'staff_id' => $staff->id])
-            ->assertOk();
+        $this->replace($sectionA, $year, [['staff_id' => $staff->id, 'is_main' => true]])->assertOk();
+        $this->replace($sectionB, $year, [['staff_id' => $staff->id, 'is_main' => true]])->assertOk();
 
-        $this->actingAs($this->admin, 'sanctum')
-            ->putJson("/api/sections/{$sectionB->id}/class-teacher", ['academic_year_id' => $year->id, 'staff_id' => $staff->id])
-            ->assertUnprocessable()
-            ->assertJsonValidationErrors('staff_id');
+        $this->assertSame(2, ClassSection::where('academic_year_id', $year->id)->where('staff_id', $staff->id)->count());
     }
 
-    public function test_staff_id_null_unassigns_and_is_a_no_op_when_nothing_is_assigned(): void
+    public function test_validates_the_payload_shape(): void
     {
         $section = Section::factory()->create();
         $year = AcademicYear::factory()->create();
-
-        $this->actingAs($this->admin, 'sanctum')
-            ->putJson("/api/sections/{$section->id}/class-teacher", ['academic_year_id' => $year->id, 'staff_id' => null])
-            ->assertOk()
-            ->assertJsonPath('data.staff', null);
-
-        $shift = Shift::factory()->create();
-        $section2 = Section::factory()->create(['shift_id' => $shift->id]);
         $staff = Staff::factory()->create();
-        $staff->shifts()->attach($shift);
+
+        $this->actingAs($this->admin, 'sanctum')->putJson("/api/sections/{$section->id}/class-teachers", [])
+            ->assertUnprocessable()->assertJsonValidationErrors(['academic_year_id', 'teachers']);
+
+        $this->replace($section, $year, [['staff_id' => $staff->id], ['staff_id' => $staff->id, 'is_main' => true]])
+            ->assertUnprocessable()->assertJsonValidationErrors(['teachers.0.is_main', 'teachers.0.staff_id']);
+
+        $this->replace($section, $year, [['staff_id' => 99999, 'is_main' => true]])
+            ->assertUnprocessable()->assertJsonValidationErrors(['teachers.0.staff_id']);
+    }
+
+    public function test_put_to_an_unknown_section_returns_404(): void
+    {
+        $year = AcademicYear::factory()->create();
 
         $this->actingAs($this->admin, 'sanctum')
-            ->putJson("/api/sections/{$section2->id}/class-teacher", ['academic_year_id' => $year->id, 'staff_id' => $staff->id])
-            ->assertOk();
+            ->putJson('/api/sections/9999/class-teachers', ['academic_year_id' => $year->id, 'teachers' => []])
+            ->assertNotFound();
+    }
+
+    public function test_index_lists_every_teacher_of_every_year_main_first(): void
+    {
+        $section = Section::factory()->create();
+        $yearA = AcademicYear::factory()->create();
+        $yearB = AcademicYear::factory()->create();
+        ClassSection::factory()->create(['section_id' => $section->id, 'academic_year_id' => $yearA->id, 'staff_id' => Staff::factory(), 'is_main' => false]);
+        ClassSection::factory()->create(['section_id' => $section->id, 'academic_year_id' => $yearA->id, 'staff_id' => Staff::factory(), 'is_main' => true]);
+        ClassSection::factory()->create(['section_id' => $section->id, 'academic_year_id' => $yearB->id, 'staff_id' => Staff::factory(), 'is_main' => true]);
 
         $this->actingAs($this->admin, 'sanctum')
-            ->putJson("/api/sections/{$section2->id}/class-teacher", ['academic_year_id' => $year->id, 'staff_id' => null])
+            ->getJson("/api/sections/{$section->id}/class-teachers")
             ->assertOk()
-            ->assertJsonPath('data.staff', null);
-
-        $this->assertDatabaseMissing('class_sections', ['section_id' => $section2->id, 'academic_year_id' => $year->id]);
+            ->assertJsonCount(3, 'data')
+            ->assertJsonStructure(['data' => [['section_id', 'academic_year_id', 'staff_id', 'is_main', 'staff' => ['id', 'name_en']]]])
+            ->assertJsonPath('data.0.academic_year_id', $yearB->id)
+            ->assertJsonPath('data.1.is_main', true)
+            ->assertJsonPath('data.2.is_main', false);
     }
 
     public function test_non_numeric_section_id_returns_404(): void
@@ -203,28 +242,17 @@ class ClassTeacherApiTest extends TestCase
         $this->assertStringNotContainsString('MPO-1', $response->getContent());
     }
 
-    public function test_assign_rejects_a_soft_deleted_academic_year(): void
-    {
-        $section = Section::factory()->create();
-        $year = AcademicYear::factory()->create();
-        $year->delete();
-
-        $this->actingAs($this->admin, 'sanctum')
-            ->putJson("/api/sections/{$section->id}/class-teacher", ['academic_year_id' => $year->id, 'staff_id' => null])
-            ->assertUnprocessable()
-            ->assertJsonValidationErrors('academic_year_id');
-    }
-
-    public function test_assign_rejects_a_soft_deleted_staff_member(): void
+    public function test_rejects_a_soft_deleted_academic_year_and_staff_member(): void
     {
         $section = Section::factory()->create();
         $year = AcademicYear::factory()->create();
         $staff = Staff::factory()->create();
         $staff->delete();
 
-        $this->actingAs($this->admin, 'sanctum')
-            ->putJson("/api/sections/{$section->id}/class-teacher", ['academic_year_id' => $year->id, 'staff_id' => $staff->id])
-            ->assertUnprocessable()
-            ->assertJsonValidationErrors('staff_id');
+        $this->replace($section, $year, [['staff_id' => $staff->id, 'is_main' => true]])
+            ->assertUnprocessable()->assertJsonValidationErrors('teachers.0.staff_id');
+
+        $year->delete();
+        $this->replace($section, $year, [])->assertUnprocessable()->assertJsonValidationErrors('academic_year_id');
     }
 }

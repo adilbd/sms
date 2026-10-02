@@ -8,6 +8,7 @@ use App\Models\Staff;
 use App\Repositories\Contracts\ClassTeacherRepositoryInterface;
 use App\Repositories\Contracts\StaffRepositoryInterface;
 use App\Services\ClassTeacherService;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Validation\ValidationException;
 use Mockery\MockInterface;
@@ -15,165 +16,151 @@ use RuntimeException;
 use Tests\TestCase;
 
 /**
- * Services are unit-tested against a mocked repository interface — no database.
+ * Services are unit-tested against a mocked repository interface, no database.
  */
 class ClassTeacherServiceTest extends TestCase
 {
-    public function test_assign_with_null_staff_unassigns(): void
+    private function section(): Section
     {
         $section = new Section;
         $section->id = 1;
         $section->shift_id = 2;
 
-        $this->mock(ClassTeacherRepositoryInterface::class, function (MockInterface $mock) use ($section) {
-            $mock->shouldReceive('deleteForSectionAndYear')->once()->with($section, 3);
-        });
-        $this->mock(StaffRepositoryInterface::class, fn (MockInterface $mock) => $mock->shouldNotReceive('findOrFail'));
-
-        $result = app(ClassTeacherService::class)->assign($section, ['academic_year_id' => 3, 'staff_id' => null]);
-
-        $this->assertNull($result->staff);
-        $this->assertSame(1, $result->section_id);
-        $this->assertSame(3, $result->academic_year_id);
+        return $section;
     }
 
-    public function test_assign_rejects_an_inactive_staff_member(): void
+    private function staff(int $id, string $status = Staff::STATUS_ACTIVE, string $category = Staff::CATEGORY_TEACHER): Staff
     {
-        $section = new Section;
-        $section->id = 1;
-        $section->shift_id = 2;
-        $staff = new Staff(['status' => Staff::STATUS_RETIRED, 'category' => Staff::CATEGORY_TEACHER]);
-        $staff->id = 5;
+        $staff = new Staff(['status' => $status, 'category' => $category]);
+        $staff->id = $id;
 
-        $this->mock(StaffRepositoryInterface::class, function (MockInterface $mock) use ($staff) {
-            $mock->shouldReceive('findOrFail')->once()->with(5)->andReturn($staff);
+        return $staff;
+    }
+
+    /**
+     * @param  array<int, Staff>  $staff
+     */
+    private function mockStaff(array $staff, bool $inShift = true): void
+    {
+        $this->mock(StaffRepositoryInterface::class, function (MockInterface $mock) use ($staff, $inShift) {
+            foreach ($staff as $id => $member) {
+                $mock->shouldReceive('findOrFail')->with($id)->andReturn($member);
+            }
+            $mock->shouldReceive('belongsToShift')->andReturn($inShift)->byDefault();
         });
-        $this->mock(ClassTeacherRepositoryInterface::class, fn (MockInterface $mock) => $mock->shouldNotReceive('upsert'));
+    }
+
+    private function mockRepo(?callable $extra = null): void
+    {
+        $this->mock(ClassTeacherRepositoryInterface::class, function (MockInterface $mock) use ($extra) {
+            $mock->shouldReceive('lockSection')->andReturnUsing(fn (Section $s) => $s)->byDefault();
+            if ($extra) {
+                $extra($mock);
+            }
+        });
+    }
+
+    public function test_replace_saves_one_main_and_co_teachers(): void
+    {
+        $section = $this->section();
+        $this->mockStaff([5 => $this->staff(5), 6 => $this->staff(6), 7 => $this->staff(7)]);
+        $this->mockRepo(function (MockInterface $mock) use ($section) {
+            $mock->shouldReceive('replaceForSectionAndYear')->once()->with($section, 3, [
+                ['staff_id' => 5, 'is_main' => true],
+                ['staff_id' => 6, 'is_main' => false],
+                ['staff_id' => 7, 'is_main' => false],
+            ]);
+            $mock->shouldReceive('forSectionAndYear')->once()->andReturn(new Collection([new ClassSection]));
+        });
+
+        $result = app(ClassTeacherService::class)->replace($section, ['academic_year_id' => 3, 'teachers' => [
+            ['staff_id' => 5, 'is_main' => true],
+            ['staff_id' => 6, 'is_main' => false],
+            ['staff_id' => 7, 'is_main' => false],
+        ]]);
+
+        $this->assertCount(1, $result);
+    }
+
+    public function test_replace_with_an_empty_list_removes_every_teacher(): void
+    {
+        $section = $this->section();
+        $this->mockStaff([]);
+        $this->mockRepo(function (MockInterface $mock) use ($section) {
+            $mock->shouldReceive('replaceForSectionAndYear')->once()->with($section, 3, []);
+            $mock->shouldReceive('forSectionAndYear')->once()->andReturn(new Collection);
+        });
+
+        $this->assertCount(0, app(ClassTeacherService::class)->replace($section, ['academic_year_id' => 3, 'teachers' => []]));
+    }
+
+    public function test_replace_requires_exactly_one_main_teacher(): void
+    {
+        $this->mockStaff([5 => $this->staff(5), 6 => $this->staff(6)]);
+        $this->mockRepo(fn (MockInterface $mock) => $mock->shouldNotReceive('replaceForSectionAndYear'));
 
         try {
-            app(ClassTeacherService::class)->assign($section, ['academic_year_id' => 3, 'staff_id' => 5]);
+            app(ClassTeacherService::class)->replace($this->section(), ['academic_year_id' => 3, 'teachers' => [
+                ['staff_id' => 5, 'is_main' => false], ['staff_id' => 6, 'is_main' => false],
+            ]]);
             $this->fail('Expected a ValidationException.');
         } catch (ValidationException $e) {
-            $this->assertArrayHasKey('staff_id', $e->errors());
+            $this->assertArrayHasKey('teachers', $e->errors());
+        }
+
+        try {
+            app(ClassTeacherService::class)->replace($this->section(), ['academic_year_id' => 3, 'teachers' => [
+                ['staff_id' => 5, 'is_main' => true], ['staff_id' => 6, 'is_main' => true],
+            ]]);
+            $this->fail('Expected a ValidationException.');
+        } catch (ValidationException $e) {
+            $this->assertArrayHasKey('teachers.1.is_main', $e->errors());
         }
     }
 
-    public function test_assign_rejects_a_non_teacher(): void
+    public function test_replace_reports_an_ineligible_teacher_on_their_row(): void
     {
-        $section = new Section;
-        $section->id = 1;
-        $section->shift_id = 2;
-        $staff = new Staff(['status' => Staff::STATUS_ACTIVE, 'category' => Staff::CATEGORY_STAFF]);
-        $staff->id = 5;
-
-        $this->mock(StaffRepositoryInterface::class, function (MockInterface $mock) use ($staff) {
-            $mock->shouldReceive('findOrFail')->once()->with(5)->andReturn($staff);
-        });
-        $this->mock(ClassTeacherRepositoryInterface::class, fn (MockInterface $mock) => $mock->shouldNotReceive('upsert'));
+        $this->mockStaff([5 => $this->staff(5), 6 => $this->staff(6, Staff::STATUS_RETIRED), 7 => $this->staff(7, category: Staff::CATEGORY_STAFF)]);
+        $this->mockRepo(fn (MockInterface $mock) => $mock->shouldNotReceive('replaceForSectionAndYear'));
 
         try {
-            app(ClassTeacherService::class)->assign($section, ['academic_year_id' => 3, 'staff_id' => 5]);
+            app(ClassTeacherService::class)->replace($this->section(), ['academic_year_id' => 3, 'teachers' => [
+                ['staff_id' => 5, 'is_main' => true], ['staff_id' => 6, 'is_main' => false], ['staff_id' => 7, 'is_main' => false],
+            ]]);
             $this->fail('Expected a ValidationException.');
         } catch (ValidationException $e) {
-            $this->assertArrayHasKey('staff_id', $e->errors());
+            $this->assertSame(['teachers.1.staff_id', 'teachers.2.staff_id'], array_keys($e->errors()));
         }
     }
 
-    public function test_assign_rejects_a_staff_member_outside_the_sections_shift(): void
+    public function test_replace_rejects_a_staff_member_outside_the_sections_shift(): void
     {
-        $section = new Section;
-        $section->id = 1;
-        $section->shift_id = 2;
-        $staff = new Staff(['status' => Staff::STATUS_ACTIVE, 'category' => Staff::CATEGORY_TEACHER]);
-        $staff->id = 5;
-
-        $this->mock(StaffRepositoryInterface::class, function (MockInterface $mock) use ($staff) {
-            $mock->shouldReceive('findOrFail')->once()->with(5)->andReturn($staff);
-            $mock->shouldReceive('belongsToShift')->once()->with($staff, 2)->andReturn(false);
-        });
-        $this->mock(ClassTeacherRepositoryInterface::class, fn (MockInterface $mock) => $mock->shouldNotReceive('upsert'));
+        $staff = $this->staff(5);
+        $this->mockStaff([5 => $staff], inShift: false);
+        $this->mockRepo(fn (MockInterface $mock) => $mock->shouldNotReceive('replaceForSectionAndYear'));
 
         try {
-            app(ClassTeacherService::class)->assign($section, ['academic_year_id' => 3, 'staff_id' => 5]);
+            app(ClassTeacherService::class)->replace($this->section(), ['academic_year_id' => 3, 'teachers' => [['staff_id' => 5, 'is_main' => true]]]);
             $this->fail('Expected a ValidationException.');
         } catch (ValidationException $e) {
-            $this->assertArrayHasKey('staff_id', $e->errors());
+            $this->assertArrayHasKey('teachers.0.staff_id', $e->errors());
         }
     }
 
-    public function test_assign_rejects_a_teacher_already_leading_another_section_this_year(): void
+    public function test_replace_reports_a_concurrent_duplicate_as_a_validation_error(): void
     {
-        $section = new Section;
-        $section->id = 1;
-        $section->shift_id = 2;
-        $staff = new Staff(['status' => Staff::STATUS_ACTIVE, 'category' => Staff::CATEGORY_TEACHER]);
-        $staff->id = 5;
-
-        $this->mock(StaffRepositoryInterface::class, function (MockInterface $mock) use ($staff) {
-            $mock->shouldReceive('findOrFail')->once()->with(5)->andReturn($staff);
-            $mock->shouldReceive('belongsToShift')->once()->with($staff, 2)->andReturn(true);
-        });
-        $this->mock(ClassTeacherRepositoryInterface::class, function (MockInterface $mock) {
-            $mock->shouldReceive('teacherLeadsAnotherSection')->once()->with(3, 5, 1)->andReturn(true);
-            $mock->shouldNotReceive('upsert');
-        });
-
-        try {
-            app(ClassTeacherService::class)->assign($section, ['academic_year_id' => 3, 'staff_id' => 5]);
-            $this->fail('Expected a ValidationException.');
-        } catch (ValidationException $e) {
-            $this->assertArrayHasKey('staff_id', $e->errors());
-        }
-    }
-
-    public function test_assign_succeeds_for_an_eligible_teacher(): void
-    {
-        $section = new Section;
-        $section->id = 1;
-        $section->shift_id = 2;
-        $staff = new Staff(['status' => Staff::STATUS_ACTIVE, 'category' => Staff::CATEGORY_TEACHER]);
-        $staff->id = 5;
-        $classSection = new ClassSection;
-        $classSection->staff = $staff;
-
-        $this->mock(StaffRepositoryInterface::class, function (MockInterface $mock) use ($staff) {
-            $mock->shouldReceive('findOrFail')->once()->with(5)->andReturn($staff);
-            $mock->shouldReceive('belongsToShift')->once()->with($staff, 2)->andReturn(true);
-        });
-        $this->mock(ClassTeacherRepositoryInterface::class, function (MockInterface $mock) use ($section, $classSection) {
-            $mock->shouldReceive('teacherLeadsAnotherSection')->once()->with(3, 5, 1)->andReturn(false);
-            $mock->shouldReceive('upsert')->once()->with($section, 3, 5)->andReturn($classSection);
-        });
-
-        $result = app(ClassTeacherService::class)->assign($section, ['academic_year_id' => 3, 'staff_id' => 5]);
-
-        $this->assertSame($staff, $result->staff);
-    }
-
-    public function test_assign_reports_a_concurrent_duplicate_assignment_as_a_validation_error(): void
-    {
-        $section = new Section;
-        $section->id = 1;
-        $section->shift_id = 2;
-        $staff = new Staff(['status' => Staff::STATUS_ACTIVE, 'category' => Staff::CATEGORY_TEACHER]);
-        $staff->id = 5;
-
-        $this->mock(StaffRepositoryInterface::class, function (MockInterface $mock) use ($staff) {
-            $mock->shouldReceive('findOrFail')->once()->with(5)->andReturn($staff);
-            $mock->shouldReceive('belongsToShift')->once()->with($staff, 2)->andReturn(true);
-        });
-        $this->mock(ClassTeacherRepositoryInterface::class, function (MockInterface $mock) {
-            $mock->shouldReceive('teacherLeadsAnotherSection')->once()->andReturn(false);
-            $mock->shouldReceive('upsert')->once()->andThrow(
+        $this->mockStaff([5 => $this->staff(5)]);
+        $this->mockRepo(function (MockInterface $mock) {
+            $mock->shouldReceive('replaceForSectionAndYear')->once()->andThrow(
                 new UniqueConstraintViolationException('sqlite', 'insert into class_sections', [], new RuntimeException('UNIQUE constraint failed'))
             );
         });
 
         try {
-            app(ClassTeacherService::class)->assign($section, ['academic_year_id' => 3, 'staff_id' => 5]);
+            app(ClassTeacherService::class)->replace($this->section(), ['academic_year_id' => 3, 'teachers' => [['staff_id' => 5, 'is_main' => true]]]);
             $this->fail('Expected a ValidationException.');
         } catch (ValidationException $e) {
-            $this->assertArrayHasKey('staff_id', $e->errors());
+            $this->assertArrayHasKey('teachers', $e->errors());
         }
     }
 }

@@ -353,6 +353,24 @@ class PublicResultLookupTest extends TestCase
         $this->assertStringNotContainsString('৩.৬৪', $html);
     }
 
+    public function test_the_marksheet_names_the_main_class_teacher_not_a_co_teacher(): void
+    {
+        foreach ([['Karim Main', 'করিম মুখ্য', true], ['Salma Co', 'সালমা সহ', false]] as [$en, $bn, $main]) {
+            \App\Models\ClassSection::create([
+                'class_id' => $this->section->class_id, 'section_id' => $this->section->id, 'academic_year_id' => $this->year->id,
+                'staff_id' => \App\Models\Staff::factory()->create(['name_en' => $en, 'name_bn' => $bn])->id, 'is_main' => $main,
+            ]);
+        }
+
+        $english = $this->post('/results', $this->byId(['language' => 'en']))->assertOk()->getContent();
+        $bangla = $this->post('/results', $this->byId(['language' => 'bn']))->assertOk()->getContent();
+
+        $this->assertStringContainsString('Karim Main', $english);
+        $this->assertStringNotContainsString('Salma Co', $english);
+        $this->assertStringContainsString('করিম মুখ্য', $bangla);
+        $this->assertStringNotContainsString('সালমা সহ', $bangla);
+    }
+
     public function test_the_marksheet_can_be_found_by_section_group_and_roll(): void
     {
         $this->post('/results', $this->byRoll(['language' => 'en']))->assertOk()->assertSee('Rahim Uddin');

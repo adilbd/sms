@@ -35,12 +35,13 @@ class SubjectAssignmentRepository extends EloquentRepository implements SubjectA
             ->map(fn ($id) => (int) $id)->all();
     }
 
-    public function findFor(int $sectionId, int $subjectId, int $academicYearId): ?SubjectAssignment
+    public function findFor(int $sectionId, int $subjectId, int $academicYearId, int $staffId): ?SubjectAssignment
     {
         return SubjectAssignment::query()
             ->where('section_id', $sectionId)
             ->where('subject_id', $subjectId)
             ->where('academic_year_id', $academicYearId)
+            ->where('staff_id', $staffId)
             ->first();
     }
 
@@ -72,11 +73,20 @@ class SubjectAssignmentRepository extends EloquentRepository implements SubjectA
             ->whereNotIn('subject_id', array_keys($subjectStaff))
             ->delete();
 
-        foreach ($subjectStaff as $subjectId => $staffId) {
-            SubjectAssignment::query()->updateOrCreate(
-                ['section_id' => $section->id, 'subject_id' => $subjectId, 'academic_year_id' => $academicYearId],
-                ['class_id' => $section->class_id, 'staff_id' => $staffId],
-            );
+        foreach ($subjectStaff as $subjectId => $staffIds) {
+            SubjectAssignment::query()
+                ->where('section_id', $section->id)
+                ->where('academic_year_id', $academicYearId)
+                ->where('subject_id', $subjectId)
+                ->whereNotIn('staff_id', $staffIds)
+                ->delete();
+
+            foreach ($staffIds as $staffId) {
+                SubjectAssignment::query()->firstOrCreate(
+                    ['section_id' => $section->id, 'subject_id' => $subjectId, 'academic_year_id' => $academicYearId, 'staff_id' => $staffId],
+                    ['class_id' => $section->class_id],
+                );
+            }
         }
     }
 

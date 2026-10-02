@@ -378,8 +378,8 @@ class AttendanceService
     }
 
     /**
-     * 403 unless the user is an admin or the (active) class teacher of the section in
-     * the academic year.
+     * 403 unless the user is an admin or any (active) class teacher of the section in
+     * the academic year, main or co-teacher.
      */
     private function authorizeSection(User $user, Section $section, AcademicYear $year): void
     {

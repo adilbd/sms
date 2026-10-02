@@ -305,6 +305,20 @@ class ExamMarkApiTest extends TestCase
         $this->assertSame($teacher->id, ExamMark::firstOrFail()->entered_by);
     }
 
+    public function test_two_teachers_on_one_subject_can_both_save_marks(): void
+    {
+        $first = $this->assignedTeacher($this->section9, $this->physics);
+        $second = $this->assignedTeacher($this->section9, $this->physics);
+        $unassigned = $this->assignedTeacher($this->section9, $this->accounting);
+
+        $this->save($this->physics, [['student_id' => $this->scienceHm->student_id, 'written' => 40]], $first)->assertOk();
+        $this->save($this->physics, [['student_id' => $this->scienceHm->student_id, 'written' => 42]], $second)->assertOk();
+        $this->as($second)->getJson($this->sheetUrl($this->physics))->assertOk();
+
+        $this->assertSame($second->id, ExamMark::firstOrFail()->entered_by);
+        $this->save($this->physics, [['student_id' => $this->scienceHm->student_id, 'written' => 10]], $unassigned)->assertForbidden();
+    }
+
     public function test_an_unassigned_teacher_is_refused_on_both_actions(): void
     {
         // Assigned to Physics, so not to Bangla; and a teacher assigned to nothing.

@@ -7,7 +7,8 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
- * A section's class teacher (staff) for one academic year. Managed through
+ * One class teacher (staff) of a section for one academic year: a section has one main
+ * teacher and any number of co-teachers (`is_main` false). Managed through
  * App\Services\ClassTeacherService, not a standalone CRUD endpoint.
  */
 class ClassSection extends Model
@@ -19,6 +20,11 @@ class ClassSection extends Model
         'section_id',
         'academic_year_id',
         'staff_id',
+        'is_main',
+    ];
+
+    protected $casts = [
+        'is_main' => 'boolean',
     ];
 
     public function class(): BelongsTo

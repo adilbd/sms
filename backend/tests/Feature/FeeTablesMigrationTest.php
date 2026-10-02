@@ -28,7 +28,7 @@ class FeeTablesMigrationTest extends TestCase
 
     public function test_the_migration_rolls_back_to_the_old_structure_and_runs_again(): void
     {
-        $this->artisan('migrate:rollback', ['--step' => 2])->assertSuccessful();
+        $this->artisan('migrate:rollback', ['--step' => 3])->assertSuccessful();
 
         foreach (['fee_heads', 'fee_rates', 'student_fee_waivers', 'fee_dues', 'fee_payment_allocations', 'fee_receipt_counters'] as $table) {
             $this->assertFalse(Schema::hasTable($table), $table);
@@ -47,7 +47,7 @@ class FeeTablesMigrationTest extends TestCase
 
     public function test_it_takes_view_fees_away_from_students_and_guardians(): void
     {
-        $this->artisan('migrate:rollback', ['--step' => 2])->assertSuccessful();
+        $this->artisan('migrate:rollback', ['--step' => 3])->assertSuccessful();
 
         $permission = Permission::findOrCreate('view-fees', 'web');
         $keep = Permission::findOrCreate('collect-fees', 'web');

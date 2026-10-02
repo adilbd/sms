@@ -53,6 +53,11 @@ class Section extends Model
         return $this->hasMany(Attendance::class);
     }
 
+    public function mainClassSections(): HasMany
+    {
+        return $this->hasMany(ClassSection::class)->where('is_main', true);
+    }
+
     public function subjectAssignments(): HasMany
     {
         return $this->hasMany(SubjectAssignment::class);

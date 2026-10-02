@@ -295,7 +295,12 @@ const holidayName = computed(() => {
   return holiday ? holiday.name_en || holiday.name_bn : 'holiday'
 })
 
-const sectionLabel = (section) => [section?.class?.name, section?.name].filter(Boolean).join(' - ')
+// The main class teacher (never a co-teacher) is named after the section when there is one.
+const sectionLabel = (section) => {
+  const label = [section?.class?.name, section?.name].filter(Boolean).join(' - ')
+  const teacher = section?.class_teacher
+  return teacher ? `${label} (${teacher.name_en || teacher.name_bn})` : label
+}
 
 const attendanceBars = computed(() =>
   attendance.value.sections.map((row) => ({
