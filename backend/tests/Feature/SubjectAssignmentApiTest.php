@@ -296,6 +296,37 @@ class SubjectAssignmentApiTest extends TestCase
         ]])->assertOk()->assertJsonCount(1, 'data')->assertJsonPath('data.0.staff_id', $first->id);
     }
 
+    public function test_section_subject_teachers_returns_every_assignment_unpaginated(): void
+    {
+        SubjectAssignment::factory()->count(105)->create([
+            'class_id' => $this->class->id, 'section_id' => $this->section->id, 'academic_year_id' => $this->year->id,
+        ]);
+        SubjectAssignment::factory()->create(['class_id' => $this->class->id, 'academic_year_id' => $this->year->id]);
+
+        $url = "/api/sections/{$this->section->id}/subject-teachers";
+
+        $this->getJson($url)->assertUnauthorized();
+        $this->as($this->admin)->getJson($url)->assertOk()->assertJsonCount(105, 'data')
+            ->assertJsonStructure(['data' => [['id', 'staff_id', 'subject_id', 'section_id']]]);
+        $this->as($this->admin)->getJson($url.'?academic_year_id='.$this->year->id)->assertOk()->assertJsonCount(105, 'data');
+        $this->as($this->userWithRole('teacher'))->getJson($url)->assertOk();
+        $this->as($this->userWithRole('student'))->getJson($url)->assertForbidden();
+        $this->as($this->admin)->getJson($url.'?academic_year_id=999999')->assertUnprocessable()->assertJsonValidationErrors(['academic_year_id']);
+        $this->as($this->admin)->getJson('/api/sections/9999/subject-teachers')->assertNotFound();
+        $this->as($this->admin)->getJson('/api/sections/1abc/subject-teachers')->assertNotFound();
+    }
+
+    public function test_bulk_rejects_a_duplicate_staff_id_in_a_row(): void
+    {
+        $subject = $this->subjectInCurriculum();
+        $staff = $this->teacher();
+
+        $this->as($this->admin)->putJson("/api/sections/{$this->section->id}/subject-teachers", [
+            'academic_year_id' => $this->year->id,
+            'assignments' => [['subject_id' => $subject->id, 'staff_ids' => [$staff->id, $staff->id]]],
+        ])->assertUnprocessable()->assertJsonValidationErrors(['assignments.0.staff_ids.1']);
+    }
+
     public function test_bulk_errors_are_keyed_per_row_and_nothing_is_written(): void
     {
         $good = $this->subjectInCurriculum();

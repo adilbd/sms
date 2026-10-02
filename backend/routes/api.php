@@ -102,6 +102,8 @@ Route::middleware('auth:sanctum')->group(function () {
         ->where('section', '[0-9]+');
     Route::put('sections/{section}/class-teachers', [\App\Http\Controllers\Api\SectionController::class, 'updateClassTeachers'])
         ->where('section', '[0-9]+');
+    Route::get('sections/{section}/subject-teachers', [\App\Http\Controllers\Api\SectionController::class, 'subjectTeachers'])
+        ->where('section', '[0-9]+');
     Route::put('sections/{section}/subject-teachers', [\App\Http\Controllers\Api\SectionController::class, 'updateSubjectTeachers'])
         ->where('section', '[0-9]+');
     Route::apiResource('sections', \App\Http\Controllers\Api\SectionController::class)

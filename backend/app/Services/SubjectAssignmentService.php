@@ -54,6 +54,18 @@ class SubjectAssignmentService
         return $this->assignments->paginate($filters, $perPage);
     }
 
+    /**
+     * Every assignment of $section for the year, unpaginated (the section editor replaces
+     * the whole set on save, so it must load all of it). Defaults to the active year; with
+     * none, the list is empty.
+     */
+    public function listForSection(Section $section, ?int $academicYearId = null): Collection
+    {
+        $yearId = $academicYearId ?? $this->years->findActive()?->id;
+
+        return $yearId === null ? new Collection : $this->assignments->forSectionAndYear($section, $yearId);
+    }
+
     public function find(SubjectAssignment $assignment): SubjectAssignment
     {
         return $assignment->load(['staff', 'subject', 'section.class']);
@@ -191,8 +203,9 @@ class SubjectAssignmentService
     /**
      * Whether $user may enter marks for $subject in $section for $year: an admin always,
      * otherwise any user whose linked staff row (`staff.user_id`) holds one of that
-     * subject's assignments (a subject may have several teachers), and only while that staff member is still active (a retired or
-     * transferred teacher may not). A user with no staff link, or another teacher, may not.
+     * subject's assignments (a subject may have several teachers), and only while that
+     * staff member is still active (a retired or transferred teacher may not). A user with
+     * no staff link, or another teacher, may not.
      */
     public function canEnterMarks(User $user, Section $section, Subject $subject, AcademicYear $year): bool
     {

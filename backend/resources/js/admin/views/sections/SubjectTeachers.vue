@@ -3,7 +3,7 @@
     <div class="flex justify-between items-center">
       <div>
         <h1 class="text-2xl font-bold text-gray-900">
-          Subject teachers<span v-if="section"> – {{ section.class?.name }}, Section {{ section.name }} ({{ section.code }})</span>
+          Subject teachers<span v-if="section"> – {{ section.class?.name }} – {{ section.name }}<template v-if="section.shift"> ({{ section.shift.name_en }})</template></span>
         </h1>
         <p v-if="section" class="text-sm text-gray-500">
           {{ section.shift?.name_en }} shift<template v-if="section.group"> · {{ GROUP_LABELS[section.group] || section.group }} group</template>.
@@ -124,8 +124,8 @@ const loadAssignments = async () => {
     return
   }
   try {
-    const { data } = await api.get('/subject-assignments', {
-      params: { section_id: section.value.id, academic_year_id: selectedYearId.value, per_page: 100 },
+    const { data } = await api.get(`/sections/${section.value.id}/subject-teachers`, {
+      params: { academic_year_id: selectedYearId.value },
     })
     rows.value = withTeachers(data.data)
   } catch (error) {

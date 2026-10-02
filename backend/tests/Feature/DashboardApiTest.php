@@ -519,7 +519,7 @@ class DashboardApiTest extends TestCase
             'staff_id' => $staff->id, 'subject_id' => $this->bangla->id, 'section_id' => $section->id,
             'class_id' => $section->class_id, 'academic_year_id' => $this->year->id,
         ]);
-        // A teacher leads at most one section a year, so only the first one grown is theirs to lead.
+        // Keyed on the staff member, so only the first section grown is theirs to lead (a section may have several class teachers).
         ClassSection::firstOrCreate(
             ['academic_year_id' => $this->year->id, 'staff_id' => $staff->id],
             ['class_id' => $section->class_id, 'section_id' => $section->id],

@@ -7,6 +7,7 @@ use App\Http\Requests\Section\IndexSectionRequest;
 use App\Http\Requests\Section\ReplaceClassTeachersRequest;
 use App\Http\Requests\Section\StoreSectionRequest;
 use App\Http\Requests\Section\UpdateSectionRequest;
+use App\Http\Requests\SubjectAssignment\IndexSectionSubjectTeachersRequest;
 use App\Http\Requests\SubjectAssignment\SyncSectionSubjectTeachersRequest;
 use App\Http\Resources\ClassTeacherResource;
 use App\Http\Resources\SectionResource;
@@ -33,6 +34,7 @@ class SectionController extends Controller implements HasMiddleware
         return static::resourcePermissions('classes', [
             'classTeachers' => 'view-classes',
             'updateClassTeachers' => 'edit-classes',
+            'subjectTeachers' => 'view-classes',
             'updateSubjectTeachers' => 'edit-classes',
         ]);
     }
@@ -93,6 +95,15 @@ class SectionController extends Controller implements HasMiddleware
         return ClassTeacherResource::collection(
             $this->classTeachers->replace($section, $request->validated())
         )->additional(['message' => 'Class teachers updated successfully']);
+    }
+
+    public function subjectTeachers(IndexSectionSubjectTeachersRequest $request, Section $section)
+    {
+        $yearId = $request->validated('academic_year_id');
+
+        return SubjectAssignmentResource::collection(
+            $this->subjectAssignments->listForSection($section, $yearId === null ? null : (int) $yearId)
+        );
     }
 
     public function updateSubjectTeachers(SyncSectionSubjectTeachersRequest $request, Section $section)

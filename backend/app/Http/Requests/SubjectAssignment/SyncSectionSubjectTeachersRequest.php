@@ -25,4 +25,29 @@ class SyncSectionSubjectTeachersRequest extends FormRequest
             'assignments.*.staff_ids.*' => ['integer', Rule::exists('staff', 'id')->whereNull('deleted_at')],
         ];
     }
+
+    /**
+     * A teacher may be listed once per subject row. (`distinct` on the wildcard would also
+     * compare teachers across different subjects, which is fine.)
+     */
+    public function after(): array
+    {
+        return [function ($validator): void {
+            foreach ((array) $this->input('assignments', []) as $i => $row) {
+                $seen = [];
+
+                foreach ((array) ($row['staff_ids'] ?? []) as $j => $staffId) {
+                    if (! is_scalar($staffId)) {
+                        continue;
+                    }
+
+                    if (isset($seen[(string) $staffId])) {
+                        $validator->errors()->add("assignments.{$i}.staff_ids.{$j}", 'This teacher is listed more than once for the subject.');
+                    }
+
+                    $seen[(string) $staffId] = true;
+                }
+            }
+        }];
+    }
 }
