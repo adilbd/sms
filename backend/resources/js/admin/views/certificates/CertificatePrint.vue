@@ -24,7 +24,7 @@
       <div v-if="certificate.status === 'cancelled'" class="cert-watermark" aria-hidden="true">{{ t('বাতিল', 'CANCELLED') }}</div>
 
       <header class="cert-header">
-        <img v-if="school.logo_url" :src="school.logo_url" alt="" class="cert-logo" />
+        <img v-if="logoUrl" :src="logoUrl" alt="" class="cert-logo" @error="logoFailed" />
         <div>
           <h2 class="cert-school">{{ bn ? school.name_bn || school.name_en : school.name_en || school.name_bn }}</h2>
           <p v-if="school.address" class="cert-muted">{{ school.address }}</p>
@@ -33,7 +33,7 @@
       </header>
 
       <div class="cert-meta">
-        <span>{{ t('ক্রমিক নং', 'Serial no.') }}: <strong>{{ d(certificate.serial_no) }}</strong></span>
+        <span>{{ t('ক্রমিক নং', 'Serial no.') }}: <strong>{{ certificate.serial_no }}</strong></span>
         <span>{{ t('তারিখ', 'Date') }}: <strong>{{ date(certificate.issued_on) }}</strong></span>
       </div>
 
@@ -95,6 +95,25 @@ const pick = (banglaText, englishText) => (bn.value ? banglaText || englishText 
 // Everything printed comes from the snapshot taken when the certificate was issued.
 const data = computed(() => certificate.value?.snapshot ?? {})
 const school = computed(() => data.value.school ?? {})
+
+// A reprint uses the logo URL stored in the snapshot. If that file has since been replaced
+// or removed, fall back once to the current logo, and hide the image when that fails too.
+const logoUrl = ref('')
+const triedCurrentLogo = ref(false)
+const logoFailed = async () => {
+  if (triedCurrentLogo.value) {
+    logoUrl.value = ''
+    return
+  }
+  triedCurrentLogo.value = true
+  try {
+    const { data: response } = await api.get('/public/school')
+    const current = response.data?.logo_url
+    logoUrl.value = current && current !== logoUrl.value ? current : ''
+  } catch (error) {
+    logoUrl.value = ''
+  }
+}
 const student = computed(() => data.value.student ?? {})
 const placement = computed(() => data.value.placement ?? {})
 
@@ -231,6 +250,7 @@ onMounted(async () => {
   try {
     const { data: response } = await api.get(`/certificates/${route.params.id}`)
     certificate.value = response.data
+    logoUrl.value = response.data.snapshot?.school?.logo_url || ''
   } catch (error) {
     notice.value = error.response?.data?.message || 'Failed to load the certificate'
   } finally {

@@ -27,6 +27,6 @@ class IdCardController extends Controller implements HasMiddleware
             ? $this->idCards->forSection((int) $request->validated('section_id'), $request->user())
             : $this->idCards->forStudent((int) $request->validated('student_id'), $request->user());
 
-        return new IdCardSheetResource($sheet);
+        return (new IdCardSheetResource($sheet))->withSensitive($request->user()->can('edit-students'));
     }
 }

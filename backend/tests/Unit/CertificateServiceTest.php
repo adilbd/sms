@@ -15,13 +15,13 @@ use App\Repositories\Contracts\ClassTeacherRepositoryInterface;
 use App\Repositories\Contracts\FeeDueRepositoryInterface;
 use App\Repositories\Contracts\StaffRepositoryInterface;
 use App\Repositories\Contracts\StudentEnrolmentRepositoryInterface;
-use App\Repositories\Contracts\StudentRepositoryInterface;
 use App\Services\CertificateService;
 use App\Services\EnrolmentService;
 use App\Services\InstituteSettingsService;
 use App\Services\StudentService;
 use App\Services\TeacherScope;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Validation\ValidationException;
 use Mockery\MockInterface;
 use Symfony\Component\HttpKernel\Exception\HttpException;
@@ -75,7 +75,6 @@ class CertificateServiceTest extends TestCase
 
         foreach ([
             'certificates' => CertificateRepositoryInterface::class,
-            'students' => StudentRepositoryInterface::class,
             'enrolments' => StudentEnrolmentRepositoryInterface::class,
             'years' => AcademicYearRepositoryInterface::class,
             'classTeachers' => ClassTeacherRepositoryInterface::class,
@@ -104,7 +103,6 @@ class CertificateServiceTest extends TestCase
     {
         $service = $this->service(function (array $m) {
             $student = $this->student();
-            $m['students']->shouldReceive('findOrFail')->with(7)->andReturn($student);
             $m['years']->shouldReceive('findActive')->andReturn($this->year());
             $m['enrolments']->shouldReceive('latestFor')->andReturn(null);
             $m['institute']->shouldReceive('profile')->andReturn(['name_en' => 'School']);
@@ -125,13 +123,12 @@ class CertificateServiceTest extends TestCase
     {
         $service = $this->service(function (array $m) {
             $student = $this->student();
-            $m['students']->shouldReceive('findOrFail')->andReturn($student);
             $m['years']->shouldReceive('findActive')->andReturn($this->year());
             $m['enrolments']->shouldReceive('latestFor')->andReturn($this->enrolment());
             $m['certificates']->shouldReceive('lockStudent')->andReturn($student);
             $m['certificates']->shouldReceive('hasActiveTransfer')->andReturn(false);
             $m['studentService']->shouldReceive('leavingDateErrors')->andReturn([]);
-            $m['dues']->shouldReceive('openForStudent')->andReturn(new Collection([$this->due('500.00'), $this->due('300.50')]));
+            $m['dues']->shouldReceive('openDueByMonth')->andReturn(new Collection([$this->due('500.00'), $this->due('300.50')]));
             $m['certificates']->shouldNotReceive('nextSerialNumber');
             $m['certificates']->shouldNotReceive('create');
             $m['studentService']->shouldNotReceive('changeStatus');
@@ -140,9 +137,11 @@ class CertificateServiceTest extends TestCase
         try {
             $service->issue(['type' => 'transfer', 'student_id' => 7, 'reason' => 'Moving'], new User);
             $this->fail('Expected a 409.');
-        } catch (HttpException $e) {
-            $this->assertSame(409, $e->getStatusCode());
-            $this->assertStringContainsString('800.50', $e->getMessage());
+        } catch (HttpResponseException $e) {
+            $this->assertSame(409, $e->getResponse()->getStatusCode());
+            $body = json_decode($e->getResponse()->getContent(), true);
+            $this->assertSame('800.50', $body['outstanding']);
+            $this->assertStringContainsString('800.50', $body['message']);
         }
     }
 
@@ -151,14 +150,13 @@ class CertificateServiceTest extends TestCase
         $service = $this->service(function (array $m) {
             $student = $this->student();
             $enrolment = $this->enrolment();
-            $m['students']->shouldReceive('findOrFail')->andReturn($student);
             $m['years']->shouldReceive('findActive')->andReturn($this->year());
             $m['enrolments']->shouldReceive('latestFor')->andReturn($enrolment);
             $m['institute']->shouldReceive('profile')->andReturn([]);
             $m['certificates']->shouldReceive('lockStudent')->andReturn($student);
             $m['certificates']->shouldReceive('hasActiveTransfer')->andReturn(false);
             $m['studentService']->shouldReceive('leavingDateErrors')->andReturn([]);
-            $m['dues']->shouldReceive('openForStudent')->andReturn(new Collection([$this->due('500.00')]));
+            $m['dues']->shouldReceive('openDueByMonth')->andReturn(new Collection([$this->due('500.00')]));
             $m['attendance']->shouldReceive('lastDateForStudent')->with(7)->andReturn('2026-10-12');
             $m['certificates']->shouldReceive('nextSerialNumber')->once()->with('transfer', 2026)->andReturn(1);
             $m['certificates']->shouldReceive('create')->once()->withArgs(fn (array $a) => $a['serial_no'] === 'TC-2026-0001'
@@ -176,7 +174,6 @@ class CertificateServiceTest extends TestCase
     {
         $service = $this->service(function (array $m) {
             $left = $this->student(Student::STATUS_LEFT);
-            $m['students']->shouldReceive('findOrFail')->andReturn($left);
             $m['years']->shouldReceive('findActive')->andReturn($this->year());
             $m['enrolments']->shouldReceive('latestFor')->andReturn($this->enrolment());
             $m['certificates']->shouldReceive('lockStudent')->andReturn($left);
@@ -196,7 +193,6 @@ class CertificateServiceTest extends TestCase
     {
         $service = $this->service(function (array $m) {
             $left = $this->student(Student::STATUS_LEFT);
-            $m['students']->shouldReceive('findOrFail')->andReturn($left);
             $m['years']->shouldReceive('findActive')->andReturn($this->year());
             $m['enrolments']->shouldReceive('latestFor')->andReturn($this->enrolment());
             $m['certificates']->shouldReceive('lockStudent')->andReturn($left);
@@ -212,8 +208,8 @@ class CertificateServiceTest extends TestCase
     public function test_a_study_certificate_needs_an_active_enrolment_in_the_active_year(): void
     {
         $service = $this->service(function (array $m) {
-            $m['students']->shouldReceive('findOrFail')->andReturn($this->student());
             $m['years']->shouldReceive('findActive')->andReturn($this->year());
+            $m['certificates']->shouldReceive('lockStudent')->andReturn($this->student());
             $m['enrolments']->shouldReceive('forStudentAndYear')->andReturn(null);
             $m['certificates']->shouldNotReceive('create');
         });
@@ -229,8 +225,8 @@ class CertificateServiceTest extends TestCase
     public function test_a_testimonial_needs_an_enrolment(): void
     {
         $service = $this->service(function (array $m) {
-            $m['students']->shouldReceive('findOrFail')->andReturn($this->student());
             $m['years']->shouldReceive('findActive')->andReturn($this->year());
+            $m['certificates']->shouldReceive('lockStudent')->andReturn($this->student());
             $m['enrolments']->shouldReceive('latestFor')->andReturn(null);
             $m['certificates']->shouldNotReceive('create');
         });
@@ -263,9 +259,10 @@ class CertificateServiceTest extends TestCase
         $user = new User;
 
         $service = $this->service(function (array $m) use ($user) {
-            $m['scope']->shouldReceive('sectionIdsFor')->with($user)->andReturn([4, 5]);
+            $m['years']->shouldReceive('findActive')->andReturn($this->year());
+            $m['scope']->shouldReceive('sectionIdsFor')->with($user, 1)->andReturn([4, 5]);
             $m['certificates']->shouldReceive('paginate')->once()
-                ->withArgs(fn (array $filters, int $perPage) => $filters['scope_section_ids'] === [4, 5] && $perPage === 15)
+                ->withArgs(fn (array $filters, int $perPage) => $filters['scope_section_ids'] === [4, 5] && $filters['scope_academic_year_id'] === 1 && $perPage === 15)
                 ->andReturn(new \Illuminate\Pagination\LengthAwarePaginator([], 0, 15));
         });
 
@@ -275,11 +272,12 @@ class CertificateServiceTest extends TestCase
     public function test_a_teacher_cannot_read_a_certificate_without_an_enrolment_in_their_sections(): void
     {
         $certificate = new Certificate;
-        $enrolment = new StudentEnrolment(['section_id' => 9]);
+        $enrolment = new StudentEnrolment(['section_id' => 9, 'academic_year_id' => 1]);
         $certificate->setRelation('enrolment', $enrolment);
 
         $service = $this->service(function (array $m) {
             $m['certificates']->shouldReceive('loadDetail')->andReturnArg(0);
+            $m['years']->shouldReceive('findActive')->andReturn($this->year());
             $m['scope']->shouldReceive('sectionIdsFor')->andReturn([4]);
         });
 

@@ -101,7 +101,14 @@ class CertificateRepository extends EloquentRepository implements CertificateRep
 
         // Built by the service from the signed-in teacher, never from input.
         if (is_array($filters['scope_section_ids'] ?? null)) {
-            $query->whereHas('enrolment', fn (Builder $e) => $e->whereIn('section_id', $filters['scope_section_ids']));
+            $query->whereHas('enrolment', function (Builder $e) use ($filters) {
+                $e->whereIn('section_id', $filters['scope_section_ids']);
+
+                // The scope year (the active year); no year means no enrolment matches.
+                filled($filters['scope_academic_year_id'] ?? null)
+                    ? $e->where('academic_year_id', $filters['scope_academic_year_id'])
+                    : $e->whereRaw('1 = 0');
+            });
         }
 
         return $query;

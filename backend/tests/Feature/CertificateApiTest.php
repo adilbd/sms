@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\AcademicYear;
 use App\Models\Certificate;
 use App\Models\ClassSection;
+use App\Models\FeeDue;
 use App\Models\Section;
 use App\Models\Staff;
 use App\Models\Student;
@@ -374,5 +375,50 @@ class CertificateApiTest extends TestCase
         $this->as($teacher)->getJson("/api/id-cards?student_id={$student->id}")->assertOk();
         $this->as($teacher)->getJson("/api/id-cards?section_id={$this->section9->id}")->assertForbidden();
         $this->as($teacher)->getJson("/api/id-cards?student_id={$other->id}")->assertForbidden();
+    }
+
+    public function test_only_the_guardian_mobile_is_hidden_from_a_teacher(): void
+    {
+        $this->student(['guardian_mobile' => '01712345678']);
+        $teacher = $this->assignedTeacher($this->section10, $this->bangla);
+
+        $this->as($teacher)->getJson("/api/id-cards?section_id={$this->section10->id}")
+            ->assertOk()->assertJsonMissingPath('data.cards.0.guardian_mobile')->assertJsonPath('data.cards.0.class_name', 'Class 10');
+        $this->as($this->admin)->getJson("/api/id-cards?section_id={$this->section10->id}")
+            ->assertOk()->assertJsonPath('data.cards.0.guardian_mobile', '01712345678');
+    }
+
+    public function test_a_teachers_scope_is_the_active_year_only(): void
+    {
+        $teacher = $this->assignedTeacher($this->section10, $this->bangla);
+        $past = AcademicYear::factory()->create(['year' => 2025]);
+        $student = $this->student();
+        $old = StudentEnrolment::factory()->create(['student_id' => $student->id, 'academic_year_id' => $past->id, 'section_id' => $this->section10->id, 'roll_number' => 9]);
+        $certificate = Certificate::factory()->create(['student_id' => $student->id, 'enrolment_id' => $old->id, 'academic_year_id' => $past->id]);
+
+        $this->as($teacher)->getJson("/api/certificates/{$certificate->id}")->assertForbidden();
+        $this->as($teacher)->getJson('/api/certificates')->assertOk()->assertJsonCount(0, 'data');
+        $this->as($this->office)->getJson("/api/certificates/{$certificate->id}")->assertOk();
+    }
+
+    // Outstanding fees: only what has fallen due by the issue month
+
+    public function test_a_future_months_due_does_not_block_a_transfer_but_the_current_months_does(): void
+    {
+        $student = $this->student();
+        $enrolment = $student->enrolments()->first();
+        FeeDue::factory()->create(['enrolment_id' => $enrolment->id, 'period' => '2026-11', 'due_date' => '2026-11-10']);
+        FeeDue::factory()->create(['enrolment_id' => $enrolment->id, 'period' => 'one_time', 'due_date' => '2026-11-05']);
+
+        $this->transfer($student)->assertCreated()->assertJsonPath('data.snapshot.dues.outstanding', '0.00');
+
+        $other = $this->student();
+        FeeDue::factory()->create(['enrolment_id' => $other->enrolments()->first()->id, 'period' => '2026-11', 'due_date' => '2026-11-10']);
+        FeeDue::factory()->create(['enrolment_id' => $other->enrolments()->first()->id, 'period' => '2026-10', 'due_date' => '2026-10-31']);
+
+        $this->transfer($other)->assertStatus(409)->assertJsonPath('outstanding', '800.00');
+
+        $this->transfer($other, ['allow_outstanding' => true, 'outstanding_note' => 'Agreed'])
+            ->assertCreated()->assertJsonPath('data.snapshot.dues.outstanding', '800.00');
     }
 }

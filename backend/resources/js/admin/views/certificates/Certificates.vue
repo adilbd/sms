@@ -364,7 +364,7 @@ const submit = async () => {
   } catch (e) {
     if (e.response?.status === 422) {
       errors.value = e.response.data.errors || {}
-    } else if (e.response?.status === 409 && form.type === 'transfer' && /outstanding/i.test(e.response.data?.message || '')) {
+    } else if (e.response?.status === 409 && form.type === 'transfer' && e.response.data?.outstanding !== undefined) {
       // The 409 names the amount; offer the override with a note.
       outstanding.value = e.response.data.message
     } else {

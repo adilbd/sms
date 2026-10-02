@@ -15,7 +15,6 @@ use App\Repositories\Contracts\ClassTeacherRepositoryInterface;
 use App\Repositories\Contracts\FeeDueRepositoryInterface;
 use App\Repositories\Contracts\StaffRepositoryInterface;
 use App\Repositories\Contracts\StudentEnrolmentRepositoryInterface;
-use App\Repositories\Contracts\StudentRepositoryInterface;
 use App\Support\AcademicGroup;
 use App\Support\Money;
 use App\Support\SchoolHeader;
@@ -33,7 +32,7 @@ use Illuminate\Validation\ValidationException;
  *    counter row inside the issue transaction (retried up to 3 times, like fee receipts); a
  *    refused issue rolls the number back and a cancelled certificate's number is never reused.
  *  - A transfer certificate needs an active student, at most one non-cancelled TC, and no
- *    outstanding fees unless `allow_outstanding` comes with a note. Issuing it sets the
+ *    outstanding fees (dues fallen due by the issue month) unless `allow_outstanding` comes with a note. Issuing it sets the
  *    student to `left` (leaving date = issue date) through StudentService::changeStatus(),
  *    and the enrolment follows. Cancelling it does NOT reactivate the student.
  *  - A study certificate needs an active student with an active enrolment in the active year.
@@ -47,7 +46,6 @@ class CertificateService
 
     public function __construct(
         private CertificateRepositoryInterface $certificates,
-        private StudentRepositoryInterface $students,
         private StudentEnrolmentRepositoryInterface $enrolments,
         private AcademicYearRepositoryInterface $years,
         private ClassTeacherRepositoryInterface $classTeachers,
@@ -71,10 +69,14 @@ class CertificateService
      */
     public function list(array $filters, int $perPage, User $viewer): LengthAwarePaginator
     {
-        $scope = $this->teacherScope->sectionIdsFor($viewer);
+        $yearId = $this->years->findActive()?->id;
+        $scope = $this->teacherScope->sectionIdsFor($viewer, $yearId);
 
         if ($scope !== null) {
+            // The sections a teacher teaches or leads are those of the active year, so only
+            // certificates from an enrolment of that year count.
             $filters['scope_section_ids'] = $scope;
+            $filters['scope_academic_year_id'] = $yearId;
         }
 
         return $this->certificates->paginate($filters, $perPage);
@@ -95,19 +97,20 @@ class CertificateService
     {
         $type = $data['type'];
         $issuedOn = self::today();
-        $student = $this->students->findOrFail((int) $data['student_id']);
-        $activeYear = $this->years->findActive();
-        $enrolment = $this->placement($type, $student, $activeYear);
-        $year = $enrolment?->academicYear ?? $activeYear;
-
-        if ($year === null) {
-            throw ValidationException::withMessages(['student_id' => ['There is no academic year to issue this certificate for.']]);
-        }
-
         // Two issues of one type can contend for the counter row's gap lock on MySQL, so the
         // transaction is retried up to 3 times; the closure only touches the database.
-        $certificate = DB::transaction(function () use ($data, $type, $issuedOn, $actor, $enrolment, $year) {
+        $certificate = DB::transaction(function () use ($data, $type, $issuedOn, $actor) {
             $student = $this->certificates->lockStudent((int) $data['student_id']);
+
+            // Under the lock, so the student's status and enrolment can't change between
+            // choosing the enrolment and writing the certificate.
+            $activeYear = $this->years->findActive();
+            $enrolment = $this->placement($type, $student, $activeYear);
+            $year = $enrolment?->academicYear ?? $activeYear;
+
+            if ($year === null) {
+                throw ValidationException::withMessages(['student_id' => ['There is no academic year to issue this certificate for.']]);
+            }
 
             if ($type === Certificate::TYPE_TRANSFER) {
                 // Before the status check: the first TC leaves the student `left`, and a
@@ -173,14 +176,18 @@ class CertificateService
 
     private function ensureVisible(Certificate $certificate, User $viewer): void
     {
-        $scope = $this->teacherScope->sectionIdsFor($viewer);
+        $yearId = $this->years->findActive()?->id;
+        $scope = $this->teacherScope->sectionIdsFor($viewer, $yearId);
 
         if ($scope === null) {
             return;
         }
 
         abort_unless(
-            $certificate->enrolment !== null && in_array((int) $certificate->enrolment->section_id, $scope, true),
+            $certificate->enrolment !== null
+            && $yearId !== null
+            && (int) $certificate->enrolment->academic_year_id === $yearId
+            && in_array((int) $certificate->enrolment->section_id, $scope, true),
             403,
             'This certificate is not for one of your students.'
         );
@@ -242,13 +249,18 @@ class CertificateService
             throw ValidationException::withMessages(['student_id' => array_merge(...array_values($errors))]);
         }
 
-        $outstanding = (int) $this->dues->openForStudent($student->id)
+        // Only dues that have fallen due by the issue month count: later months' tuition
+        // stays on the books (an admin can waive or cancel it), it doesn't block the TC.
+        $outstanding = (int) $this->dues->openDueByMonth($student->id, substr($issuedOn, 0, 7))
             ->sum(fn (FeeDue $due) => $due->outstandingPaisa());
         $override = $outstanding > 0 && filter_var($data['allow_outstanding'] ?? false, FILTER_VALIDATE_BOOLEAN);
 
         if ($outstanding > 0 && ! $override) {
-            abort(409, 'The student has outstanding fees of '.Money::display(Money::fromPaisa($outstanding), false)
-                .'. Clear them, or issue with an override and a note.');
+            abort(response()->json([
+                'message' => 'The student has outstanding fees of '.Money::display(Money::fromPaisa($outstanding), false)
+                    .'. Clear them, or issue with an override and a note.',
+                'outstanding' => Money::fromPaisa($outstanding),
+            ], 409));
         }
 
         return [

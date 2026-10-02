@@ -15,6 +15,19 @@ use Illuminate\Http\Resources\Json\JsonResource;
  */
 class IdCardSheetResource extends JsonResource
 {
+    public bool $sensitive = false;
+
+    /**
+     * Includes the guardian's mobile number; the controller opts in for callers with
+     * `edit-students`, like StudentResource::withSensitive().
+     */
+    public function withSensitive(bool $sensitive = true): static
+    {
+        $this->sensitive = $sensitive;
+
+        return $this;
+    }
+
     public function toArray(Request $request): array
     {
         $year = $this->resource['academic_year'];
@@ -37,7 +50,7 @@ class IdCardSheetResource extends JsonResource
                 'group_en' => $e->group ? (AcademicGroup::LABELS_EN[$e->group] ?? $e->group) : null,
                 'group_bn' => $e->group ? (AcademicGroup::LABELS_BN[$e->group] ?? $e->group) : null,
                 'blood_group' => $e->student->blood_group,
-                'guardian_mobile' => $e->student->guardian_mobile,
+                'guardian_mobile' => $this->when($this->sensitive, $e->student->guardian_mobile),
                 'photo_url' => $e->student->photoUrl(),
                 'valid_until' => $e->academicYear?->end_date?->toDateString() ?? $year->end_date?->toDateString(),
             ])->values()->all(),
