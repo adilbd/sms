@@ -33,6 +33,36 @@ const routes = [
         meta: { title: 'Students', permission: 'view-students' },
       },
       {
+        path: 'admissions',
+        name: 'AdmissionApplications',
+        component: () => import('@/views/admissions/AdmissionApplications.vue'),
+        meta: { title: 'Admissions', permission: 'view-students' },
+      },
+      {
+        path: 'admissions/rounds',
+        name: 'AdmissionRounds',
+        component: () => import('@/views/admissions/AdmissionRounds.vue'),
+        meta: { title: 'Admission Rounds', permission: 'view-students' },
+      },
+      {
+        path: 'admissions/rounds/create',
+        name: 'AdmissionRoundCreate',
+        component: () => import('@/views/admissions/AdmissionRoundForm.vue'),
+        meta: { title: 'Add Admission Round', permission: 'create-students' },
+      },
+      {
+        path: 'admissions/rounds/:id/edit',
+        name: 'AdmissionRoundEdit',
+        component: () => import('@/views/admissions/AdmissionRoundForm.vue'),
+        meta: { title: 'Edit Admission Round', permission: 'edit-students' },
+      },
+      {
+        path: 'admissions/applications/:id',
+        name: 'AdmissionApplicationDetail',
+        component: () => import('@/views/admissions/ApplicationDetail.vue'),
+        meta: { title: 'Admission Application', permission: 'view-students' },
+      },
+      {
         path: 'students/promotion',
         name: 'StudentPromotion',
         component: () => import('@/views/students/Promotion.vue'),

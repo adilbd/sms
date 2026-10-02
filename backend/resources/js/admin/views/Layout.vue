@@ -191,6 +191,7 @@ const menuItems = computed(() => visible([
   { name: 'Dashboard', path: '/', icon: '📊' },
   { name: 'My subjects', path: '/my-subjects', icon: '🧑‍🏫', access: { role: 'teacher' } },
   { name: 'Students', path: '/students', icon: '👨‍🎓', access: { permission: 'view-students' } },
+  { name: 'Admissions', path: '/admissions', icon: '📝', access: { permission: 'edit-students' } },
   { name: 'Staff', path: '/staff', icon: '👨‍🏫', access: { permission: 'view-teachers' } },
   { name: 'Attendance', path: '/attendance', icon: '📋', access: { permission: 'view-attendance' }, when: () => !teacherOnly.value || leadsSection.value },
   // A teacher's only exam page is mark entry.

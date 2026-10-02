@@ -35,6 +35,44 @@ class PublicSeoTest extends TestCase
         ];
     }
 
+    public function test_admission_pages_have_one_h1_and_private_ones_are_noindex(): void
+    {
+        $this->travelTo('2026-10-15 06:00:00');
+        $year = \App\Models\AcademicYear::factory()->create(['year' => 2026]);
+        $class = \App\Models\Classes::factory()->create(['number' => 6]);
+        $round = \App\Models\AdmissionRound::factory()->create(['academic_year_id' => $year->id]);
+        \App\Models\AdmissionRoundClass::create(['round_id' => $round->id, 'class_id' => $class->id, 'seats' => 10]);
+
+        foreach (['/admissions', "/admissions/apply/{$round->id}"] as $uri) {
+            $html = $this->get($uri)->assertOk()->getContent();
+            $this->assertSeoHead($html, url($uri));
+            $this->assertSame(1, substr_count($html, '<h1'), $uri);
+            $this->assertStringContainsString('index, follow', $html);
+        }
+
+        $html = $this->get('/admissions/status')->assertOk()->getContent();
+        $this->assertSame(1, substr_count($html, '<h1'));
+        $this->assertStringContainsString('noindex, nofollow', $html);
+    }
+
+    public function test_sitemap_lists_admissions_and_only_open_apply_pages(): void
+    {
+        $this->travelTo('2026-10-15 06:00:00');
+        $year = \App\Models\AcademicYear::factory()->create(['year' => 2026]);
+        $open = \App\Models\AdmissionRound::factory()->create(['academic_year_id' => $year->id]);
+        $closed = \App\Models\AdmissionRound::factory()->closed()->create(['academic_year_id' => $year->id]);
+        $draft = \App\Models\AdmissionRound::factory()->unpublished()->create(['academic_year_id' => $year->id]);
+
+        $xml = $this->get('/sitemap.xml')->assertOk()->getContent();
+
+        $this->assertStringContainsString('<loc>'.route('admissions').'</loc>', $xml);
+        $this->assertStringContainsString($open->url(), $xml);
+        $this->assertStringNotContainsString($closed->url(), $xml);
+        $this->assertStringNotContainsString($draft->url(), $xml);
+        $this->assertStringNotContainsString('/admissions/status', $xml);
+        $this->assertStringNotContainsString('/admissions/submitted', $xml);
+    }
+
     /** @dataProvider publicPages */
     public function test_public_page_is_server_rendered_with_seo_tags(string $uri): void
     {

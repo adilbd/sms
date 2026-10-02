@@ -19,7 +19,7 @@ class EnrolledOnMigrationTest extends TestCase
     {
         $this->assertTrue(Schema::hasColumn('student_enrolments', 'enrolled_on'));
 
-        $this->artisan('migrate:rollback', ['--step' => 3])->assertSuccessful();
+        $this->artisan('migrate:rollback', ['--step' => 4])->assertSuccessful();
         $this->assertFalse(Schema::hasColumn('student_enrolments', 'enrolled_on'));
 
         $this->artisan('migrate')->assertSuccessful();
@@ -28,7 +28,7 @@ class EnrolledOnMigrationTest extends TestCase
 
     public function test_the_backfill_uses_the_admission_date_clamped_to_the_year(): void
     {
-        $this->artisan('migrate:rollback', ['--step' => 3])->assertSuccessful();
+        $this->artisan('migrate:rollback', ['--step' => 4])->assertSuccessful();
 
         $year = AcademicYear::factory()->create(['year' => 2026]);
         $future = AcademicYear::factory()->create(['year' => 2027]);

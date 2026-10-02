@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Web\AdmissionController;
 use App\Http\Controllers\Web\ContactController;
 use App\Http\Controllers\Web\GalleryController;
 use App\Http\Controllers\Web\PageController;
@@ -15,7 +16,18 @@ use Illuminate\Support\Facades\Route;
 // Public, server-rendered, SEO-friendly pages
 Route::get('/', [PublicController::class, 'home'])->name('home');
 Route::get('/about', [PublicController::class, 'about'])->name('about');
-Route::get('/admissions', [PublicController::class, 'admissions'])->name('admissions');
+
+// Online admission. The form is indexable while its round is open; the confirmation and
+// the status lookup are private to the family (noindex, no-store), and the lookup is a
+// POST so the date of birth never reaches a URL.
+Route::get('/admissions', [AdmissionController::class, 'index'])->name('admissions');
+Route::get('/admissions/apply/{round}', [AdmissionController::class, 'apply'])->where('round', '[0-9]+')->name('admissions.apply');
+Route::post('/admissions/apply/{round}', [AdmissionController::class, 'submit'])->where('round', '[0-9]+')->middleware('throttle:admission-apply')->name('admissions.apply.store');
+Route::middleware(\App\Http\Middleware\PortalHeaders::class)->group(function () {
+    Route::get('/admissions/submitted', [AdmissionController::class, 'submitted'])->name('admissions.submitted');
+    Route::get('/admissions/status', [AdmissionController::class, 'statusForm'])->name('admissions.status');
+    Route::post('/admissions/status', [AdmissionController::class, 'statusShow'])->middleware('throttle:admission-status')->name('admissions.status.show');
+});
 
 Route::get('/contact', [ContactController::class, 'show'])->name('contact');
 Route::post('/contact', [ContactController::class, 'store'])->middleware('throttle:5,1')->name('contact.store');
