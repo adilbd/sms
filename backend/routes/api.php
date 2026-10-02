@@ -21,6 +21,8 @@ Route::prefix('public')->middleware('throttle:60,1')->group(function () {
     Route::get('exams', [\App\Http\Controllers\Api\PublicContentController::class, 'exams']);
     Route::post('results', [\App\Http\Controllers\Api\PublicContentController::class, 'results'])->middleware('throttle:result-lookup');
     Route::post('contact', [\App\Http\Controllers\Api\PublicContentController::class, 'contact'])->middleware('throttle:5,1');
+    Route::get('admission-rounds', [\App\Http\Controllers\Api\PublicContentController::class, 'admissionRounds']);
+    Route::post('admission-status', [\App\Http\Controllers\Api\PublicContentController::class, 'admissionStatus'])->middleware('throttle:admission-status');
 });
 
 Route::middleware('auth:sanctum')->group(function () {
@@ -38,6 +40,21 @@ Route::middleware('auth:sanctum')->group(function () {
     // Promotion of a section to the next academic year (edit-students).
     Route::get('promotions/preview', [PromotionController::class, 'preview']);
     Route::post('promotions', [PromotionController::class, 'store']);
+
+    // Online admission (the *-students permissions). The extra routes are registered
+    // before the resources so 'counts' isn't captured by an {id} wildcard.
+    Route::apiResource('admission-rounds', \App\Http\Controllers\Api\AdmissionRoundController::class)
+        ->where(['admission_round' => '[0-9]+']);
+    Route::get('admission-applications/counts', [\App\Http\Controllers\Api\AdmissionApplicationController::class, 'counts']);
+    Route::patch('admission-applications/{admission_application}/status', [\App\Http\Controllers\Api\AdmissionApplicationController::class, 'status'])
+        ->where('admission_application', '[0-9]+');
+    Route::post('admission-applications/{admission_application}/convert', [\App\Http\Controllers\Api\AdmissionApplicationController::class, 'convert'])
+        ->where('admission_application', '[0-9]+');
+    Route::get('admission-applications/{admission_application}/files/{kind}', [\App\Http\Controllers\Api\AdmissionApplicationController::class, 'file'])
+        ->where(['admission_application' => '[0-9]+', 'kind' => 'photo|birth_certificate|previous_school_doc']);
+    Route::apiResource('admission-applications', \App\Http\Controllers\Api\AdmissionApplicationController::class)
+        ->only(['index', 'show'])
+        ->where(['admission_application' => '[0-9]+']);
 
     // Own records for the student and guardian roles (no broad students permission).
     Route::get('my/student', [\App\Http\Controllers\Api\MyRecordsController::class, 'student'])

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Web;
 
 use App\Http\Controllers\Controller;
 use App\Models\Post;
+use App\Services\AdmissionService;
 use App\Services\GalleryService;
 use App\Services\PageService;
 use App\Services\StaffService;
@@ -15,6 +16,7 @@ class SeoController extends Controller
         private PageService $pages,
         private GalleryService $galleries,
         private StaffService $staff,
+        private AdmissionService $admissions,
     ) {}
 
     public function sitemap()
@@ -84,6 +86,17 @@ class SeoController extends Controller
                 ]);
             }
 
+            // Only open rounds have an apply page; the status lookup and the confirmation
+            // are private and stay out.
+            foreach ($this->admissions->openRounds() as $round) {
+                $urls->push([
+                    'loc' => $round->url(),
+                    'lastmod' => $round->updated_at,
+                    'changefreq' => 'weekly',
+                    'priority' => '0.8',
+                ]);
+            }
+
             return view('seo.sitemap', ['urls' => $urls])->render();
         });
 
@@ -93,7 +106,7 @@ class SeoController extends Controller
     public function robots()
     {
         $lines = app()->isProduction()
-            ? ['User-agent: *', 'Allow: /', 'Disallow: /admin', 'Disallow: /api', 'Disallow: /portal', '', 'Sitemap: '.route('sitemap')]
+            ? ['User-agent: *', 'Allow: /', 'Disallow: /admin', 'Disallow: /api', 'Disallow: /portal', 'Disallow: /admissions/status', 'Disallow: /admissions/submitted', '', 'Sitemap: '.route('sitemap')]
             // Keep non-production environments (staging, local) out of search indexes.
             : ['User-agent: *', 'Disallow: /'];
 

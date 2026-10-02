@@ -3,7 +3,10 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Admission\LookupStatusRequest;
 use App\Http\Requests\Result\LookupResultRequest;
+use App\Http\Resources\AdmissionRoundResource;
+use App\Http\Resources\AdmissionStatusResource;
 use App\Http\Resources\ExamResource;
 use App\Http\Resources\ExamResultResource;
 use App\Http\Resources\GalleryResource;
@@ -11,6 +14,7 @@ use App\Http\Resources\PostResource;
 use App\Http\Resources\StaffResource;
 use App\Models\Post;
 use App\Models\Staff;
+use App\Services\AdmissionService;
 use App\Services\ContactService;
 use App\Services\GalleryService;
 use App\Services\InstituteSettingsService;
@@ -33,6 +37,7 @@ class PublicContentController extends Controller
         private GalleryService $galleries,
         private StaffService $staff,
         private ResultService $results,
+        private AdmissionService $admissions,
     ) {}
 
     public function school()
@@ -151,6 +156,20 @@ class PublicContentController extends Controller
         $result = $this->results->publicLookup($request->validated(), (string) $request->ip());
 
         return (new ExamResultResource($result))->withSubjects();
+    }
+
+    /**
+     * The admission rounds open for applications today, with their classes and seats.
+     * Same data as the website's /admissions page.
+     */
+    public function admissionRounds()
+    {
+        return AdmissionRoundResource::collection($this->admissions->openRounds());
+    }
+
+    public function admissionStatus(LookupStatusRequest $request)
+    {
+        return new AdmissionStatusResource($this->admissions->lookupStatus($request->validated(), (string) $request->ip()));
     }
 
     public function contact(Request $request, ContactService $contact)

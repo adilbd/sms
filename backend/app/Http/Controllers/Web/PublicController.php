@@ -9,9 +9,7 @@ use App\Support\SchemaOrg;
 
 class PublicController extends Controller
 {
-    public function __construct(private PostService $posts, private InstituteSettingsService $institute)
-    {
-    }
+    public function __construct(private PostService $posts, private InstituteSettingsService $institute) {}
 
     public function home()
     {
@@ -28,13 +26,6 @@ class PublicController extends Controller
     {
         return view('public.about', [
             'jsonLd' => [$this->breadcrumbs('About Us', route('about'))],
-        ]);
-    }
-
-    public function admissions()
-    {
-        return view('public.admissions', [
-            'jsonLd' => [$this->breadcrumbs('Admissions', route('admissions'))],
         ]);
     }
 

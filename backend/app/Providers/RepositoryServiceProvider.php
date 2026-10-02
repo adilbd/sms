@@ -3,6 +3,8 @@
 namespace App\Providers;
 
 use App\Repositories\Contracts\AcademicYearRepositoryInterface;
+use App\Repositories\Contracts\AdmissionApplicationRepositoryInterface;
+use App\Repositories\Contracts\AdmissionRoundRepositoryInterface;
 use App\Repositories\Contracts\AttendanceRepositoryInterface;
 use App\Repositories\Contracts\ClassRepositoryInterface;
 use App\Repositories\Contracts\ClassSubjectRepositoryInterface;
@@ -34,6 +36,8 @@ use App\Repositories\Contracts\SubjectAssignmentRepositoryInterface;
 use App\Repositories\Contracts\SubjectRepositoryInterface;
 use App\Repositories\Contracts\UserRepositoryInterface;
 use App\Repositories\Eloquent\AcademicYearRepository;
+use App\Repositories\Eloquent\AdmissionApplicationRepository;
+use App\Repositories\Eloquent\AdmissionRoundRepository;
 use App\Repositories\Eloquent\AttendanceRepository;
 use App\Repositories\Eloquent\ClassRepository;
 use App\Repositories\Eloquent\ClassSubjectRepository;
@@ -105,5 +109,7 @@ class RepositoryServiceProvider extends ServiceProvider
         FeePaymentRepositoryInterface::class => FeePaymentRepository::class,
         FeeReportRepositoryInterface::class => FeeReportRepository::class,
         DashboardRepositoryInterface::class => DashboardRepository::class,
+        AdmissionRoundRepositoryInterface::class => AdmissionRoundRepository::class,
+        AdmissionApplicationRepositoryInterface::class => AdmissionApplicationRepository::class,
     ];
 }

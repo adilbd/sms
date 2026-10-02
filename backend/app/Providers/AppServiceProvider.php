@@ -49,6 +49,16 @@ class AppServiceProvider extends ServiceProvider
         // failed lookups per IP lives in ResultService::publicLookup().
         RateLimiter::for('result-lookup', fn (Request $request) => Limit::perMinute(10)->by((string) $request->ip()));
 
+        // A generous cap on admission form posts per IP, valid or not (it bounds what a bot
+        // can make the server validate and receive). The real limit, 5 saved applications
+        // an hour per IP, lives in AdmissionService::submit() and counts only saved ones,
+        // so a family fixing form errors isn't locked out.
+        RateLimiter::for('admission-apply', fn (Request $request) => Limit::perHour(30)->by((string) $request->ip()));
+
+        // 10 admission status lookups a minute per IP, successes included. The hourly cap
+        // on missed lookups per IP lives in AdmissionService::lookupStatus().
+        RateLimiter::for('admission-status', fn (Request $request) => Limit::perMinute(10)->by((string) $request->ip()));
+
         View::composer('layouts.public', HeaderMenuComposer::class);
         View::composer(['layouts.public', 'public.*', 'portal.*', 'components.seo', 'admin'], InstituteComposer::class);
     }

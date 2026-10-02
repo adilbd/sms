@@ -33,7 +33,10 @@ return [
         'local' => [
             'driver' => 'local',
             'root' => storage_path('app/private'),
-            'serve' => true,
+            // The private disk holds admission applications' documents, which only the
+            // authenticated admin endpoint may read, so Laravel's /storage/{path} route
+            // for this disk is switched off.
+            'serve' => false,
             'throw' => false,
             'report' => false,
         ],

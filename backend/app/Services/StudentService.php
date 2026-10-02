@@ -121,8 +121,9 @@ class StudentService
 
     /**
      * @param  array<string, mixed>  $data  Profile fields, `password`, `guardian_password` and `enrolment`.
+     * @param  AcademicYear|null  $year  The year to enrol the student in; the active year when null (admission converts into the round's year).
      */
-    public function create(array $data, ?UploadedFile $photo): Student
+    public function create(array $data, ?UploadedFile $photo, ?AcademicYear $year = null): Student
     {
         $password = (string) $data['password'];
         $guardianPassword = $data['guardian_password'] ?? null;
@@ -135,7 +136,7 @@ class StudentService
         $this->ensureAtLeastOneName($student);
         $this->ensureLeavingDateRules($student);
 
-        $year = $this->activeYear();
+        $year ??= $this->activeYear();
 
         $photoPath = null;
         if ($photo) {

@@ -8,7 +8,8 @@ use Symfony\Component\HttpFoundation\Response;
 
 /**
  * Every /portal response is private: never stored by a browser, proxy or CDN, and never
- * indexed. Applied to the login page too.
+ * indexed. Applied to the login page too, and to the private admission pages (the
+ * confirmation and the status lookup), which share the same need.
  */
 class PortalHeaders
 {
