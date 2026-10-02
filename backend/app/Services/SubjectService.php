@@ -72,6 +72,12 @@ class SubjectService
             'Subject is used in a class routine and cannot be deleted.'
         );
 
+        abort_if(
+            $this->subjects->isUsedInHomework($subject),
+            409,
+            'Subject has homework and cannot be deleted.'
+        );
+
         $this->subjects->delete($subject);
     }
 

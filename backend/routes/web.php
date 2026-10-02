@@ -70,6 +70,10 @@ Route::prefix('portal')->name('portal.')->group(function () {
         Route::post('/login', [PortalAuthController::class, 'login'])->middleware('throttle:login')->name('login.store');
         // Any web session may sign out (a staff one included); still CSRF-protected.
         Route::post('/logout', [PortalAuthController::class, 'logout'])->name('logout');
+        // A homework attachment: the signature (short-lived, minted for homework the reader
+        // can see) is the only check, so it works for the portal and the mobile API alike.
+        Route::get('/homework/{homework}/attachment', [PortalController::class, 'homeworkAttachment'])
+            ->where('homework', '[0-9]+')->middleware('signed')->name('homework.attachment');
     });
 
     Route::middleware('portal')->group(function () {
@@ -83,6 +87,7 @@ Route::prefix('portal')->name('portal.')->group(function () {
         Route::get('/fees/receipts/{payment}', [PortalController::class, 'receipt'])->where('payment', '[0-9]+')->name('receipt');
         Route::get('/exams', [PortalController::class, 'exams'])->name('exams');
         Route::get('/routine', [PortalController::class, 'routine'])->name('routine');
+        Route::get('/homework', [PortalController::class, 'homework'])->name('homework');
     });
 });
 

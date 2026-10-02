@@ -191,6 +191,7 @@ const menuItems = computed(() => visible([
   { name: 'Dashboard', path: '/', icon: '📊' },
   { name: 'My subjects', path: '/my-subjects', icon: '🧑‍🏫', access: { role: 'teacher' } },
   { name: 'My routine', path: '/my-routine', icon: '🗓️', access: { role: 'teacher' } },
+  { name: 'Homework', path: '/homework', icon: '📚', access: { permission: 'view-homework' } },
   { name: 'Students', path: '/students', icon: '👨‍🎓', access: { permission: 'view-students' } },
   { name: 'Admissions', path: '/admissions', icon: '📝', access: { permission: 'edit-students' } },
   { name: 'Staff', path: '/staff', icon: '👨‍🏫', access: { permission: 'view-teachers' } },

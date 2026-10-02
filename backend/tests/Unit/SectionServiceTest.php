@@ -136,6 +136,7 @@ class SectionServiceTest extends TestCase
             $mock->shouldReceive('hasAttendances')->once()->andReturn(false);
             $mock->shouldReceive('hasSubjectAssignments')->once()->andReturn(false);
             $mock->shouldReceive('hasRoutineSlots')->once()->andReturn(false);
+            $mock->shouldReceive('hasHomework')->once()->andReturn(false);
             $mock->shouldReceive('delete')->once()->with($section)->globally()->ordered();
         });
 

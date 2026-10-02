@@ -22,7 +22,7 @@ class RoutineTablesMigrationTest extends TestCase
         // Data in both tables doesn't stop the rollback: slots are dropped before periods.
         RoutineSlot::factory()->create();
 
-        $this->artisan('migrate:rollback', ['--step' => 1])->assertSuccessful();
+        $this->artisan('migrate:rollback', ['--step' => 2])->assertSuccessful();
         $this->assertFalse(Schema::hasTable('routine_slots'));
         $this->assertFalse(Schema::hasTable('periods'));
 

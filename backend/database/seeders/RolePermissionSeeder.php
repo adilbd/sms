@@ -43,6 +43,8 @@ class RolePermissionSeeder extends Seeder
             'view-fees', 'create-fees', 'edit-fees', 'delete-fees', 'collect-fees',
             // Report permissions
             'view-reports', 'generate-reports',
+            // Homework permissions (teachers assign it; the service limits them to their own subjects)
+            'view-homework', 'create-homework', 'edit-homework', 'delete-homework',
             // Settings permissions
             'view-settings', 'edit-settings',
         ];
@@ -58,6 +60,7 @@ class RolePermissionSeeder extends Seeder
             'view-students', 'view-attendance', 'mark-attendance',
             'view-exams', 'view-results', 'enter-results', 'edit-results',
             'view-subjects', 'view-classes',
+            'view-homework', 'create-homework', 'edit-homework', 'delete-homework',
         ]);
 
         // Non-teaching staff (admissions and the fee desk): students and fees, and a

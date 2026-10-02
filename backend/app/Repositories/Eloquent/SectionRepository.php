@@ -30,6 +30,11 @@ class SectionRepository extends EloquentRepository implements SectionRepositoryI
         return $section->routineSlots()->exists();
     }
 
+    public function hasHomework(Section $section): bool
+    {
+        return $section->homework()->exists();
+    }
+
     protected function query(): Builder
     {
         // A left join (shift_id stays nullable in the database for legacy rows, see

@@ -195,6 +195,12 @@ class StaffService
             'Staff member teaches in a class routine and cannot be deleted.'
         );
 
+        abort_if(
+            $this->staff->hasHomework($staff),
+            409,
+            'Staff member has assigned homework and cannot be deleted.'
+        );
+
         DB::transaction(function () use ($staff) {
             // A deleted staff member can no longer sign in.
             if ($staff->user_id && $login = $this->users->find($staff->user_id)) {

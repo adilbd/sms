@@ -18,7 +18,7 @@
 
     @include('portal._student', ['student' => $student])
 
-    <div class="mt-6 grid gap-4 sm:grid-cols-3">
+    <div class="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <section class="card-public p-5" aria-labelledby="att-title">
             <h2 id="att-title" class="text-sm font-medium text-gray-500">এই মাসের উপস্থিতি</h2>
             <p class="mt-2 text-3xl font-bold text-gray-900" data-testid="attendance-percentage">{{ BanglaNumber::format($attendance['percentage']) }}%</p>
@@ -42,6 +42,13 @@
             <p class="mt-2 text-3xl font-bold {{ Money::toPaisa($fees['outstanding_total']) > 0 ? 'text-red-700' : 'text-gray-900' }}" data-testid="outstanding-total">{{ Money::display($fees['outstanding_total']) }}</p>
             <p class="mt-1 text-sm text-gray-500">{{ $dueCount > 0 ? BanglaNumber::format($dueCount).'টি বকেয়া' : 'কোনো বকেয়া নেই' }}</p>
             <a href="{{ route('portal.fees') }}" class="mt-3 inline-block text-sm font-medium text-primary-700 hover:underline">বিস্তারিত</a>
+        </section>
+
+        <section class="card-public p-5" aria-labelledby="hw-title">
+            <h2 id="hw-title" class="text-sm font-medium text-gray-500">এই সপ্তাহের হোমওয়ার্ক</h2>
+            <p class="mt-2 text-3xl font-bold text-gray-900" data-testid="homework-due-count">{{ BanglaNumber::format($summary['homework_due_this_week']->count()) }}টি</p>
+            <p class="mt-1 text-sm text-gray-500">আগামী ৭ দিনে জমা দিতে হবে</p>
+            <a href="{{ route('portal.homework') }}" class="mt-3 inline-block text-sm font-medium text-primary-700 hover:underline">বিস্তারিত</a>
         </section>
     </div>
 

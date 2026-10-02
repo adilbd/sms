@@ -17,4 +17,7 @@ interface SectionRepositoryInterface extends RepositoryInterface
 
     /** Whether the section has a class routine. */
     public function hasRoutineSlots(Section $section): bool;
+
+    /** Whether the section has homework. */
+    public function hasHomework(Section $section): bool;
 }

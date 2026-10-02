@@ -5,8 +5,10 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Attendance\MonthAttendanceRequest;
 use App\Http\Requests\MyRecords\IndexMyAssignmentsRequest;
+use App\Http\Requests\MyRecords\IndexMyHomeworkRequest;
 use App\Http\Requests\MyRecords\ShowMyRoutineRequest;
 use App\Http\Resources\ExamResultResource;
+use App\Http\Resources\HomeworkResource;
 use App\Http\Resources\MyAssignmentsResource;
 use App\Http\Resources\MyExamScheduleResource;
 use App\Http\Resources\MyFeesResource;
@@ -117,5 +119,18 @@ class MyRecordsController extends Controller
         }
 
         return new TeacherRoutineResource($this->routines->forTeacherUser($user, $request->yearId()));
+    }
+
+    /**
+     * Homework for a student's own section, limited to the subjects they take, or for the
+     * chosen child of a guardian (`?student=`, the first child when omitted, 403 for anyone
+     * else's). Attachment links are short-lived signed URLs. The portal reads the same data
+     * through PortalService.
+     */
+    public function homework(IndexMyHomeworkRequest $request)
+    {
+        $student = $this->portal->resolveStudent($request->user(), $request->studentId(), null);
+
+        return HomeworkResource::signedCollection($this->portal->homework($student, $request->filters()));
     }
 }

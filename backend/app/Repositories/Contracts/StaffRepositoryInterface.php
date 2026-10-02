@@ -77,4 +77,7 @@ interface StaffRepositoryInterface extends RepositoryInterface
 
     /** Whether $staff teaches any routine slot. */
     public function isInRoutine(Staff $staff): bool;
+
+    /** Whether $staff is the author of any homework. */
+    public function hasHomework(Staff $staff): bool;
 }

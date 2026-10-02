@@ -568,4 +568,26 @@ class CurriculumApiTest extends TestCase
             ->assertUnprocessable()
             ->assertJsonValidationErrors(['subjects']);
     }
+
+    public function test_choice_subject_ids_memoization_does_not_leak_into_the_attributes(): void
+    {
+        $class = Classes::factory()->create(['number' => 9]);
+        $bio = ClassSubject::factory()->create([
+            'class_id' => $class->id, 'subject_id' => Subject::factory()->create()->id,
+            'group' => 'science', 'type' => 'compulsory', 'choice_group' => 'science-4th',
+        ]);
+        ClassSubject::factory()->create([
+            'class_id' => $class->id, 'subject_id' => Subject::factory()->create()->id,
+            'group' => 'science', 'type' => 'optional', 'choice_group' => 'science-4th',
+        ]);
+
+        $this->assertCount(2, $bio->choiceSubjectIds());
+        $this->assertCount(2, $bio->choiceSubjectIds());
+
+        $bio->sort_order = 5;
+        $bio->save();
+
+        $this->assertArrayNotHasKey('choiceSubjectIdsCache', $bio->getAttributes());
+        $this->assertSame(5, $bio->fresh()->sort_order);
+    }
 }

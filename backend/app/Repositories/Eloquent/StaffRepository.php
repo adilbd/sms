@@ -116,6 +116,11 @@ class StaffRepository extends EloquentRepository implements StaffRepositoryInter
         return $staff->routineSlots()->exists();
     }
 
+    public function hasHomework(Staff $staff): bool
+    {
+        return $staff->homework()->exists();
+    }
+
     protected function query(): Builder
     {
         return parent::query()

@@ -182,6 +182,24 @@ const routes = [
         meta: { title: 'Print Routine', role: 'teacher', kind: 'mine' },
       },
       {
+        path: 'homework',
+        name: 'Homework',
+        component: () => import('@/views/homework/HomeworkList.vue'),
+        meta: { title: 'Homework', permission: 'view-homework' },
+      },
+      {
+        path: 'homework/create',
+        name: 'Assign Homework',
+        component: () => import('@/views/homework/HomeworkForm.vue'),
+        meta: { title: 'Assign Homework', permission: 'create-homework' },
+      },
+      {
+        path: 'homework/:id/edit',
+        name: 'Edit Homework',
+        component: () => import('@/views/homework/HomeworkForm.vue'),
+        meta: { title: 'Edit Homework', permission: 'edit-homework' },
+      },
+      {
         path: 'classes',
         name: 'Classes',
         component: () => import('@/views/classes/ClassList.vue'),
