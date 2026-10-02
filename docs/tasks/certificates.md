@@ -1,6 +1,6 @@
 # Issue certificates and print student ID cards
 
-Status: in progress
+Status: done
 Branch: feat/certificates
 
 ## Problem
@@ -33,7 +33,7 @@ This is Task 4 of 4 in `/Users/adil/.claude/plans/make-the-plan-for-radiant-flur
    - **Testimonial**: uses the latest enrolment. Optional admin-entered fields: `exam` (`ssc`/`hsc`), `exam_roll`, `registration_no`, `board`, `passing_year`, `gpa` (`decimal:2`, 0–5), `session`; plus `conduct` (default "ভালো" / good) and `remarks`.
    - **Transfer certificate**:
      - Snapshot fields: admission date, last class and section, last attendance date (the latest `attendances.date` for the student, or null), `reason` (required, max 500), conduct, and the dues status.
-     - When the student has outstanding fees (any open due, through the Fees repositories), the issue is a 409 that names the amount, unless `allow_outstanding: true` is sent together with an `outstanding_note` (required with it, max 500). Both go in the snapshot.
+     - When the student has outstanding fees (dues that have fallen due by the issue month, `FeeDueRepositoryInterface::openDueByMonth()`), the issue is a 409 that names the amount, unless `allow_outstanding: true` is sent together with an `outstanding_note` (required with it, max 500). Both go in the snapshot.
      - A TC can't be issued to a student who isn't `active` (422 on `student_id`), and at most one non-cancelled TC per student (409).
      - Issuing it, in the same transaction, sets the student to `left` with `leaving_date` = the issue date through `StudentService::changeStatus()`, which already syncs the logins, guardian access and enrolment. A leaving-date problem from `leavingDateErrors()` is a 422.
      - Cancelling a TC does **not** reactivate the student; say so in the UI and the docs.
@@ -75,7 +75,7 @@ This is Task 4 of 4 in `/Users/adil/.claude/plans/make-the-plan-for-radiant-flur
 - [x] A TC is blocked by outstanding dues unless overridden with a note, and it sets the student to left.
 - [x] ID cards print per section or per student, 10 per A4 page.
 - [x] Permissions and teacher scope are enforced, and `ApiAuthorizationTest` passes.
-- [ ] The migration works on SQLite and MySQL, including rollback. SQLite is verified; MySQL is checked on Docker before the merge.
+- [x] The migration works on SQLite and MySQL, including rollback.
 - [x] The full suite, Pint, `npm run build` and smoke pass. CLAUDE.md is updated.
 
 ## Test cases
@@ -90,6 +90,7 @@ This is Task 4 of 4 in `/Users/adil/.claude/plans/make-the-plan-for-radiant-flur
   - A new Dhaka year starts again at 0001.
 - [x] **Transfer certificate:**
   - With an outstanding due → 409 naming the amount.
+  - A future month's due (or a later one-time due) doesn't block.
   - `allow_outstanding: true` without a note → 422; with a note → 201, and the note is in the snapshot.
   - After a TC the student is `left` with `leaving_date` = the issue date, the student login is inactive, the guardian login too when it was their only active child, and the enrolment is `left`.
   - A second TC → 409. A TC for a student who has already left → 422.
@@ -119,3 +120,15 @@ This is Task 4 of 4 in `/Users/adil/.claude/plans/make-the-plan-for-radiant-flur
 - **Order of TC checks:** the duplicate-TC 409 is checked before the "student not active" 422.
 - **Enrolment status after a TC:** `EnrolmentService::syncStatus()` runs after `changeStatus()`, as promotion does.
 - **Teacher scope:** a certificate with no enrolment is outside every teacher's scope.
+
+## Docker check (MySQL)
+- [x] Migrate, rollback and migrate again succeeded.
+- [x] Office staff issued TES-2026-0001, STU-2026-0001 and CHR-2026-0001. A teacher trying to issue got 403.
+- [x] A TC for a student with dues returned 409 with `outstanding`. The override with a note issued TC-2026-0001, and the student, their login and their enrolment are now `left`. A second TC returned 409, and office cancelling returned 403.
+- [x] After the fix, the outstanding amount counts only dues up to the issue month (৳7,990.00 for student 10, matching the database).
+- [x] ID cards for 10-A: 4 cards in roll order, valid until 2026-12-31, starting at the top of the A4 sheet. A teacher's cards have no guardian mobile; an admin's do.
+- [x] The TC print in Bangla shows the school header, the serial in ASCII, the dues amount with the override note, and the signature lines for the main class teacher and the head teacher. There are no console errors.
+
+## Review
+- Round 1 (63cf68d): changes-requested. Guardian mobiles reached teachers on ID cards, and the teacher scope ignored the academic year. Both are fixed, along with the nits and the future-dues fix from the Docker check.
+- Round 2 (dff4251): pass-with-nits. The task-doc nit and the print layout polish are in the final commit.

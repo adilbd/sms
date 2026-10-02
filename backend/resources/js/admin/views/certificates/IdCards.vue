@@ -42,7 +42,7 @@
             <dl class="idc-fields">
               <div class="idc-name"><dt>Name</dt><dd>{{ card.name_en || card.name_bn }}<small v-if="card.name_en && card.name_bn">{{ card.name_bn }}</small></dd></div>
               <div><dt>ID</dt><dd>{{ card.student_id }}</dd></div>
-              <div><dt>Class</dt><dd>{{ card.class_name }}, Sec {{ card.section }}<template v-if="card.group_en">, {{ card.group_en }}</template></dd></div>
+              <div><dt>Class</dt><dd>{{ card.class_name }}, {{ printedSection(card.section) }}<template v-if="card.group_en">, {{ card.group_en }}</template></dd></div>
               <div><dt>Roll</dt><dd>{{ card.roll_number ?? '-' }}<template v-if="card.shift_name_en"> · {{ card.shift_name_en }}</template></dd></div>
               <div v-if="card.blood_group"><dt>Blood</dt><dd>{{ card.blood_group }}</dd></div>
               <div v-if="card.guardian_mobile"><dt>Guardian</dt><dd>{{ card.guardian_mobile }}</dd></div>
@@ -59,7 +59,7 @@
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import api from '@/services/api'
-import { englishDate } from '@/utils/certificates'
+import { englishDate, sectionLabel as printedSection } from '@/utils/certificates'
 import { GROUP_LABELS } from '@/constants/academic'
 
 const route = useRoute()
@@ -155,11 +155,14 @@ onBeforeUnmount(() => {
   grid-template-columns: repeat(2, 85.6mm);
   grid-auto-rows: 54mm;
   gap: 4mm 8mm;
-  justify-content: center;
-  align-content: center;
+  justify-content: start;
+  align-content: start;
+  box-sizing: border-box;
+  /* Cards start at the top-left and fill row by row; the padding leaves room for the crop marks. */
+  padding: 5.5mm 15.4mm;
   width: 210mm;
   height: 297mm;
-  margin: 0 auto 8mm;
+  margin: 0 0 8mm;
   background: #fff;
   box-shadow: 0 0 0 1px #e5e7eb;
   break-after: page;

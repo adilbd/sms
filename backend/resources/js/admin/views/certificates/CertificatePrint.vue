@@ -2,7 +2,7 @@
   <div class="certificate-wrap">
     <div class="no-print flex flex-wrap items-center justify-between gap-3 mb-6">
       <div>
-        <h1 class="text-2xl font-bold text-gray-900">Certificate<span v-if="certificate"> {{ certificate.serial_no }}</span></h1>
+        <h1 class="text-2xl font-bold text-gray-900">Certificate<span v-if="certificate">&nbsp;{{ certificate.serial_no }}</span></h1>
         <p class="text-sm text-gray-500">A reprint always shows what was issued. Choose "Save as PDF" in the print dialog to make a PDF.</p>
       </div>
       <div class="flex flex-wrap items-end gap-2">
@@ -77,7 +77,8 @@
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import api from '@/services/api'
-import { CERTIFICATE_TYPES, DEFAULT_CONDUCT_BN, digits, longDate } from '@/utils/certificates'
+import { CERTIFICATE_TYPES, DEFAULT_CONDUCT_BN, digits, longDate, sectionLabel } from '@/utils/certificates'
+import { groupThousands, toPaisa } from '@/utils/money'
 
 const route = useRoute()
 
@@ -142,7 +143,7 @@ const classText = computed(() => {
   const p = placement.value
   const parts = [className.value]
   if (groupName.value) parts.push(groupName.value)
-  if (p.section) parts.push(bn.value ? `সেকশন ${p.section}` : `Section ${p.section}`)
+  if (p.section) parts.push(sectionLabel(p.section, bn.value))
   if (p.roll_number != null) parts.push(bn.value ? `রোল ${d(p.roll_number)}` : `roll ${p.roll_number}`)
   return parts.filter(Boolean).join(', ')
 })
@@ -196,6 +197,16 @@ const conductText = computed(() => {
 
 const dues = computed(() => data.value.dues ?? {})
 
+// "Issued with ৳17,400.00 dues outstanding — note", or "No dues" when nothing was owed.
+const duesText = computed(() => {
+  if (dues.value.status !== 'overridden' || toPaisa(dues.value.outstanding) <= 0) return t('কোনো বকেয়া নেই', 'No dues')
+
+  const amount = `৳${d(groupThousands(dues.value.outstanding))}`
+  const note = dues.value.note ? ` — ${dues.value.note}` : ''
+
+  return bn.value ? `বকেয়া ${amount} সহ ছাড়পত্র${note}` : `Issued with ${amount} dues outstanding${note}`
+})
+
 const transferRows = computed(() => {
   const x = data.value
   const rows = [
@@ -205,12 +216,12 @@ const transferRows = computed(() => {
     [t('মাতার নাম', "Mother's name"), motherName.value],
     [t('জন্ম তারিখ', 'Date of birth'), date(student.value.date_of_birth)],
     [t('ভর্তির তারিখ', 'Admission date'), date(x.admission_date)],
-    [t('সর্বশেষ শ্রেণি ও সেকশন', 'Last class and section'), [className.value, groupName.value, placement.value.section && `${t('সেকশন', 'Section')} ${placement.value.section}`].filter(Boolean).join(', ')],
+    [t('সর্বশেষ শ্রেণি ও সেকশন', 'Last class and section'), [className.value, groupName.value, placement.value.section && sectionLabel(placement.value.section, bn.value)].filter(Boolean).join(', ')],
     [t('সর্বশেষ উপস্থিতির তারিখ', 'Last attendance date'), date(x.last_attendance_date)],
     [t('ছাড়পত্র প্রদানের তারিখ', 'Date of leaving'), date(certificate.value.issued_on)],
     [t('ছাড়পত্র গ্রহণের কারণ', 'Reason for leaving'), x.reason],
     [t('আচরণ', 'Conduct'), !bn.value && x.conduct === DEFAULT_CONDUCT_BN ? 'Good' : x.conduct],
-    [t('বকেয়া ফি', 'Fee dues'), dues.value.status === 'overridden' ? `${t('বকেয়া সহ ছাড়পত্র', 'Issued with dues outstanding')}: ${dues.value.note || ''}` : t('কোনো বকেয়া নেই', 'No dues')],
+    [t('বকেয়া ফি', 'Fee dues'), duesText.value],
   ]
   return rows.filter((row) => row[1])
 })

@@ -28,5 +28,11 @@ export const longDate = (ymd, bangla) => {
   return bangla ? banglaDate(`${ymd.slice(0, 10)}T06:00:00+06:00`) : englishDate(ymd)
 }
 
+// A section's name as printed: "Section A" as is, but a bare code such as "A" gets the prefix.
+export const sectionLabel = (name, bangla = false) => {
+  if (!name) return ''
+  return /section|সেকশন/i.test(name) ? name : `${bangla ? 'সেকশন' : 'Section'} ${name}`
+}
+
 // Digits in the printed language.
 export const digits = (value, bangla) => (value === null || value === undefined ? '' : bangla ? banglaNumber(value) : String(value))
