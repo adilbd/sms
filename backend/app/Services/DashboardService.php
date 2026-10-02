@@ -98,7 +98,7 @@ class DashboardService
      */
     private function admin(AcademicYear $year, CarbonImmutable $now): array
     {
-        $sections = $this->dashboard->sections(null)->keyBy('id');
+        $sections = $this->dashboard->sections(null, $year->id)->keyBy('id');
         $groups = $this->dashboard->enrolmentGroups($year->id, null);
 
         return [
@@ -254,7 +254,7 @@ class DashboardService
         $teaching = $context?->teachingSectionIds() ?? [];
         $allIds = array_values(array_unique([...$leading, ...$teaching]));
 
-        $sections = $allIds === [] ? collect() : $this->dashboard->sections($allIds)->keyBy('id');
+        $sections = $allIds === [] ? collect() : $this->dashboard->sections($allIds, $year->id)->keyBy('id');
         $groups = $allIds === [] ? collect() : $this->dashboard->enrolmentGroups($year->id, $allIds);
 
         $assignments = $context?->assignments ?? collect();
@@ -584,7 +584,21 @@ class DashboardService
             'code' => $section->code,
             'class' => $section->class === null ? null : ['id' => $section->class->id, 'number' => $section->class->number, 'name' => $section->class->name],
             'shift' => $this->shiftSummary($section),
+            'class_teacher' => $this->mainClassTeacher($section),
         ];
+    }
+
+    /**
+     * The section's main class teacher for the year the section was loaded for (co-teachers
+     * are not shown here).
+     *
+     * @return array{id: int, name_en: ?string, name_bn: ?string}|null
+     */
+    private function mainClassTeacher(Section $section): ?array
+    {
+        $staff = $section->relationLoaded('mainClassSections') ? $section->mainClassSections->first()?->staff : null;
+
+        return $staff === null ? null : ['id' => $staff->id, 'name_en' => $staff->name_en, 'name_bn' => $staff->name_bn];
     }
 
     /**

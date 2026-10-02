@@ -97,10 +97,10 @@ Route::middleware('auth:sanctum')->group(function () {
         ->where(['class' => '[0-9]+']);
 
     // Sections. The class-teacher routes are registered before the resource so
-    // 'class-teachers'/'class-teacher' aren't captured by the {section} wildcard.
+    // 'class-teachers' isn't captured by the {section} wildcard.
     Route::get('sections/{section}/class-teachers', [\App\Http\Controllers\Api\SectionController::class, 'classTeachers'])
         ->where('section', '[0-9]+');
-    Route::put('sections/{section}/class-teacher', [\App\Http\Controllers\Api\SectionController::class, 'updateClassTeacher'])
+    Route::put('sections/{section}/class-teachers', [\App\Http\Controllers\Api\SectionController::class, 'updateClassTeachers'])
         ->where('section', '[0-9]+');
     Route::put('sections/{section}/subject-teachers', [\App\Http\Controllers\Api\SectionController::class, 'updateSubjectTeachers'])
         ->where('section', '[0-9]+');

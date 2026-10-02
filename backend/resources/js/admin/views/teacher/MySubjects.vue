@@ -41,7 +41,10 @@
         <p v-if="classTeacherOf.length === 0" class="text-gray-500">You are not a class teacher this year.</p>
         <ul v-else class="space-y-2">
           <li v-for="section in classTeacherOf" :key="section.id" class="flex items-center justify-between">
-            <span class="font-medium">{{ section.class?.name }} – {{ section.name }}</span>
+            <span class="font-medium">
+              {{ section.class?.name }} – {{ section.name }}
+              <span class="badge ml-1">{{ section.is_main ? 'Main class teacher' : 'Co-teacher' }}</span>
+            </span>
             <router-link :to="{ path: '/students', query: { section_id: section.id } }" class="text-primary-600 hover:text-primary-800 text-sm">
               View students
             </router-link>

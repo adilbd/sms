@@ -129,11 +129,11 @@ class SubjectAssignmentServiceTest extends TestCase
         $this->assertSame(['subject_id'], array_keys($this->errors(fn () => app(SubjectAssignmentService::class)->create($this->data()))));
     }
 
-    public function test_an_existing_assignment_for_the_subject_is_refused(): void
+    public function test_the_same_teacher_already_on_the_subject_is_refused(): void
     {
         $this->repos(['existing' => new SubjectAssignment, 'assignments' => fn ($m) => $m->shouldNotReceive('create')]);
 
-        $this->assertSame(['subject_id'], array_keys($this->errors(fn () => app(SubjectAssignmentService::class)->create($this->data()))));
+        $this->assertSame(['staff_id'], array_keys($this->errors(fn () => app(SubjectAssignmentService::class)->create($this->data()))));
     }
 
     public function test_no_active_year_is_refused_on_academic_year_id(): void
@@ -226,40 +226,40 @@ class SubjectAssignmentServiceTest extends TestCase
         $errors = $this->errors(fn () => app(SubjectAssignmentService::class)->syncForSection($this->section(), [
             'academic_year_id' => 3,
             'assignments' => [
-                ['subject_id' => 11, 'staff_id' => 7],
-                ['subject_id' => 99, 'staff_id' => 7],
-                ['subject_id' => 11, 'staff_id' => null],
+                ['subject_id' => 11, 'staff_ids' => [7]],
+                ['subject_id' => 99, 'staff_ids' => [7]],
+                ['subject_id' => 11, 'staff_ids' => []],
             ],
         ]));
 
         $this->assertEqualsCanonicalizing(
-            ['assignments.0.staff_id', 'assignments.1.subject_id', 'assignments.1.staff_id', 'assignments.2.subject_id'],
+            ['assignments.0.staff_ids.0', 'assignments.1.subject_id', 'assignments.1.staff_ids.0', 'assignments.2.subject_id'],
             array_keys($errors)
         );
     }
 
-    public function test_bulk_replaces_with_the_non_null_rows_and_returns_the_fresh_list(): void
+    public function test_bulk_replaces_with_every_teacher_of_each_subject_and_returns_the_fresh_list(): void
     {
         $this->repos(['assignments' => function (MockInterface $m) {
-            $m->shouldReceive('replaceForSection')->once()->with(\Mockery::type(Section::class), 3, [11 => 7]);
+            $m->shouldReceive('replaceForSection')->once()->with(\Mockery::type(Section::class), 3, [11 => [7, 8], 12 => []]);
             $m->shouldReceive('forSectionAndYear')->once()->andReturn(new Collection);
         }]);
 
         app(SubjectAssignmentService::class)->syncForSection($this->section(), [
             'academic_year_id' => 3,
-            'assignments' => [['subject_id' => 11, 'staff_id' => 7], ['subject_id' => 12, 'staff_id' => null]],
+            'assignments' => [['subject_id' => 11, 'staff_ids' => [7, 8, 7]], ['subject_id' => 12, 'staff_ids' => []]],
         ]);
     }
 
     public function test_bulk_removal_is_allowed_for_a_subject_that_left_the_curriculum(): void
     {
         $this->repos(['curriculum' => [], 'assignments' => function (MockInterface $m) {
-            $m->shouldReceive('replaceForSection')->once()->with(\Mockery::type(Section::class), 3, []);
+            $m->shouldReceive('replaceForSection')->once()->with(\Mockery::type(Section::class), 3, [11 => []]);
             $m->shouldReceive('forSectionAndYear')->once()->andReturn(new Collection);
         }]);
 
         app(SubjectAssignmentService::class)->syncForSection($this->section(), [
-            'academic_year_id' => 3, 'assignments' => [['subject_id' => 11, 'staff_id' => null]],
+            'academic_year_id' => 3, 'assignments' => [['subject_id' => 11, 'staff_ids' => []]],
         ]);
     }
 

@@ -20,7 +20,7 @@ class AdmissionTablesMigrationTest extends TestCase
 
     public function test_the_migration_rolls_back_and_runs_again(): void
     {
-        $this->artisan('migrate:rollback', ['--step' => 1])->assertSuccessful();
+        $this->artisan('migrate:rollback', ['--step' => 2])->assertSuccessful();
 
         foreach (['admission_rounds', 'admission_round_classes', 'admission_applications', 'admission_application_counters'] as $table) {
             $this->assertFalse(Schema::hasTable($table), $table);

@@ -69,4 +69,15 @@ class ExamResult extends Model
     {
         return $this->belongsTo(Section::class);
     }
+
+    /**
+     * The section's main class teacher in the exam's academic year, for the report card's
+     * signature line. Needs `section.mainClassSections.staff` and `exam` loaded.
+     */
+    public function mainClassTeacher(): ?Staff
+    {
+        return $this->section?->mainClassSections
+            ->firstWhere('academic_year_id', $this->exam?->academic_year_id)
+            ?->staff;
+    }
 }

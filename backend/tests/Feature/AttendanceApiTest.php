@@ -223,6 +223,26 @@ class AttendanceApiTest extends TestCase
         $this->sheet()->assertForbidden();
     }
 
+    public function test_a_co_teacher_can_use_the_sheet_and_a_retired_co_teacher_cannot(): void
+    {
+        $coTeacher = $this->userWithRole('teacher');
+        $staff = Staff::factory()->create(['user_id' => $coTeacher->id]);
+        $staff->shifts()->attach($this->section9->shift_id);
+        ClassSection::create([
+            'class_id' => $this->section9->class_id, 'section_id' => $this->section9->id,
+            'academic_year_id' => $this->year->id, 'staff_id' => $staff->id, 'is_main' => false,
+        ]);
+
+        $this->sheet('', $coTeacher)->assertOk();
+        $this->save(['date' => '2026-10-07', 'entries' => $this->entries()], $coTeacher)->assertOk();
+        $this->assertSame(3, Attendance::where('marked_by', $coTeacher->id)->count());
+
+        $staff->update(['status' => Staff::STATUS_RETIRED, 'leaving_date' => '2026-09-01']);
+
+        $this->sheet('', $coTeacher)->assertForbidden();
+        $this->save(['date' => '2026-10-07', 'entries' => $this->entries('absent')], $coTeacher)->assertForbidden();
+    }
+
     public function test_the_office_role_and_students_and_guardians_cannot_use_attendance(): void
     {
         foreach (['office', 'student', 'parent'] as $role) {

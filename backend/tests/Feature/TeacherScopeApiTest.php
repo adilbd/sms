@@ -191,6 +191,29 @@ class TeacherScopeApiTest extends TestCase
             ->assertJsonPath('data.class_teacher_of.0.id', $this->section7->id);
     }
 
+    public function test_my_assignments_returns_every_led_section_with_is_main_and_students_of_all_of_them(): void
+    {
+        $this->leadSection($this->physicsTeacher, $this->section7);
+        $staffId = Staff::where('user_id', $this->physicsTeacher->id)->firstOrFail()->id;
+        ClassSection::where('staff_id', $staffId)->update(['is_main' => true]);
+        ClassSection::create([
+            'class_id' => $this->section6->class_id, 'section_id' => $this->section6->id,
+            'academic_year_id' => $this->year->id, 'staff_id' => $staffId, 'is_main' => false,
+        ]);
+
+        $led = collect($this->as($this->physicsTeacher)->getJson('/api/my/assignments')->assertOk()->json('data.class_teacher_of'));
+
+        $this->assertEqualsCanonicalizing([$this->section7->id, $this->section6->id], $led->pluck('id')->all());
+        $this->assertTrue($led->firstWhere('id', $this->section7->id)['is_main']);
+        $this->assertFalse($led->firstWhere('id', $this->section6->id)['is_main']);
+
+        // Taught (9) plus both led sections.
+        $this->assertEqualsCanonicalizing(
+            [$this->in9->student_id, $this->in7->student_id, $this->in6->student_id],
+            $this->listedStudentIds($this->physicsTeacher)
+        );
+    }
+
     public function test_my_assignments_for_a_given_year(): void
     {
         $old = AcademicYear::factory()->create(['year' => 2025]);

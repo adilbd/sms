@@ -14,6 +14,8 @@ class ClassTeacherRepository implements ClassTeacherRepositoryInterface
         return ClassSection::where('section_id', $section->id)
             ->with(['staff', 'academicYear'])
             ->orderByDesc('academic_year_id')
+            ->orderByDesc('is_main')
+            ->orderBy('id')
             ->get();
     }
 
@@ -26,21 +28,34 @@ class ClassTeacherRepository implements ClassTeacherRepositoryInterface
             ->get();
     }
 
-    public function upsert(Section $section, int $academicYearId, int $staffId): ClassSection
+    public function forSectionAndYear(Section $section, int $academicYearId): Collection
     {
-        $classSection = ClassSection::updateOrCreate(
-            ['section_id' => $section->id, 'academic_year_id' => $academicYearId],
-            ['class_id' => $section->class_id, 'staff_id' => $staffId]
-        );
-
-        return $classSection->load('staff');
+        return ClassSection::where('section_id', $section->id)
+            ->where('academic_year_id', $academicYearId)
+            ->with(['staff', 'academicYear'])
+            ->orderByDesc('is_main')
+            ->orderBy('id')
+            ->get();
     }
 
-    public function deleteForSectionAndYear(Section $section, int $academicYearId): void
+    public function lockSection(Section $section): Section
+    {
+        return Section::query()->whereKey($section->getKey())->lockForUpdate()->firstOrFail();
+    }
+
+    public function replaceForSectionAndYear(Section $section, int $academicYearId, array $teachers): void
     {
         ClassSection::where('section_id', $section->id)
             ->where('academic_year_id', $academicYearId)
+            ->whereNotIn('staff_id', array_column($teachers, 'staff_id'))
             ->delete();
+
+        foreach ($teachers as $row) {
+            ClassSection::updateOrCreate(
+                ['section_id' => $section->id, 'academic_year_id' => $academicYearId, 'staff_id' => $row['staff_id']],
+                ['class_id' => $section->class_id, 'is_main' => $row['is_main']],
+            );
+        }
     }
 
     public function deleteForSection(Section $section): void
@@ -53,14 +68,6 @@ class ClassTeacherRepository implements ClassTeacherRepositoryInterface
         return ClassSection::where('section_id', $section->id)
             ->whereNotNull('staff_id')
             ->whereDoesntHave('staff', fn ($q) => $q->whereHas('shifts', fn ($s) => $s->where('shifts.id', $shiftId)))
-            ->exists();
-    }
-
-    public function teacherLeadsAnotherSection(int $academicYearId, int $staffId, ?int $exceptSectionId): bool
-    {
-        return ClassSection::where('academic_year_id', $academicYearId)
-            ->where('staff_id', $staffId)
-            ->when($exceptSectionId, fn ($q) => $q->where('section_id', '!=', $exceptSectionId))
             ->exists();
     }
 }

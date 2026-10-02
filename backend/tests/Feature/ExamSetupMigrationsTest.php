@@ -35,24 +35,26 @@ class ExamSetupMigrationsTest extends TestCase
         $this->assertNull($row->paper_group);
     }
 
-    public function test_the_unique_key_is_one_teacher_per_section_subject_year(): void
+    public function test_the_unique_key_is_one_row_per_teacher_per_section_subject_year(): void
     {
         $section = Section::factory()->create();
         $subject = Subject::factory()->create();
         $year = AcademicYear::factory()->create();
         $base = ['class_id' => $section->class_id, 'section_id' => $section->id, 'subject_id' => $subject->id, 'academic_year_id' => $year->id];
 
+        $staff = Staff::factory()->create();
+        SubjectAssignment::create([...$base, 'staff_id' => $staff->id]);
         SubjectAssignment::create([...$base, 'staff_id' => Staff::factory()->create()->id]);
 
         $this->expectException(UniqueConstraintViolationException::class);
-        SubjectAssignment::create([...$base, 'staff_id' => Staff::factory()->create()->id]);
+        SubjectAssignment::create([...$base, 'staff_id' => $staff->id]);
     }
 
     public function test_migrations_roll_back_and_re_run(): void
     {
         // Step back past every migration after the one that added class_subjects.paper_group (the
         // exam tables, results, staff logins, attendance, enrolled_on, choice_group and fee ones); raise it when a migration is added.
-        $this->artisan('migrate:rollback', ['--step' => 14])->assertSuccessful();
+        $this->artisan('migrate:rollback', ['--step' => 15])->assertSuccessful();
 
         $this->assertFalse(Schema::hasColumn('class_subjects', 'paper_group'));
 

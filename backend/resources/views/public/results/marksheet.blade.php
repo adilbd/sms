@@ -25,6 +25,8 @@
     $address = collect([$institute['village'] ?: $institute['street'], $institute['upazila'], $institute['district']])->filter()->implode(', ');
     $group = $result->enrolment?->group;
     $total = $result->passed_count + $result->failed_count;
+    $classTeacher = $result->mainClassTeacher();
+    $classTeacherName = $classTeacher ? $pick($classTeacher->name_bn, $classTeacher->name_en) : null;
 @endphp
 
 <article class="marksheet mx-auto rounded-lg border border-gray-300 bg-white p-6 text-[13px] leading-snug text-gray-900 {{ $orientation === 'landscape' ? 'max-w-5xl' : 'max-w-3xl' }}"
@@ -133,7 +135,7 @@
     </p>
 
     <footer class="mt-12 grid grid-cols-3 gap-8 text-center text-xs">
-        <div><span class="mb-1 block border-t border-gray-900"></span>{{ $t('শ্রেণি শিক্ষক', 'Class teacher') }}</div>
+        <div><span class="mb-1 block border-t border-gray-900"></span>@if ($classTeacherName)<strong class="block">{{ $classTeacherName }}</strong>@endif{{ $t('শ্রেণি শিক্ষক', 'Class teacher') }}</div>
         <div><span class="mb-1 block border-t border-gray-900"></span>{{ $t('প্রধান শিক্ষক', 'Head teacher') }}</div>
         <div><span class="mb-1 block border-t border-gray-900"></span>{{ $t('অভিভাবক', 'Guardian') }}</div>
     </footer>

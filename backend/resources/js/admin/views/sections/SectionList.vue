@@ -43,7 +43,7 @@
               <th>Shift</th>
               <th>Group</th>
               <th>Capacity</th>
-              <th>Class teacher</th>
+              <th>Class teachers</th>
               <th>Actions</th>
             </tr>
           </thead>
@@ -54,18 +54,22 @@
               <td>{{ section.shift?.name_en || '-' }}</td>
               <td>{{ section.group ? (GROUP_LABELS[section.group] || section.group) : '-' }}</td>
               <td>{{ section.capacity }}</td>
-              <td>
-                <select
-                  class="input"
-                  :value="classTeachers[section.id]?.staff?.id || ''"
+              <td class="min-w-[16rem]">
+                <ul v-if="classTeachers[section.id]?.length" class="space-y-0.5 text-sm">
+                  <li v-for="row in classTeachers[section.id]" :key="row.staff_id">
+                    {{ row.staff?.name_en || row.staff?.name_bn }}
+                    <span v-if="row.is_main" class="badge ml-1">Main</span>
+                  </li>
+                </ul>
+                <span v-else class="text-sm text-gray-500">Unassigned</span>
+                <button
+                  type="button"
+                  class="mt-1 text-sm text-primary-600 hover:text-primary-800"
                   :disabled="!selectedYearId"
-                  @change="assignClassTeacher(section, $event.target.value)"
+                  @click="openEditor(section)"
                 >
-                  <option value="">Unassigned</option>
-                  <option v-for="staff in eligibleTeachers[section.shift_id] || []" :key="staff.id" :value="staff.id">
-                    {{ staff.name_en || staff.name_bn }}
-                  </option>
-                </select>
+                  Edit class teachers
+                </button>
               </td>
               <td>
                 <div class="flex space-x-2">
@@ -77,6 +81,48 @@
             </tr>
           </tbody>
         </table>
+      </div>
+    </div>
+
+    <div
+      v-if="editing"
+      class="fixed inset-0 z-40 flex items-center justify-center bg-black/40 p-4"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="class-teachers-title"
+    >
+      <div class="card w-full max-w-lg space-y-4">
+        <h2 id="class-teachers-title" class="text-lg font-semibold text-gray-900">
+          Class teachers – {{ editing.class?.name }}, Section {{ editing.name }}
+        </h2>
+        <p class="text-sm text-gray-500">
+          Tick every class teacher and pick one as the main teacher. All of them can take attendance; the main one is
+          shown on report cards and the dashboard.
+        </p>
+
+        <fieldset class="space-y-1">
+          <legend class="sr-only">Class teachers</legend>
+          <div v-for="staff in eligibleTeachers[editing.shift_id] || []" :key="staff.id" class="flex items-center justify-between gap-3">
+            <label class="inline-flex items-center gap-2 text-sm">
+              <input v-model="draftIds" type="checkbox" :value="staff.id" @change="onToggle(staff.id)" />
+              {{ staff.name_en || staff.name_bn }}
+            </label>
+            <label class="inline-flex items-center gap-1.5 text-sm text-gray-600">
+              <input v-model="draftMainId" type="radio" name="main-class-teacher" :value="staff.id" :disabled="!draftIds.includes(staff.id)" />
+              Main
+            </label>
+          </div>
+          <p v-if="(eligibleTeachers[editing.shift_id] || []).length === 0" class="text-sm text-gray-500">No active teachers in this shift.</p>
+        </fieldset>
+
+        <p v-for="message in draftErrors" :key="message" class="text-sm text-red-600">{{ message }}</p>
+
+        <div class="flex justify-end gap-2">
+          <button type="button" class="btn btn-secondary" @click="editing = null">Cancel</button>
+          <button type="button" class="btn btn-primary" :disabled="saving" @click="saveClassTeachers">
+            {{ saving ? 'Saving...' : 'Save' }}
+          </button>
+        </div>
       </div>
     </div>
   </div>
@@ -95,6 +141,11 @@ const loading = ref(false)
 const selectedYearId = ref('')
 const classTeachers = reactive({})
 const eligibleTeachers = reactive({})
+const editing = ref(null)
+const draftIds = ref([])
+const draftMainId = ref(null)
+const draftErrors = ref([])
+const saving = ref(false)
 
 const filters = reactive({ class_id: '', shift_id: '', group: '' })
 
@@ -131,7 +182,7 @@ const fetchClassTeachers = async () => {
   await Promise.all(sections.value.map(async (section) => {
     try {
       const { data } = await api.get(`/sections/${section.id}/class-teachers`)
-      classTeachers[section.id] = data.data.find((row) => row.academic_year_id === selectedYearId.value) || null
+      classTeachers[section.id] = data.data.filter((row) => row.academic_year_id === selectedYearId.value)
     } catch (error) {
       console.error('Failed to fetch class teachers:', error)
     }
@@ -152,15 +203,41 @@ const fetchEligibleTeachers = async () => {
   }))
 }
 
-const assignClassTeacher = async (section, staffId) => {
+const openEditor = (section) => {
+  const rows = classTeachers[section.id] || []
+  editing.value = section
+  draftIds.value = rows.map((row) => row.staff_id)
+  draftMainId.value = rows.find((row) => row.is_main)?.staff_id ?? null
+  draftErrors.value = []
+}
+
+// The first teacher ticked becomes the main one; unticking the main one hands it to the next.
+const onToggle = (staffId) => {
+  if (!draftIds.value.includes(staffId)) {
+    if (draftMainId.value === staffId) draftMainId.value = draftIds.value[0] ?? null
+  } else if (draftMainId.value === null) {
+    draftMainId.value = staffId
+  }
+}
+
+const saveClassTeachers = async () => {
+  draftErrors.value = []
+  saving.value = true
   try {
-    const { data } = await api.put(`/sections/${section.id}/class-teacher`, {
+    const { data } = await api.put(`/sections/${editing.value.id}/class-teachers`, {
       academic_year_id: selectedYearId.value,
-      staff_id: staffId || null,
+      teachers: draftIds.value.map((id) => ({ staff_id: id, is_main: id === draftMainId.value })),
     })
-    classTeachers[section.id] = data.data
+    classTeachers[editing.value.id] = data.data
+    editing.value = null
   } catch (error) {
-    alert(error.response?.data?.message || 'Failed to assign class teacher')
+    if (error.response?.status === 422) {
+      draftErrors.value = Object.values(error.response.data.errors ?? {}).flat()
+    } else {
+      draftErrors.value = [error.response?.data?.message || 'Failed to save class teachers']
+    }
+  } finally {
+    saving.value = false
   }
 }
 

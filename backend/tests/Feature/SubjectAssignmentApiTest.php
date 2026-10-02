@@ -152,17 +152,24 @@ class SubjectAssignmentApiTest extends TestCase
             ->assertUnprocessable()->assertJsonValidationErrors(['subject_id']);
     }
 
-    public function test_a_duplicate_section_subject_year_is_rejected_even_for_another_teacher(): void
+    public function test_a_subject_can_have_several_teachers_but_not_the_same_one_twice(): void
     {
         $subject = $this->subjectInCurriculum();
+        $first = $this->teacher();
+        $this->as($this->admin)->postJson('/api/subject-assignments', $this->payload($subject, $first))->assertCreated();
         $this->as($this->admin)->postJson('/api/subject-assignments', $this->payload($subject, $this->teacher()))->assertCreated();
 
-        $this->as($this->admin)->postJson('/api/subject-assignments', $this->payload($subject, $this->teacher()))
-            ->assertUnprocessable()->assertJsonValidationErrors(['subject_id']);
+        $this->as($this->admin)->postJson('/api/subject-assignments', $this->payload($subject, $first))
+            ->assertUnprocessable()->assertJsonValidationErrors(['staff_id']);
+
+        // Moving an assignment onto a teacher who already has it is refused too.
+        $other = SubjectAssignment::where('subject_id', $subject->id)->where('staff_id', '!=', $first->id)->firstOrFail();
+        $this->as($this->admin)->putJson("/api/subject-assignments/{$other->id}", ['staff_id' => $first->id])
+            ->assertUnprocessable()->assertJsonValidationErrors(['staff_id']);
 
         // Another year is a different assignment.
         $next = AcademicYear::factory()->create();
-        $this->as($this->admin)->postJson('/api/subject-assignments', $this->payload($subject, $this->teacher(), ['academic_year_id' => $next->id]))->assertCreated();
+        $this->as($this->admin)->postJson('/api/subject-assignments', $this->payload($subject, $first, ['academic_year_id' => $next->id]))->assertCreated();
     }
 
     public function test_no_active_year_is_a_422_on_academic_year_id(): void
@@ -250,7 +257,7 @@ class SubjectAssignmentApiTest extends TestCase
 
         $this->as($this->admin)->putJson("/api/sections/{$this->section->id}/subject-teachers", [
             'academic_year_id' => $this->year->id,
-            'assignments' => array_map(fn ($s) => ['subject_id' => $s->id, 'staff_id' => $staff->id], $subjects),
+            'assignments' => array_map(fn ($s) => ['subject_id' => $s->id, 'staff_ids' => [$staff->id]], $subjects),
         ])
             ->assertOk()
             ->assertJsonCount(3, 'data')
@@ -259,7 +266,7 @@ class SubjectAssignmentApiTest extends TestCase
         $this->assertSame(3, SubjectAssignment::where('section_id', $this->section->id)->count());
     }
 
-    public function test_bulk_replaces_changes_and_removes_with_null(): void
+    public function test_bulk_replaces_the_whole_set_of_teachers(): void
     {
         [$a, $b, $c] = [$this->subjectInCurriculum(), $this->subjectInCurriculum(), $this->subjectInCurriculum()];
         $first = $this->teacher();
@@ -267,17 +274,26 @@ class SubjectAssignmentApiTest extends TestCase
         $url = "/api/sections/{$this->section->id}/subject-teachers";
 
         $this->as($this->admin)->putJson($url, ['academic_year_id' => $this->year->id, 'assignments' => [
-            ['subject_id' => $a->id, 'staff_id' => $first->id],
-            ['subject_id' => $b->id, 'staff_id' => $first->id],
-            ['subject_id' => $c->id, 'staff_id' => $first->id],
-        ]])->assertOk();
+            ['subject_id' => $a->id, 'staff_ids' => [$first->id]],
+            ['subject_id' => $b->id, 'staff_ids' => [$first->id, $second->id]],
+            ['subject_id' => $c->id, 'staff_ids' => [$first->id]],
+        ]])->assertOk()->assertJsonCount(4, 'data');
 
+        // The whole set is replaced: a changes teacher, b loses everyone, c is left out.
         $this->as($this->admin)->putJson($url, ['academic_year_id' => $this->year->id, 'assignments' => [
-            ['subject_id' => $a->id, 'staff_id' => $second->id],
-            ['subject_id' => $b->id, 'staff_id' => null],
+            ['subject_id' => $a->id, 'staff_ids' => [$second->id]],
+            ['subject_id' => $b->id, 'staff_ids' => []],
         ]])->assertOk()->assertJsonCount(1, 'data')->assertJsonPath('data.0.staff_id', $second->id);
 
         $this->assertSame(1, SubjectAssignment::count());
+
+        // Two teachers on one subject, then one of them dropped.
+        $this->as($this->admin)->putJson($url, ['academic_year_id' => $this->year->id, 'assignments' => [
+            ['subject_id' => $a->id, 'staff_ids' => [$first->id, $second->id]],
+        ]])->assertOk()->assertJsonCount(2, 'data');
+        $this->as($this->admin)->putJson($url, ['academic_year_id' => $this->year->id, 'assignments' => [
+            ['subject_id' => $a->id, 'staff_ids' => [$first->id]],
+        ]])->assertOk()->assertJsonCount(1, 'data')->assertJsonPath('data.0.staff_id', $first->id);
     }
 
     public function test_bulk_errors_are_keyed_per_row_and_nothing_is_written(): void
@@ -290,13 +306,13 @@ class SubjectAssignmentApiTest extends TestCase
         $this->as($this->admin)->putJson("/api/sections/{$this->section->id}/subject-teachers", [
             'academic_year_id' => $this->year->id,
             'assignments' => [
-                ['subject_id' => $good->id, 'staff_id' => $teacher->id],
-                ['subject_id' => $outside->id, 'staff_id' => $teacher->id],
-                ['subject_id' => $good->id, 'staff_id' => $wrongShift->id],
+                ['subject_id' => $good->id, 'staff_ids' => [$teacher->id]],
+                ['subject_id' => $outside->id, 'staff_ids' => [$teacher->id]],
+                ['subject_id' => $good->id, 'staff_ids' => [$teacher->id, $wrongShift->id]],
             ],
         ])
             ->assertUnprocessable()
-            ->assertJsonValidationErrors(['assignments.1.subject_id', 'assignments.2.staff_id', 'assignments.2.subject_id']);
+            ->assertJsonValidationErrors(['assignments.1.subject_id', 'assignments.2.staff_ids.1', 'assignments.2.subject_id']);
 
         $this->assertDatabaseCount('subject_assignments', 0);
     }
@@ -307,7 +323,7 @@ class SubjectAssignmentApiTest extends TestCase
 
         $this->as($this->admin)->putJson($url, [])->assertUnprocessable()->assertJsonValidationErrors(['academic_year_id', 'assignments']);
         $this->as($this->admin)->putJson($url, ['academic_year_id' => $this->year->id, 'assignments' => [['subject_id' => 1]]])
-            ->assertUnprocessable()->assertJsonValidationErrors(['assignments.0.staff_id']);
+            ->assertUnprocessable()->assertJsonValidationErrors(['assignments.0.staff_ids']);
         $this->as($this->admin)->putJson('/api/sections/9999/subject-teachers', ['academic_year_id' => $this->year->id, 'assignments' => []])->assertNotFound();
         $this->as($this->admin)->putJson('/api/sections/1abc/subject-teachers', [])->assertNotFound();
     }
@@ -391,8 +407,8 @@ class SubjectAssignmentApiTest extends TestCase
         $this->as($this->admin)->putJson("/api/sections/{$science->id}/subject-teachers", [
             'academic_year_id' => $this->year->id,
             'assignments' => [
-                ['subject_id' => $scienceOnly->id, 'staff_id' => $staff->id],
-                ['subject_id' => $humanitiesOnly->id, 'staff_id' => $staff->id],
+                ['subject_id' => $scienceOnly->id, 'staff_ids' => [$staff->id]],
+                ['subject_id' => $humanitiesOnly->id, 'staff_ids' => [$staff->id]],
             ],
         ])->assertUnprocessable()->assertJsonValidationErrors(['assignments.1.subject_id']);
     }

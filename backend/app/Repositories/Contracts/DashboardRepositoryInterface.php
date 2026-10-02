@@ -27,11 +27,12 @@ interface DashboardRepositoryInterface
     public function enrolmentGroups(int $academicYearId, ?array $sectionIds): SupportCollection;
 
     /**
-     * Sections (not deleted, active or not) with their class and shift loaded.
+     * Sections (not deleted, active or not) with their class and shift loaded, and their
+     * main class teacher for $academicYearId (`mainClassSections.staff`).
      *
      * @param  list<int>|null  $sectionIds
      */
-    public function sections(?array $sectionIds): Collection;
+    public function sections(?array $sectionIds, int $academicYearId): Collection;
 
     /**
      * Active staff counted: `total`, `teachers`, `with_login`.

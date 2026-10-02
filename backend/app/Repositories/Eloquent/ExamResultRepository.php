@@ -16,7 +16,7 @@ use Illuminate\Database\Eloquent\Collection;
 class ExamResultRepository implements ExamResultRepositoryInterface
 {
     /** What a single result's breakdown and report card show. */
-    private const DETAIL = ['student', 'enrolment', 'class', 'section.shift', 'exam.academicYear'];
+    private const DETAIL = ['student', 'enrolment', 'class', 'section.shift', 'section.mainClassSections.staff', 'exam.academicYear'];
 
     public function activeEnrolments(Exam $exam, int $classId): Collection
     {

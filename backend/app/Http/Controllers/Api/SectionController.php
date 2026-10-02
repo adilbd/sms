@@ -3,8 +3,8 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Http\Requests\Section\AssignClassTeacherRequest;
 use App\Http\Requests\Section\IndexSectionRequest;
+use App\Http\Requests\Section\ReplaceClassTeachersRequest;
 use App\Http\Requests\Section\StoreSectionRequest;
 use App\Http\Requests\Section\UpdateSectionRequest;
 use App\Http\Requests\SubjectAssignment\SyncSectionSubjectTeachersRequest;
@@ -32,7 +32,7 @@ class SectionController extends Controller implements HasMiddleware
         // Sections belong to classes and share their permissions.
         return static::resourcePermissions('classes', [
             'classTeachers' => 'view-classes',
-            'updateClassTeacher' => 'edit-classes',
+            'updateClassTeachers' => 'edit-classes',
             'updateSubjectTeachers' => 'edit-classes',
         ]);
     }
@@ -88,13 +88,11 @@ class SectionController extends Controller implements HasMiddleware
         return ClassTeacherResource::collection($this->classTeachers->listForSection($section));
     }
 
-    public function updateClassTeacher(AssignClassTeacherRequest $request, Section $section)
+    public function updateClassTeachers(ReplaceClassTeachersRequest $request, Section $section)
     {
-        $result = $this->classTeachers->assign($section, $request->validated());
-
-        $message = $result->staff ? 'Class teacher assigned successfully' : 'Class teacher removed successfully';
-
-        return (new ClassTeacherResource($result))->additional(['message' => $message]);
+        return ClassTeacherResource::collection(
+            $this->classTeachers->replace($section, $request->validated())
+        )->additional(['message' => 'Class teachers updated successfully']);
     }
 
     public function updateSubjectTeachers(SyncSectionSubjectTeachersRequest $request, Section $section)

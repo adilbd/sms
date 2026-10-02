@@ -21,8 +21,8 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 /**
- * Who teaches each subject in each section, per academic year: one teacher per
- * (section, subject, year). Marks may only be entered by that teacher or an admin
+ * Who teaches each subject in each section, per academic year: any number of teachers per
+ * (section, subject, year). Marks may be entered by any of those teachers or an admin
  * (see canEnterMarks()).
  */
 class SubjectAssignmentService
@@ -78,7 +78,7 @@ class SubjectAssignmentService
                 throw ValidationException::withMessages(['subject_id' => [$this->notInCurriculum($section)]]);
             }
 
-            if ($this->assignments->findFor($section->id, $subjectId, $year->id)) {
+            if ($this->assignments->findFor($section->id, $subjectId, $year->id, $staff->id)) {
                 throw $this->duplicate();
             }
 
@@ -110,7 +110,12 @@ class SubjectAssignmentService
                 throw ValidationException::withMessages(['staff_id' => [$problem]]);
             }
 
-            return $this->find($this->assignments->update($assignment, ['staff_id' => $staff->id]));
+            if ($staff->id !== (int) $assignment->staff_id
+                && $this->assignments->findFor($section->id, (int) $assignment->subject_id, (int) $assignment->academic_year_id, $staff->id)) {
+                throw $this->duplicate();
+            }
+
+            return $this->find($this->withUniqueAssignment(fn () => $this->assignments->update($assignment, ['staff_id' => $staff->id])));
         });
     }
 
@@ -121,11 +126,12 @@ class SubjectAssignmentService
 
     /**
      * Replaces the section's assignments for the year in one transaction, with the
-     * section row locked. A null `staff_id` removes that subject's assignment, and a
-     * subject left out of the list is removed too. Every rule is checked before anything
-     * is written, with errors keyed per row (`assignments.2.staff_id`).
+     * section row locked. Each subject gets exactly its `staff_ids` (an empty list removes
+     * the subject's teachers), and a subject left out of the list is removed too. Every
+     * rule is checked before anything is written, with errors keyed per row
+     * (`assignments.2.staff_ids.1`).
      *
-     * @param  array{academic_year_id: int, assignments: list<array{subject_id: int, staff_id?: int|null}>}  $data
+     * @param  array{academic_year_id: int, assignments: list<array{subject_id: int, staff_ids: list<int>}>}  $data
      */
     public function syncForSection(Section $section, array $data): Collection
     {
@@ -141,7 +147,7 @@ class SubjectAssignmentService
 
             foreach (array_values($data['assignments']) as $i => $row) {
                 $subjectId = (int) $row['subject_id'];
-                $staffId = $row['staff_id'] ?? null;
+                $staffIds = array_values(array_unique(array_map('intval', $row['staff_ids'] ?? [])));
 
                 if (isset($seen[$subjectId])) {
                     $errors["assignments.{$i}.subject_id"][] = 'This subject is listed more than once.';
@@ -149,9 +155,11 @@ class SubjectAssignmentService
 
                 $seen[$subjectId] = true;
 
-                // Removing an assignment is always allowed, even for a subject that has
+                // Removing every teacher is always allowed, even for a subject that has
                 // left the curriculum since.
-                if ($staffId === null) {
+                if ($staffIds === []) {
+                    $wanted[$subjectId] = [];
+
                     continue;
                 }
 
@@ -159,13 +167,15 @@ class SubjectAssignmentService
                     $errors["assignments.{$i}.subject_id"][] = $this->notInCurriculum($locked);
                 }
 
-                $staff = $staffById[$staffId] ??= $this->staff->findOrFail((int) $staffId);
+                foreach ($staffIds as $j => $staffId) {
+                    $staff = $staffById[$staffId] ??= $this->staff->findOrFail($staffId);
 
-                if ($problem = $this->staffProblem($staff, $locked)) {
-                    $errors["assignments.{$i}.staff_id"][] = $problem;
+                    if ($problem = $this->staffProblem($staff, $locked)) {
+                        $errors["assignments.{$i}.staff_ids.{$j}"][] = $problem;
+                    }
                 }
 
-                $wanted[$subjectId] = (int) $staffId;
+                $wanted[$subjectId] = $staffIds;
             }
 
             if ($errors !== []) {
@@ -180,8 +190,8 @@ class SubjectAssignmentService
 
     /**
      * Whether $user may enter marks for $subject in $section for $year: an admin always,
-     * otherwise only the user whose linked staff row (`staff.user_id`) holds that
-     * assignment, and only while that staff member is still active (a retired or
+     * otherwise any user whose linked staff row (`staff.user_id`) holds one of that
+     * subject's assignments (a subject may have several teachers), and only while that staff member is still active (a retired or
      * transferred teacher may not). A user with no staff link, or another teacher, may not.
      */
     public function canEnterMarks(User $user, Section $section, Subject $subject, AcademicYear $year): bool
@@ -246,7 +256,7 @@ class SubjectAssignmentService
     private function duplicate(): ValidationException
     {
         return ValidationException::withMessages([
-            'subject_id' => ['This subject already has a teacher in this section for the academic year. Change that assignment instead.'],
+            'staff_id' => ['This teacher is already assigned to this subject in this section for the academic year.'],
         ]);
     }
 
@@ -259,7 +269,7 @@ class SubjectAssignmentService
         try {
             return $write();
         } catch (UniqueConstraintViolationException $e) {
-            if (UniqueViolation::is($e, 'subject_assignments', ['section_id', 'subject_id', 'academic_year_id'], 'subject_assignments_section_subject_year_unique')) {
+            if (UniqueViolation::is($e, 'subject_assignments', ['section_id', 'subject_id', 'academic_year_id', 'staff_id'], 'subject_assignments_section_subject_year_staff_unique')) {
                 throw $this->duplicate();
             }
 

@@ -7,7 +7,7 @@
         </h1>
         <p v-if="section" class="text-sm text-gray-500">
           {{ section.shift?.name_en }} shift<template v-if="section.group"> · {{ GROUP_LABELS[section.group] || section.group }} group</template>.
-          One teacher per subject for the chosen academic year; only that teacher (or an admin) can enter its marks.
+          Tick every teacher of a subject for the chosen academic year; each of them (or an admin) can enter its marks.
         </p>
       </div>
       <router-link to="/sections" class="btn btn-secondary">Back to sections</router-link>
@@ -54,12 +54,13 @@
                 </td>
                 <td>{{ row.type === 'optional' ? 'Optional (4th)' : 'Compulsory' }}</td>
                 <td>
-                  <select v-model="row.staff_id" class="input" @change="clearErrors">
-                    <option value="">Unassigned</option>
-                    <option v-for="staff in teachers" :key="staff.id" :value="staff.id">
+                  <div class="flex flex-wrap gap-x-4 gap-y-1" role="group" :aria-label="`Teachers of ${row.subject?.name}`">
+                    <label v-for="staff in teachers" :key="staff.id" class="inline-flex items-center gap-1.5 text-sm">
+                      <input v-model="row.staff_ids" type="checkbox" :value="staff.id" @change="clearErrors" />
                       {{ staff.name_en || staff.name_bn }}
-                    </option>
-                  </select>
+                    </label>
+                    <span v-if="teachers.length === 0" class="text-sm text-gray-500">No active teachers in this shift.</span>
+                  </div>
                   <p v-for="message in rowErrors(index)" :key="message" class="text-sm text-red-600 mt-1">{{ message }}</p>
                 </td>
               </tr>
@@ -109,18 +110,24 @@ const rowErrors = (index) =>
     .filter(([key]) => key.startsWith(`assignments.${index}.`))
     .flatMap(([, messages]) => messages)
 
+// Every assignment row is one teacher of one subject: group them per subject row.
+const withTeachers = (assignments) =>
+  rows.value.map((r) => ({
+    ...r,
+    staff_ids: assignments.filter((a) => a.subject_id === r.subject_id).map((a) => a.staff_id),
+  }))
+
 const loadAssignments = async () => {
   clearErrors()
   if (!selectedYearId.value) {
-    rows.value = rows.value.map((r) => ({ ...r, staff_id: '' }))
+    rows.value = rows.value.map((r) => ({ ...r, staff_ids: [] }))
     return
   }
   try {
     const { data } = await api.get('/subject-assignments', {
       params: { section_id: section.value.id, academic_year_id: selectedYearId.value, per_page: 100 },
     })
-    const bySubject = new Map(data.data.map((a) => [a.subject_id, a.staff_id]))
-    rows.value = rows.value.map((r) => ({ ...r, staff_id: bySubject.get(r.subject_id) ?? '' }))
+    rows.value = withTeachers(data.data)
   } catch (error) {
     alert(error.response?.data?.message || 'Failed to load subject teachers')
   }
@@ -149,7 +156,7 @@ const load = async () => {
     const seen = new Set()
     rows.value = curriculumRes.data.data
       .filter((c) => !seen.has(c.subject_id) && seen.add(c.subject_id))
-      .map((c) => ({ subject_id: c.subject_id, subject: c.subject, type: c.type, staff_id: '' }))
+      .map((c) => ({ subject_id: c.subject_id, subject: c.subject, type: c.type, staff_ids: [] }))
 
     await loadAssignments()
   } catch (error) {
@@ -166,10 +173,9 @@ const save = async () => {
   try {
     const { data } = await api.put(`/sections/${section.value.id}/subject-teachers`, {
       academic_year_id: selectedYearId.value,
-      assignments: rows.value.map((r) => ({ subject_id: r.subject_id, staff_id: r.staff_id || null })),
+      assignments: rows.value.map((r) => ({ subject_id: r.subject_id, staff_ids: r.staff_ids })),
     })
-    const bySubject = new Map(data.data.map((a) => [a.subject_id, a.staff_id]))
-    rows.value = rows.value.map((r) => ({ ...r, staff_id: bySubject.get(r.subject_id) ?? '' }))
+    rows.value = withTeachers(data.data)
     alert(data.message || 'Subject teachers updated successfully')
   } catch (error) {
     if (error.response?.status === 422) {

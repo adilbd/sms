@@ -10,7 +10,7 @@ use Illuminate\Http\Resources\Json\JsonResource;
  * @mixin TeacherContext|null
  *
  * A signed-in teacher's own work for one academic year: the subjects they teach (each with
- * its section and class) and the sections they lead as class teacher. A teacher with no
+ * its section and class) and every section they lead as class teacher (main or co-teacher, with `is_main`). A teacher with no
  * staff link (null resource) gets an empty block. Expects the context's relations loaded
  * by TeacherScope::forUser().
  */
@@ -31,7 +31,10 @@ class MyAssignmentsResource extends JsonResource
                 ])->values()->all()
                 : [],
             'class_teacher_of' => $context
-                ? SectionResource::collection($context->classSections->map(fn ($row) => $row->section)->values())->resolve()
+                ? $context->classSections->map(fn ($row) => [
+                    ...(new SectionResource($row->section))->resolve(),
+                    'is_main' => (bool) $row->is_main,
+                ])->values()->all()
                 : [],
         ];
     }

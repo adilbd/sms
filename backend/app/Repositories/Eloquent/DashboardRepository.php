@@ -32,11 +32,15 @@ class DashboardRepository implements DashboardRepositoryInterface
             ->get();
     }
 
-    public function sections(?array $sectionIds): Collection
+    public function sections(?array $sectionIds, int $academicYearId): Collection
     {
         return Section::query()
             ->when($sectionIds !== null, fn ($q) => $q->whereIn('id', $sectionIds))
-            ->with(['class', 'shift'])
+            ->with([
+                'class',
+                'shift',
+                'mainClassSections' => fn ($q) => $q->where('academic_year_id', $academicYearId)->with('staff'),
+            ])
             ->orderBy('class_id')
             ->orderBy('shift_id')
             ->orderBy('code')
