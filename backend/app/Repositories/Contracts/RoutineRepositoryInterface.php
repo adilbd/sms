@@ -29,6 +29,15 @@ interface RoutineRepositoryInterface
     public function lockAcademicYear(int $academicYearId): AcademicYear;
 
     /**
+     * Locks every academic year row in ascending id (what a period move needs, since a
+     * routine save in any year may hold slots of the period) and returns the ids. Taken
+     * after any shift and period lock; call inside a transaction.
+     *
+     * @return list<int>
+     */
+    public function lockAcademicYears(): array;
+
+    /**
      * Every slot of the section in the year with its period and subject and teacher, in
      * period order.
      *
@@ -57,6 +66,18 @@ interface RoutineRepositoryInterface
      * shifts clash when their times overlap. Loaded with its section, class and period.
      */
     public function findTeacherClash(int $academicYearId, int $exceptSectionId, int $staffId, string $day, string $start, string $end, ?int $exceptPeriodId = null): ?RoutineSlot;
+
+    /**
+     * Every slot of the year in sections other than $exceptSectionId that is taught by one
+     * of $staffIds or uses one of $roomKeys, with its section, class and period, in id order.
+     * One query that lets a whole grid be checked for clashes in memory (the same overlap
+     * rule as findTeacherClash()/findRoomClash()).
+     *
+     * @param  list<int>  $staffIds
+     * @param  list<string>  $roomKeys
+     * @return Collection<int, RoutineSlot>
+     */
+    public function otherSectionSlots(int $academicYearId, int $exceptSectionId, array $staffIds, array $roomKeys): Collection;
 
     /**
      * Like findTeacherClash(), for a room (`$roomKey` is the normalized room name).

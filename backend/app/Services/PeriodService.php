@@ -59,11 +59,27 @@ class PeriodService
         $data = $this->normalizeTimes($data);
 
         return DB::transaction(function () use ($period, $data) {
+            // Lock order: shift, then the period row, then (only when the times move) every
+            // academic year in ascending id. The period is re-read under its lock, so the
+            // checks below use its current state, not the route-bound copy.
             $this->shifts->lockForUpdate([(int) $period->shift_id]);
+            $period = $this->periods->lockForUpdate($period);
 
             // Checked against the period with the input applied, so a partial update that
             // sends only one of the two times is still validated.
             $merged = (clone $period)->fill($data);
+            $moves = $merged->start_time !== $period->start_time || $merged->end_time !== $period->end_time;
+
+            if ($moves) {
+                // A routine save in ANY year may add or remove slots of this period, and we
+                // can't know which years before looking. Routine saves lock section, then
+                // year, and never the shift or the period, so the year rows are the only
+                // locks both paths take and they are always taken last: no deadlock. Holding
+                // every year row means no save is in flight, so the slots read afterwards are
+                // final.
+                $this->routines->lockAcademicYears();
+            }
+
             $used = $this->periods->isUsedInRoutine($period);
 
             if ($used && $merged->is_break) {
@@ -74,16 +90,7 @@ class PeriodService
 
             $this->ensureTimesAreValid($merged, $period->id);
 
-            if ($used && ($merged->start_time !== $period->start_time || $merged->end_time !== $period->end_time)) {
-                // Lock order: shift, then the affected years in ascending id. Routine saves
-                // lock section then year and never the shift, so the year row is the only
-                // lock both paths share and it is always taken last: no deadlock.
-                $yearIds = $this->routines->usingPeriod($period)->pluck('academic_year_id')->map(fn ($id) => (int) $id)->unique()->sort()->values();
-
-                foreach ($yearIds as $yearId) {
-                    $this->routines->lockAcademicYear($yearId);
-                }
-
+            if ($used && $moves) {
                 $this->ensureMovedSlotsDoNotClash($merged);
             }
 

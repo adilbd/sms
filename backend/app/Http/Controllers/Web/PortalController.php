@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Portal\PortalChangePasswordRequest;
 use App\Http\Requests\Portal\PortalMarksheetRequest;
 use App\Http\Requests\Portal\PortalPageRequest;
+use App\Http\Requests\Portal\PortalPrintRequest;
 use App\Http\Requests\Portal\PortalReceiptRequest;
 use App\Models\Homework;
 use App\Services\AuthService;
@@ -52,8 +53,11 @@ class PortalController extends Controller
             $request->validated('new_password'),
         );
 
-        // Keep this session, end every other one for the account (AuthenticateSession checks the hash).
-        Auth::guard('web')->logoutOtherDevices($request->validated('new_password'));
+        // The password was written once, above. Every other session holds the old hash, so
+        // the `AuthenticateSession` middleware of the portal group signs it out on its next
+        // request, with nothing further to run that could fail half way. This session is
+        // kept by storing the new hash in it.
+        $request->session()->put('password_hash_'.Auth::getDefaultDriver(), $request->user()->getAuthPassword());
         $request->session()->regenerate();
 
         return redirect()->route('portal.profile')->with('status', 'password-changed');
@@ -122,7 +126,7 @@ class PortalController extends Controller
         ]);
     }
 
-    public function routine(PortalPageRequest $request)
+    public function routine(PortalPrintRequest $request)
     {
         [, $student] = $this->context($request);
 

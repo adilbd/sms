@@ -97,6 +97,18 @@ class ExamSubject extends Model
             ->all();
     }
 
+    /**
+     * Hands over the choice pair's subject ids when the caller already holds the pair's
+     * rows (a dashboard loading a whole exam's subjects), so choiceSubjectIds() doesn't
+     * query for each one.
+     *
+     * @param  list<int>  $subjectIds
+     */
+    public function rememberChoiceSubjectIds(array $subjectIds): void
+    {
+        $this->choiceSubjectIdsCache = array_values($subjectIds);
+    }
+
     /** The parts (written, mcq, practical) this subject is marked in. */
     public function parts(): array
     {

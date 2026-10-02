@@ -22,10 +22,8 @@ class PortalPageRequest extends FormRequest
         return [
             'student' => ['sometimes', 'nullable', 'integer', 'min:1', 'max:4294967295'],
             'month' => ['sometimes', 'nullable', 'date_format:Y-m'],
-            // Print options; the marksheet and receipt requests narrow `page`.
-            'language' => ['sometimes', 'nullable', 'in:bn,en'],
-            'page' => ['sometimes', 'nullable', 'in:a4'],
-            'orientation' => ['sometimes', 'nullable', 'in:portrait,landscape'],
+            // Print options (`language`, `orientation`, the paper `page`) live in PortalPrintRequest,
+            // so a plain page never rejects or narrows a `?page=` it doesn't use.
         ];
     }
 

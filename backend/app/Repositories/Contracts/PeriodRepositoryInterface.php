@@ -25,4 +25,10 @@ interface PeriodRepositoryInterface extends RepositoryInterface
      * @return Collection<int, Period>
      */
     public function forShift(int $shiftId): Collection;
+
+    /**
+     * Takes a row lock on the period (`select ... for update`) and returns the fresh row.
+     * Call inside a transaction; a no-op lock on SQLite.
+     */
+    public function lockForUpdate(Period $period): Period;
 }

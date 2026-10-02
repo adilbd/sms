@@ -3,7 +3,7 @@
 namespace App\Http\Requests\Portal;
 
 /** The marksheet print options: `page` is one of a4, legal. */
-class PortalMarksheetRequest extends PortalPageRequest
+class PortalMarksheetRequest extends PortalPrintRequest
 {
     public function rules(): array
     {

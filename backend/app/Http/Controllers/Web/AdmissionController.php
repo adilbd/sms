@@ -22,6 +22,9 @@ use Illuminate\Support\Facades\URL;
  */
 class AdmissionController extends Controller
 {
+    /** How long the copy's signed photo link works: long enough to reprint from an open tab. */
+    private const PHOTO_URL_MINUTES = 60;
+
     public function __construct(private AdmissionService $admissions) {}
 
     public function index()
@@ -113,6 +116,6 @@ class AdmissionController extends Controller
     {
         return $application->photo_path === null
             ? null
-            : URL::temporarySignedRoute('admissions.copy-photo', now()->addMinutes(10), ['application' => $application->id]);
+            : URL::temporarySignedRoute('admissions.copy-photo', now()->addMinutes(self::PHOTO_URL_MINUTES), ['application' => $application->id]);
     }
 }

@@ -29,6 +29,11 @@ class StaffRepository extends EloquentRepository implements StaffRepositoryInter
             ->exists();
     }
 
+    public function findManyByIds(array $ids): Collection
+    {
+        return $ids === [] ? new Collection : Staff::query()->whereKey($ids)->get()->keyBy('id');
+    }
+
     public function findByUserId(int $userId): ?Staff
     {
         return Staff::query()->where('user_id', $userId)->first();

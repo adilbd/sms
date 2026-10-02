@@ -147,6 +147,19 @@ class AdmissionPrintTest extends TestCase
         $this->get($url)->assertForbidden();
     }
 
+    public function test_the_link_on_the_copy_page_lasts_sixty_minutes(): void
+    {
+        $page = $this->withSession(['admission.submitted' => $this->application->id])->get(route('admissions.submitted'));
+        preg_match('#<img src="([^"]*/admissions/copy-photo/[^"]+)"#', $page->getContent(), $m);
+        $url = html_entity_decode($m[1]);
+
+        $this->travel(59)->minutes();
+        $this->get($url)->assertOk();
+
+        $this->travel(2)->minutes();
+        $this->get($url)->assertForbidden();
+    }
+
     public function test_the_route_serves_only_the_photo(): void
     {
         $url = $this->signedPhotoUrl();
