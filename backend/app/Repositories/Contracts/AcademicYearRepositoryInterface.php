@@ -39,4 +39,7 @@ interface AcademicYearRepositoryInterface extends RepositoryInterface
      * transaction, so exactly one year stays active.
      */
     public function deactivateAllExcept(AcademicYear $academicYear): void;
+
+    /** Whether any routine slot belongs to the academic year. */
+    public function hasRoutineSlots(AcademicYear $academicYear): bool;
 }

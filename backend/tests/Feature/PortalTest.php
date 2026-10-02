@@ -17,6 +17,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\RateLimiter;
 use Tests\Concerns\BuildsFees;
+use Tests\Concerns\BuildsRoutines;
 use Tests\TestCase;
 
 /**
@@ -26,13 +27,14 @@ use Tests\TestCase;
  */
 class PortalTest extends TestCase
 {
-    use BuildsFees, RefreshDatabase;
+    use BuildsFees, BuildsRoutines, RefreshDatabase;
 
     protected function setUp(): void
     {
         parent::setUp();
 
         $this->setUpFees();
+        $this->setUpRoutines();
     }
 
     private function login(string $username, string $role, array $attributes = []): User
@@ -190,7 +192,7 @@ class PortalTest extends TestCase
         return [
             'dashboard' => ['/portal'], 'profile' => ['/portal/profile'], 'results' => ['/portal/results'],
             'result' => ['/portal/results/1'], 'attendance' => ['/portal/attendance'], 'fees' => ['/portal/fees'],
-            'receipt' => ['/portal/fees/receipts/1'], 'exams' => ['/portal/exams'],
+            'receipt' => ['/portal/fees/receipts/1'], 'exams' => ['/portal/exams'], 'routine' => ['/portal/routine'],
         ];
     }
 
@@ -224,7 +226,7 @@ class PortalTest extends TestCase
         $result = $this->publish($enrolment);
 
         $uris = ['/portal/login', '/portal', '/portal/profile', '/portal/results', "/portal/results/{$result->exam_id}",
-            '/portal/attendance', '/portal/fees', '/portal/exams', '/portal/results/99999'];
+            '/portal/attendance', '/portal/fees', '/portal/exams', '/portal/routine', '/portal/results/99999'];
 
         foreach ($uris as $uri) {
             $response = $this->web($login)->get($uri);
@@ -499,6 +501,81 @@ class PortalTest extends TestCase
             ->assertSee('বার্ষিক পরীক্ষা')->assertDontSee('শেষ হওয়া পরীক্ষা')
             ->assertSee('১ নভেম্বর ২০২৬')->assertSee('১০:০০ পূর্বাহ্ন');
         $this->assertCount(2, $this->as($login)->getJson('/api/my/exams')->json('data.0.exams'));
+    }
+
+    // Routine
+
+    private function publishRoutine(): void
+    {
+        $this->subjectNames();
+        $teacher = $this->teacherFor($this->section10, $this->bangla, ['name_bn' => 'রহিম স্যার', 'name_en' => 'Rahim Sir']);
+        $this->saveRoutine($this->section10, [
+            $this->cell($this->morning[1], 'saturday', $this->bangla, $teacher, 'Room 101'),
+            $this->cell($this->morning[2], 'sunday', $this->bangla),
+        ])->assertOk();
+    }
+
+    private function subjectNames(): void
+    {
+        $this->bangla->update(['name_bn' => 'বাংলা']);
+    }
+
+    public function test_the_routine_page_shows_the_students_section_routine_and_matches_the_api(): void
+    {
+        $login = $this->login('20260001', 'student');
+        $this->enrolled($login);
+        $this->publishRoutine();
+        // Another section's routine must not leak in.
+        $this->saveRoutine($this->section9, [$this->cell($this->morning[4], 'monday', $this->bangla, null, 'Room 909')])->assertOk();
+
+        $html = $this->web($login)->get('/portal/routine')->assertOk()
+            ->assertSee('বাংলা')->assertSee('রহিম স্যার')->assertSee('Room 101')
+            ->assertSee('শনিবার')->assertSee('টিফিন')->assertSee('০৮:০০')->assertDontSee('Room 909')
+            ->assertDontSee('শুক্রবার')
+            ->getContent();
+        $this->assertSame(1, substr_count($html, '<h1'));
+        $this->assertStringContainsString('A4 landscape', $html);
+        $this->assertStringContainsString('window.print()', $html);
+
+        $api = $this->as($login)->getJson('/api/my/routine')->assertOk()->json('data');
+        $this->assertCount(2, $api['slots']);
+        $this->assertSame(['Room 101'], array_values(array_filter(array_column($api['slots'], 'room'))));
+    }
+
+    public function test_the_routine_page_can_be_printed_in_english(): void
+    {
+        $login = $this->login('20260001', 'student');
+        $this->enrolled($login);
+        $this->publishRoutine();
+
+        $this->web($login)->get('/portal/routine?language=en')->assertOk()
+            ->assertSee('Saturday')->assertSee('Rahim Sir')->assertSee('Tiffin')->assertSee('08:00')->assertSee('Room: Room 101', false);
+        $this->web($login)->get('/portal/routine?language=xx')->assertSessionHasErrors('language');
+    }
+
+    public function test_the_routine_page_says_so_when_there_is_no_routine_yet(): void
+    {
+        $login = $this->login('20260001', 'student');
+        $this->enrolled($login);
+
+        $this->web($login)->get('/portal/routine')->assertOk()->assertSee('এখনো তৈরি হয়নি');
+    }
+
+    public function test_a_guardian_switches_between_children_and_cannot_open_another_familys(): void
+    {
+        $guardian = $this->login('01712345678', 'parent');
+        $first = $this->enrolled(null, $guardian);
+        $second = $this->enrol($this->section9, null, null, 1);
+        Student::whereKey($second->student_id)->update(['guardian_user_id' => $guardian->id]);
+        $stranger = $this->enrol($this->section9, null, null, 2);
+        Student::whereKey($stranger->student_id)->update(['guardian_user_id' => $this->login('01800000000', 'parent')->id]);
+
+        $this->publishRoutine();
+        $this->saveRoutine($this->section9, [$this->cell($this->morning[4], 'monday', $this->bangla, null, 'Room 909')])->assertOk();
+
+        $this->web($guardian)->get("/portal/routine?student={$first->student_id}")->assertOk()->assertSee('Room 101')->assertDontSee('Room 909');
+        $this->web($guardian)->get("/portal/routine?student={$second->student_id}")->assertOk()->assertSee('Room 909')->assertDontSee('Room 101');
+        $this->web($guardian)->get("/portal/routine?student={$stranger->student_id}")->assertForbidden();
     }
 
     // Profile

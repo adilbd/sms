@@ -82,6 +82,7 @@ Route::prefix('portal')->name('portal.')->group(function () {
         Route::get('/fees', [PortalController::class, 'fees'])->name('fees');
         Route::get('/fees/receipts/{payment}', [PortalController::class, 'receipt'])->where('payment', '[0-9]+')->name('receipt');
         Route::get('/exams', [PortalController::class, 'exams'])->name('exams');
+        Route::get('/routine', [PortalController::class, 'routine'])->name('routine');
     });
 });
 

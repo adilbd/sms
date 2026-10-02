@@ -58,6 +58,11 @@ class AcademicYearRepository extends EloquentRepository implements AcademicYearR
             ->update(['is_active' => false]);
     }
 
+    public function hasRoutineSlots(AcademicYear $academicYear): bool
+    {
+        return $academicYear->routineSlots()->exists();
+    }
+
     protected function query(): Builder
     {
         return parent::query()->orderBy('year', 'desc')->orderBy('id', 'desc');

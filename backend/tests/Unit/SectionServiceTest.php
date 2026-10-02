@@ -135,6 +135,7 @@ class SectionServiceTest extends TestCase
             $mock->shouldReceive('hasStudents')->once()->andReturn(false);
             $mock->shouldReceive('hasAttendances')->once()->andReturn(false);
             $mock->shouldReceive('hasSubjectAssignments')->once()->andReturn(false);
+            $mock->shouldReceive('hasRoutineSlots')->once()->andReturn(false);
             $mock->shouldReceive('delete')->once()->with($section)->globally()->ordered();
         });
 
@@ -171,5 +172,19 @@ class SectionServiceTest extends TestCase
         } catch (HttpException $e) {
             $this->assertSame(409, $e->getStatusCode());
         }
+    }
+
+    public function test_delete_is_refused_when_section_has_a_class_routine(): void
+    {
+        $section = new Section;
+
+        $this->mock(SectionRepositoryInterface::class, function (MockInterface $mock) use ($section) {
+            $mock->shouldReceive('hasStudents', 'hasAttendances', 'hasSubjectAssignments')->andReturn(false);
+            $mock->shouldReceive('hasRoutineSlots')->once()->with($section)->andReturn(true);
+            $mock->shouldNotReceive('delete');
+        });
+        $this->mock(ClassTeacherRepositoryInterface::class, fn (MockInterface $mock) => $mock->shouldNotReceive('deleteForSection'));
+
+        $this->assertConflict(fn () => app(SectionService::class)->delete($section));
     }
 }

@@ -58,4 +58,9 @@ class Subject extends Model
     {
         return $this->hasMany(ExamSubject::class);
     }
+
+    public function routineSlots(): HasMany
+    {
+        return $this->hasMany(RoutineSlot::class);
+    }
 }

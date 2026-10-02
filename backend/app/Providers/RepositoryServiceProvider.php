@@ -24,8 +24,10 @@ use App\Repositories\Contracts\HolidayRepositoryInterface;
 use App\Repositories\Contracts\MediaRepositoryInterface;
 use App\Repositories\Contracts\MenuItemRepositoryInterface;
 use App\Repositories\Contracts\PageRepositoryInterface;
+use App\Repositories\Contracts\PeriodRepositoryInterface;
 use App\Repositories\Contracts\PostRepositoryInterface;
 use App\Repositories\Contracts\PromotionRepositoryInterface;
+use App\Repositories\Contracts\RoutineRepositoryInterface;
 use App\Repositories\Contracts\SectionRepositoryInterface;
 use App\Repositories\Contracts\SettingRepositoryInterface;
 use App\Repositories\Contracts\ShiftRepositoryInterface;
@@ -57,8 +59,10 @@ use App\Repositories\Eloquent\HolidayRepository;
 use App\Repositories\Eloquent\MediaRepository;
 use App\Repositories\Eloquent\MenuItemRepository;
 use App\Repositories\Eloquent\PageRepository;
+use App\Repositories\Eloquent\PeriodRepository;
 use App\Repositories\Eloquent\PostRepository;
 use App\Repositories\Eloquent\PromotionRepository;
+use App\Repositories\Eloquent\RoutineRepository;
 use App\Repositories\Eloquent\SectionRepository;
 use App\Repositories\Eloquent\SettingRepository;
 use App\Repositories\Eloquent\ShiftRepository;
@@ -87,6 +91,8 @@ class RepositoryServiceProvider extends ServiceProvider
         GalleryRepositoryInterface::class => GalleryRepository::class,
         StaffRepositoryInterface::class => StaffRepository::class,
         ShiftRepositoryInterface::class => ShiftRepository::class,
+        PeriodRepositoryInterface::class => PeriodRepository::class,
+        RoutineRepositoryInterface::class => RoutineRepository::class,
         ClassRepositoryInterface::class => ClassRepository::class,
         SectionRepositoryInterface::class => SectionRepository::class,
         AcademicYearRepositoryInterface::class => AcademicYearRepository::class,

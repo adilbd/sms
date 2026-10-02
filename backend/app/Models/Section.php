@@ -67,4 +67,9 @@ class Section extends Model
     {
         return $this->hasMany(ClassSection::class);
     }
+
+    public function routineSlots(): HasMany
+    {
+        return $this->hasMany(RoutineSlot::class);
+    }
 }

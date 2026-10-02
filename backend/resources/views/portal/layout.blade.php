@@ -21,6 +21,7 @@
             'portal.attendance' => 'উপস্থিতি',
             'portal.fees' => 'ফি',
             'portal.exams' => 'পরীক্ষার সূচি',
+            'portal.routine' => 'ক্লাস রুটিন',
         ];
     @endphp
     <div class="container-page py-6 sm:py-10">

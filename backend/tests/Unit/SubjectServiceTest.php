@@ -51,6 +51,7 @@ class SubjectServiceTest extends TestCase
             $mock->shouldReceive('hasTeacherAssignments')->once()->with($subject)->andReturn(false);
             $mock->shouldReceive('isUsedInCurriculum')->once()->with($subject)->andReturn(false);
             $mock->shouldReceive('isUsedAsOptionalSubject')->once()->with($subject)->andReturn(false);
+            $mock->shouldReceive('isUsedInRoutine')->once()->with($subject)->andReturn(false);
             $mock->shouldReceive('delete')->once()->with($subject);
         });
 
@@ -110,5 +111,18 @@ class SubjectServiceTest extends TestCase
         } catch (HttpException $e) {
             $this->assertSame(409, $e->getStatusCode());
         }
+    }
+
+    public function test_delete_is_refused_when_subject_is_used_in_a_class_routine(): void
+    {
+        $subject = new Subject;
+
+        $this->mock(SubjectRepositoryInterface::class, function (MockInterface $mock) use ($subject) {
+            $mock->shouldReceive('isUsedInExamSchedules', 'hasTeacherAssignments', 'isUsedInCurriculum', 'isUsedAsOptionalSubject')->andReturn(false);
+            $mock->shouldReceive('isUsedInRoutine')->once()->with($subject)->andReturn(true);
+            $mock->shouldNotReceive('delete');
+        });
+
+        $this->assertConflict(fn () => app(SubjectService::class)->delete($subject));
     }
 }

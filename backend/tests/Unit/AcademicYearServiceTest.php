@@ -202,6 +202,7 @@ class AcademicYearServiceTest extends TestCase
             $mock->shouldReceive('hasClassTeacherRows')->once()->andReturn(false);
             $mock->shouldReceive('hasSubjectAssignments')->once()->andReturn(false);
             $mock->shouldReceive('hasHolidays')->once()->andReturn(false);
+            $mock->shouldReceive('hasRoutineSlots')->once()->andReturn(false);
             $mock->shouldReceive('delete')->once()->with($year);
         });
 
@@ -232,5 +233,18 @@ class AcademicYearServiceTest extends TestCase
         } catch (HttpException $e) {
             $this->assertSame(409, $e->getStatusCode());
         }
+    }
+
+    public function test_delete_is_refused_when_year_has_class_routines(): void
+    {
+        $year = new AcademicYear(['is_active' => false]);
+
+        $this->mock(AcademicYearRepositoryInterface::class, function (MockInterface $mock) use ($year) {
+            $mock->shouldReceive('hasStudents', 'hasExams', 'hasFeeRatesOrDues', 'hasClassTeacherRows', 'hasSubjectAssignments', 'hasHolidays')->andReturn(false);
+            $mock->shouldReceive('hasRoutineSlots')->once()->with($year)->andReturn(true);
+            $mock->shouldNotReceive('delete');
+        });
+
+        $this->assertConflict(fn () => app(AcademicYearService::class)->delete($year));
     }
 }

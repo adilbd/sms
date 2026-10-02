@@ -84,6 +84,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('my/children/{student}/fees', [\App\Http\Controllers\Api\MyRecordsController::class, 'childFees'])
         ->where('student', '[0-9]+')
         ->middleware('role:parent');
+    // The caller's own routine: a student's section, a guardian's chosen child's, or a
+    // teacher's own week.
+    Route::get('my/routine', [\App\Http\Controllers\Api\MyRecordsController::class, 'routine'])
+        ->middleware('role:student|parent|teacher');
     Route::get('my/exams', [\App\Http\Controllers\Api\MyRecordsController::class, 'exams'])
         ->middleware('role:student|parent');
 
@@ -125,6 +129,18 @@ Route::middleware('auth:sanctum')->group(function () {
     // Shifts
     Route::apiResource('shifts', \App\Http\Controllers\Api\ShiftController::class)
         ->where(['shift' => '[0-9]+']);
+
+    // Periods (the bell schedule of each shift)
+    Route::apiResource('periods', \App\Http\Controllers\Api\PeriodController::class)
+        ->where(['period' => '[0-9]+']);
+
+    // Class routines: a section's weekly grid and a teacher's week.
+    Route::get('routines/sections/{section}', [\App\Http\Controllers\Api\RoutineController::class, 'section'])
+        ->where('section', '[0-9]+');
+    Route::put('routines/sections/{section}', [\App\Http\Controllers\Api\RoutineController::class, 'saveSection'])
+        ->where('section', '[0-9]+');
+    Route::get('routines/teachers/{staff}', [\App\Http\Controllers\Api\RoutineController::class, 'teacher'])
+        ->where('staff', '[0-9]+');
 
     // Academic Years
     Route::apiResource('academic-years', \App\Http\Controllers\Api\AcademicYearController::class)

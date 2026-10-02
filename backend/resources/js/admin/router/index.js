@@ -140,6 +140,48 @@ const routes = [
         meta: { title: 'Edit Shift', permission: 'edit-settings' },
       },
       {
+        path: 'shifts/:id/periods',
+        name: 'Shift Periods',
+        component: () => import('@/views/shifts/Periods.vue'),
+        meta: { title: 'Periods', permission: 'edit-settings' },
+      },
+      {
+        path: 'routines',
+        name: 'Routines',
+        component: () => import('@/views/routines/RoutineEditor.vue'),
+        meta: { title: 'Class Routine', permission: 'view-classes' },
+      },
+      {
+        path: 'routines/sections/:id/print',
+        name: 'Print Section Routine',
+        component: () => import('@/views/routines/RoutinePrint.vue'),
+        meta: { title: 'Print Routine', permission: 'view-classes', kind: 'section' },
+      },
+      {
+        path: 'teacher-routines',
+        name: 'Teacher Routines',
+        component: () => import('@/views/routines/TeacherRoutine.vue'),
+        meta: { title: 'Teacher Routine', permission: 'view-teachers' },
+      },
+      {
+        path: 'routines/teachers/:id/print',
+        name: 'Print Teacher Routine',
+        component: () => import('@/views/routines/RoutinePrint.vue'),
+        meta: { title: 'Print Routine', permission: 'view-classes', kind: 'teacher' },
+      },
+      {
+        path: 'my-routine',
+        name: 'My Routine',
+        component: () => import('@/views/routines/TeacherRoutine.vue'),
+        meta: { title: 'My Routine', role: 'teacher', own: true },
+      },
+      {
+        path: 'my-routine/print',
+        name: 'Print My Routine',
+        component: () => import('@/views/routines/RoutinePrint.vue'),
+        meta: { title: 'Print Routine', role: 'teacher', kind: 'mine' },
+      },
+      {
         path: 'classes',
         name: 'Classes',
         component: () => import('@/views/classes/ClassList.vue'),

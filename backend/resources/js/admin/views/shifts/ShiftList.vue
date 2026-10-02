@@ -47,6 +47,7 @@
               </td>
               <td>
                 <div class="flex space-x-2">
+                  <router-link :to="`/shifts/${shift.id}/periods`" class="text-primary-600 hover:text-primary-800" title="Periods">🕒</router-link>
                   <router-link :to="`/shifts/${shift.id}/edit`" class="text-primary-600 hover:text-primary-800" title="Edit">✏️</router-link>
                   <button @click="deleteShift(shift.id)" class="text-red-600 hover:text-red-800" title="Delete">🗑️</button>
                 </div>

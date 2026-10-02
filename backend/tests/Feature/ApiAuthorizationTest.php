@@ -26,6 +26,8 @@ class ApiAuthorizationTest extends TestCase
         'GET api/academic-years/{academic_year}',
         'GET api/shifts',
         'GET api/shifts/{shift}',
+        'GET api/periods',
+        'GET api/periods/{period}',
     ];
 
     public function test_every_authenticated_api_route_checks_a_permission_or_role(): void

@@ -74,4 +74,7 @@ interface StaffRepositoryInterface extends RepositoryInterface
      * Every published profile's id and updated_at, for the sitemap.
      */
     public function publishedForSitemap(): Collection;
+
+    /** Whether $staff teaches any routine slot. */
+    public function isInRoutine(Staff $staff): bool;
 }

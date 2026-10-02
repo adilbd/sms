@@ -281,6 +281,7 @@ class StaffServiceTest extends TestCase
         $this->mock(StaffRepositoryInterface::class, function (MockInterface $mock) use ($staff) {
             $mock->shouldReceive('hasSubjectAssignments')->once()->with($staff)->andReturn(false);
             $mock->shouldReceive('isClassTeacher')->once()->with($staff)->andReturn(false);
+            $mock->shouldReceive('isInRoutine')->once()->with($staff)->andReturn(false);
             $mock->shouldReceive('delete')->once()->with($staff);
         });
 
@@ -553,6 +554,7 @@ class StaffServiceTest extends TestCase
         $this->mock(StaffRepositoryInterface::class, function (MockInterface $mock) use ($staff) {
             $mock->shouldReceive('hasSubjectAssignments')->andReturn(false);
             $mock->shouldReceive('isClassTeacher')->andReturn(false);
+            $mock->shouldReceive('isInRoutine')->andReturn(false);
             $mock->shouldReceive('delete')->once()->with($staff);
         });
         $this->mock(UserRepositoryInterface::class, function (MockInterface $mock) use ($user) {
@@ -572,6 +574,7 @@ class StaffServiceTest extends TestCase
         $this->mock(StaffRepositoryInterface::class, function (MockInterface $mock) {
             $mock->shouldReceive('hasSubjectAssignments')->andReturn(false);
             $mock->shouldReceive('isClassTeacher')->andReturn(false);
+            $mock->shouldReceive('isInRoutine')->andReturn(false);
             $mock->shouldReceive('delete')->once();
         });
         $this->mock(UserRepositoryInterface::class, function (MockInterface $mock) {
@@ -582,5 +585,23 @@ class StaffServiceTest extends TestCase
         });
 
         app(StaffService::class)->delete($staff);
+    }
+
+    public function test_delete_is_refused_when_staff_teaches_in_a_class_routine(): void
+    {
+        $staff = new Staff;
+
+        $this->mock(StaffRepositoryInterface::class, function (MockInterface $mock) use ($staff) {
+            $mock->shouldReceive('hasSubjectAssignments', 'isClassTeacher')->andReturn(false);
+            $mock->shouldReceive('isInRoutine')->once()->with($staff)->andReturn(true);
+            $mock->shouldNotReceive('delete');
+        });
+
+        try {
+            app(StaffService::class)->delete($staff);
+            $this->fail('Expected a 409 HttpException.');
+        } catch (HttpException $e) {
+            $this->assertSame(409, $e->getStatusCode());
+        }
     }
 }

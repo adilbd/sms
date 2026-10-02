@@ -25,6 +25,7 @@ class PortalService
         private AttendanceService $attendance,
         private FeeReportService $fees,
         private FeePaymentService $payments,
+        private RoutineService $routines,
     ) {}
 
     /**
@@ -126,6 +127,16 @@ class PortalService
         return $user->hasRole('student')
             ? $this->fees->ownFees($user)
             : $this->fees->childFees($user, $student->id);
+    }
+
+    /**
+     * The routine of the student's section, the same data as `/api/my/routine`.
+     *
+     * @return array{academic_year: ?\App\Models\AcademicYear, section: ?\App\Models\Section, days: list<string>, periods: Collection, slots: Collection}
+     */
+    public function routine(Student $student): array
+    {
+        return $this->routines->forStudent($student);
     }
 
     /**
