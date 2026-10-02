@@ -139,7 +139,7 @@ class HomeworkService
             if ($attachment !== null) {
                 $path = $this->storeFile($attachment);
                 $attributes['attachment_path'] = $path;
-                $attributes['attachment_name'] = $attachment->getClientOriginalName();
+                $attributes['attachment_name'] = self::safeName($attachment->getClientOriginalName());
             }
 
             $created = DB::transaction(fn () => $this->homework->create($attributes));
@@ -179,7 +179,7 @@ class HomeworkService
             if ($attachment !== null) {
                 $new = $this->storeFile($attachment);
                 $changes['attachment_path'] = $new;
-                $changes['attachment_name'] = $attachment->getClientOriginalName();
+                $changes['attachment_name'] = self::safeName($attachment->getClientOriginalName());
                 $dropOld = true;
             } elseif ($removeAttachment && $old !== null) {
                 $changes['attachment_path'] = null;
@@ -347,5 +347,19 @@ class HomeworkService
         if ($path !== null) {
             Storage::disk(self::DISK)->delete($path);
         }
+    }
+
+    /** Fits an uploaded file name into the string(255) column, keeping the extension. */
+    private static function safeName(string $name): string
+    {
+        if (mb_strlen($name) <= 255) {
+            return $name;
+        }
+
+        $ext = pathinfo($name, PATHINFO_EXTENSION);
+        $suffix = $ext !== '' && mb_strlen($ext) <= 10 ? '.'.$ext : '';
+        $base = $suffix !== '' ? mb_substr($name, 0, mb_strlen($name) - mb_strlen($suffix)) : $name;
+
+        return Str::limit($base, 255 - mb_strlen($suffix), '').$suffix;
     }
 }

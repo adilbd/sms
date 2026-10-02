@@ -73,7 +73,7 @@ class ClassSubject extends Model
             return [];
         }
 
-        return self::query()
+        return $this->choiceSubjectIdsCache ??= self::query()
             ->where('class_id', $this->class_id)
             ->where('choice_group', $this->choice_group)
             ->where('group', $this->group)

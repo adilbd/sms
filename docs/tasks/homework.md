@@ -43,7 +43,7 @@ See the plan's Task 3.
 - Notifications.
 
 ## Acceptance criteria
-- [ ] The homework table migrates on SQLite and MySQL, including rollback. SQLite is verified. MySQL is checked on Docker before the merge.
+- [x] The homework table migrates on SQLite and MySQL, including rollback.
 - [x] Teachers can only create homework for subjects assigned to them. Admins can create any. The edit window and the curriculum check are enforced.
 - [x] Students and guardians see only their own homework, scoped by `takes()`.
 - [x] Attachments are private. A signed URL works, and an expired or tampered one returns 403.
@@ -75,3 +75,11 @@ See the plan's Task 3.
   - Grouped by due date, with overdue items marked.
   - The "Due this week" tile counts match the API.
   - One `<h1>`, no-store and noindex.
+
+## Docker check (MySQL)
+- [x] Migrate, rollback and migrate again succeeded; `RolePermissionSeeder` re-ran.
+- [x] `VHBUB-3` created homework for 10-A, Bangla 1st Paper, with a PDF attachment (201). The same teacher posting for English 1st Paper, which they don't teach, got 403.
+- [x] Guardian `01999000047` sees the homework through `/api/my/homework` with its due date and a signed attachment link. The signed link returns 200 `application/pdf`; a tampered link returns 403. Asking for another family's child returns 403.
+
+## Review
+- pass-with-nits on `d264ddf`. Fixed: the attachment name is trimmed to 255 characters (a longer one would fail on MySQL), and `ClassSubject::choiceSubjectIds()` is memoized.

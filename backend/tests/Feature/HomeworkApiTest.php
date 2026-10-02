@@ -222,6 +222,20 @@ class HomeworkApiTest extends TestCase
         $this->as($this->admin)->post($url, $this->payload($this->section9, $this->bangla, ['attachment' => UploadedFile::fake()->image('photo.png')]), $headers)->assertCreated();
     }
 
+    public function test_a_very_long_attachment_name_is_shortened_to_fit(): void
+    {
+        $name = str_repeat('হোমওয়ার্ক', 30).'.pdf';
+        $this->assertGreaterThan(255, mb_strlen($name));
+
+        $response = $this->as($this->admin)->post('/api/homework', $this->payload($this->section9, $this->bangla, [
+            'attachment' => $this->pdf($name),
+        ]), ['Accept' => 'application/json'])->assertCreated();
+
+        $saved = $response->json('data.attachment_name');
+        $this->assertLessThanOrEqual(255, mb_strlen($saved));
+        $this->assertStringEndsWith('.pdf', $saved);
+    }
+
     public function test_the_attachment_is_stored_on_the_private_disk(): void
     {
         $response = $this->as($this->admin)->post('/api/homework', $this->payload($this->section9, $this->bangla, [
