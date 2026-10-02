@@ -33,7 +33,7 @@ class LookupStatusRequest extends FormRequest
      */
     protected function failedValidation(Validator $validator): void
     {
-        if ($this->expectsJson()) {
+        if ($this->expectsJson() || $this->is('api/*')) {
             parent::failedValidation($validator);
         }
 

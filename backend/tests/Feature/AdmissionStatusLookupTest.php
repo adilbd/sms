@@ -146,6 +146,14 @@ class AdmissionStatusLookupTest extends TestCase
         $this->postJson('/api/public/admission-status', ['application_no' => ['x'], 'date_of_birth' => '2014-05-20'])->assertUnprocessable();
     }
 
+    public function test_the_api_lookup_returns_json_errors_without_an_accept_header(): void
+    {
+        $response = $this->call('POST', '/api/public/admission-status', ['application_no' => str_repeat('X', 40), 'date_of_birth' => '2014-05-20']);
+
+        $response->assertStatus(422)->assertJsonValidationErrors(['application_no']);
+        $this->assertNull($response->headers->get('Location'));
+    }
+
     public function test_too_many_misses_block_the_ip_even_for_a_right_answer(): void
     {
         foreach (range(1, AdmissionService::MAX_STATUS_FAILURES) as $i) {
