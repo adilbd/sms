@@ -5,8 +5,11 @@ namespace App\Http\Controllers\Web;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admission\LookupStatusRequest;
 use App\Http\Requests\Admission\SubmitApplicationRequest;
+use App\Models\AdmissionApplication;
 use App\Services\AdmissionService;
 use App\Support\SchemaOrg;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\URL;
 
 /**
  * The public admission pages: the open rounds, the application form, the confirmation
@@ -72,7 +75,7 @@ class AdmissionController extends Controller
             return redirect()->route('admissions');
         }
 
-        return view('public.admissions.submitted', ['application' => $application]);
+        return view('public.admissions.submitted', ['application' => $application, 'photoUrl' => $this->photoUrl($application)]);
     }
 
     public function statusForm()
@@ -82,8 +85,34 @@ class AdmissionController extends Controller
 
     public function statusShow(LookupStatusRequest $request)
     {
+        $application = $this->admissions->lookupStatus($request->validated(), (string) $request->ip());
+
         return view('public.admissions.status-result', [
-            'application' => $this->admissions->lookupStatus($request->validated(), (string) $request->ip()),
+            'application' => $application,
+            'photoUrl' => $this->photoUrl($application),
         ]);
+    }
+
+    /**
+     * Streams the applicant's photo from the private disk. Reached only through the
+     * temporary signed URL the copy pages generate (the `signed` middleware answers 403
+     * otherwise); no other file kind is served here.
+     */
+    public function copyPhoto(AdmissionApplication $application)
+    {
+        $file = $this->admissions->photoFile($application);
+
+        return Storage::disk($file['disk'])->response($file['path'], null, [
+            'Cache-Control' => 'no-store, private',
+            'X-Robots-Tag' => 'noindex',
+            'X-Content-Type-Options' => 'nosniff',
+        ], 'inline');
+    }
+
+    private function photoUrl(AdmissionApplication $application): ?string
+    {
+        return $application->photo_path === null
+            ? null
+            : URL::temporarySignedRoute('admissions.copy-photo', now()->addMinutes(10), ['application' => $application->id]);
     }
 }

@@ -9,9 +9,9 @@
 
 @section('content')
     <div class="container-page py-12">
-        <h1 class="text-4xl font-bold text-gray-900">আবেদন জমা হয়েছে <span class="text-2xl font-medium text-gray-500">(Application received)</span></h1>
+        <h1 class="no-print text-4xl font-bold text-gray-900">আবেদন জমা হয়েছে <span class="text-2xl font-medium text-gray-500">(Application received)</span></h1>
 
-        <div class="card-public mt-8 max-w-2xl p-6">
+        <div class="card-public no-print mt-8 max-w-2xl p-6">
             <p class="text-gray-700">
                 {{ $application->displayName() }}-এর ভর্তির আবেদন গ্রহণ করা হয়েছে।
                 <span class="block text-sm text-gray-500">(The admission application has been received.)</span>
@@ -37,9 +37,14 @@
             </p>
 
             <div class="mt-6 flex flex-wrap gap-3">
-                <a href="{{ route('admissions.status') }}" class="btn-public">আবেদনের অবস্থা দেখুন (Check status)</a>
+                <button type="button" class="btn-public" onclick="window.print()">প্রিন্ট করুন (Print)</button>
+                <a href="{{ route('admissions.status') }}" class="btn-public-outline">আবেদনের অবস্থা দেখুন (Check status)</a>
                 <a href="{{ route('admissions') }}" class="btn-public-outline">ভর্তি পাতায় ফিরুন (Back to admissions)</a>
             </div>
+        </div>
+
+        <div class="mt-8">
+            @include('public.admissions.copy', ['application' => $application, 'photoUrl' => $photoUrl])
         </div>
     </div>
 @endsection

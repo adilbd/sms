@@ -166,6 +166,14 @@ class AdmissionApplication extends Model
         return (string) ($this->name_bn ?: $this->name_en);
     }
 
+    /** The birth registration number with all but the last 4 digits starred, for printed family copies. */
+    public function maskedBirthRegistration(): string
+    {
+        $number = (string) $this->birth_registration_number;
+
+        return str_repeat('*', max(strlen($number) - 4, 0)).substr($number, -4);
+    }
+
     /** The private-disk path for a file kind (photo, birth_certificate, previous_school_doc), or null. */
     public function filePath(string $kind): ?string
     {

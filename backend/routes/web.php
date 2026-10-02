@@ -26,6 +26,7 @@ Route::post('/admissions/apply/{round}', [AdmissionController::class, 'submit'])
 Route::middleware(\App\Http\Middleware\PortalHeaders::class)->group(function () {
     Route::get('/admissions/submitted', [AdmissionController::class, 'submitted'])->name('admissions.submitted');
     Route::get('/admissions/status', [AdmissionController::class, 'statusForm'])->name('admissions.status');
+    Route::get('/admissions/copy-photo/{application}', [AdmissionController::class, 'copyPhoto'])->where('application', '[0-9]+')->middleware('signed')->name('admissions.copy-photo');
     Route::post('/admissions/status', [AdmissionController::class, 'statusShow'])->middleware('throttle:admission-status')->name('admissions.status.show');
 });
 
