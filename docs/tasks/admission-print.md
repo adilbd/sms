@@ -83,3 +83,14 @@ User decisions:
 - [x] **No-store and noindex:** both hold on the confirmation and status pages that include the copy.
 - [x] **Admin list:** the list endpoint returns every filtered row across pages, and `per_page` is bounded.
 - [x] **SPA:** there is no SPA test runner. `npm run build` passes, and I'll check both print views in Chrome on Docker before merging.
+
+## Docker and browser check
+- [x] Status lookup for `ADM-2026-000001` with the correct DOB returned 200, no-store and noindex, with one `<h1>`. The copy shows the birth registration masked as `*************0123`. The full number, the admin note and the score are absent.
+- [x] Signed photo URL returns 200 `image/png`. A tampered or unsigned URL returns 403.
+- [x] The admin single form (`/admin/admissions/applications/1/print`) is in Bangla, with all fields, the photo loaded through the authenticated blob, the test date, venue and score ৭৮.৫০, and A4 portrait. There are no console errors.
+- [x] The admin list print (`/admin/admissions/print?round_id=1`) is landscape, with a repeating header and a Bangla header block. The guardian mobile shows for an admin.
+
+## Follow-ups (from review)
+- The signed photo URL lasts 10 minutes, so a reprint after that may show a broken photo. Consider 30–60 minutes.
+- The admin print views load Noto Sans Bengali from Google Fonts at runtime. Consider bundling the font.
+- `ApplicationPrint.vue`: change the second school name from `<h2>` to `<p>`.
