@@ -92,7 +92,6 @@ const urlFor = () => {
 }
 
 const PAGE_STYLE_ID = 'routine-page'
-const FONT_ID = 'noto-sans-bengali'
 
 onMounted(async () => {
   // Marks the page so the print CSS can hide the admin chrome (sidebar and header).
@@ -102,14 +101,6 @@ onMounted(async () => {
   style.id = PAGE_STYLE_ID
   style.textContent = '@page { size: A4 landscape; margin: 10mm; }'
   document.head.appendChild(style)
-
-  if (!document.getElementById(FONT_ID)) {
-    const link = document.createElement('link')
-    link.id = FONT_ID
-    link.rel = 'stylesheet'
-    link.href = 'https://fonts.googleapis.com/css2?family=Noto+Sans+Bengali:wght@400;600;700&display=swap'
-    document.head.appendChild(link)
-  }
 
   try {
     const params = route.query.academic_year_id && route.meta.kind !== 'mine' ? { academic_year_id: route.query.academic_year_id } : {}

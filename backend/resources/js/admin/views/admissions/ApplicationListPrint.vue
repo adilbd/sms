@@ -132,7 +132,6 @@ const filterLabels = computed(() => {
 })
 
 const PAGE_STYLE_ID = 'admission-list-page'
-const FONT_ID = 'noto-sans-bengali'
 
 const fetchRows = async () => {
   const all = []
@@ -154,13 +153,6 @@ const print = () => window.print()
 
 onMounted(async () => {
   document.body.classList.add('admission-print-page')
-  if (!document.getElementById(FONT_ID)) {
-    const link = document.createElement('link')
-    link.id = FONT_ID
-    link.rel = 'stylesheet'
-    link.href = 'https://fonts.googleapis.com/css2?family=Noto+Sans+Bengali:wght@400;600;700&display=swap'
-    document.head.appendChild(link)
-  }
   const style = document.createElement('style')
   style.id = PAGE_STYLE_ID
   style.textContent = '@page { size: A4 landscape; margin: 10mm; }'

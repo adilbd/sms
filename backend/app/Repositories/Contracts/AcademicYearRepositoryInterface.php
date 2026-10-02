@@ -35,6 +35,14 @@ interface AcademicYearRepositoryInterface extends RepositoryInterface
     public function findByYear(int $year): ?AcademicYear;
 
     /**
+     * Locks every academic year row in ascending id (`select ... for update`). Take it
+     * before writing several year rows, so the order matches every other path that locks
+     * all years (a period move) and two transactions can't wait on each other. Call
+     * inside a transaction.
+     */
+    public function lockAll(): void;
+
+    /**
      * Deactivates every other year, inside AcademicYearService::activate()'s
      * transaction, so exactly one year stays active.
      */

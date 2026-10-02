@@ -27,8 +27,9 @@ class SyncSectionSubjectTeachersRequest extends FormRequest
     }
 
     /**
-     * A teacher may be listed once per subject row. (`distinct` on the wildcard would also
-     * compare teachers across different subjects, which is fine.)
+     * A teacher may be listed once per subject row, checked row by row here. The same
+     * teacher may appear under several subjects, so Laravel's `distinct` on the wildcard
+     * (which would compare across subjects and reject that) is deliberately not used.
      */
     public function after(): array
     {

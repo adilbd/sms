@@ -3,7 +3,7 @@
 namespace App\Http\Requests\Portal;
 
 /** The receipt print options: `page` is one of a4, a5. */
-class PortalReceiptRequest extends PortalPageRequest
+class PortalReceiptRequest extends PortalPrintRequest
 {
     public function rules(): array
     {

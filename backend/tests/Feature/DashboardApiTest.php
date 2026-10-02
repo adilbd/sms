@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\Attendance;
 use App\Models\Classes;
 use App\Models\ClassSection;
+use App\Models\ClassSubject;
 use App\Models\Exam;
 use App\Models\ExamMark;
 use App\Models\ExamResult;
@@ -463,6 +464,24 @@ class DashboardApiTest extends TestCase
         $this->assertSame('1799.50', $fees['overdue']['outstanding_amount']);
     }
 
+    public function test_the_month_figures_match_the_fee_report_even_with_a_student_who_has_left(): void
+    {
+        [$stays, $leaves] = $this->enrolStudents(2);
+        $this->generateDues()->assertOk();
+        $this->pay($stays, '300.00')->assertCreated();
+        $this->pay($leaves, '100.00')->assertCreated();
+        // A leaver's dues stay on the books (and in the fee reports) until someone settles or removes them.
+        $leaves->update(['status' => StudentEnrolment::STATUS_LEFT]);
+
+        $month = $this->dashboard($this->admin)->assertOk()->json('data.fees.month');
+        $report = app(\App\Services\FeeReportService::class)->dues($this->section10->id, $this->year->id, '2026-10')['totals'];
+
+        $this->assertCount(2, app(\App\Services\FeeReportService::class)->dues($this->section10->id, $this->year->id, '2026-10')['rows']);
+        $this->assertSame($report['net_amount'], $month['net_amount']);
+        $this->assertSame($report['paid_amount'], $month['collected_amount']);
+        $this->assertSame($report['outstanding_amount'], $month['outstanding_amount']);
+    }
+
     // --- roles, authorization and the old routes ---------------------------------------------
 
     public function test_a_user_with_several_roles_gets_the_widest_view(): void
@@ -568,5 +587,33 @@ class DashboardApiTest extends TestCase
         $this->assertSame($before, $after);
         $this->assertLessThan(40, max($after));
         $this->assertSame(6, Section::where('class_id', $this->class10->id)->count() - 1);
+    }
+
+    public function test_choice_pair_subjects_do_not_run_a_query_each_for_their_partner(): void
+    {
+        $exam = $this->openExam([$this->class10]);
+        $section = Section::factory()->create(['class_id' => $this->class10->id, 'shift_id' => $this->shift->id]);
+        $this->enrolStudents(2, $section);
+
+        foreach (['science', 'business_studies', 'humanities'] as $group) {
+            foreach ([ClassSubject::TYPE_COMPULSORY, ClassSubject::TYPE_OPTIONAL] as $type) {
+                ExamSubject::factory()->create([
+                    'exam_id' => $exam->id, 'class_id' => $this->class10->id, 'group' => $group,
+                    'type' => $type, 'choice_group' => "{$group}-4th",
+                ]);
+            }
+        }
+
+        $teacher = $this->userWithRole('teacher');
+
+        foreach ([$this->admin, $teacher] as $user) {
+            DB::flushQueryLog();
+            DB::enableQueryLog();
+            $this->dashboard($user)->assertOk();
+            DB::disableQueryLog();
+
+            $partnerQueries = array_filter(array_column(DB::getQueryLog(), 'query'), fn ($q) => str_contains($q, '"choice_group" ='));
+            $this->assertSame([], array_values($partnerQueries));
+        }
     }
 }

@@ -57,9 +57,9 @@ class RoutineServiceTest extends TestCase
         return $staff;
     }
 
-    private function clash(): RoutineSlot
+    private function clash(?int $staffId = 7, ?string $roomKey = null): RoutineSlot
     {
-        $slot = new RoutineSlot(['day' => 'saturday']);
+        $slot = new RoutineSlot(['day' => 'saturday', 'staff_id' => $staffId, 'room_key' => $roomKey]);
         $slot->setRelation('section', (new Section(['name' => 'B']))->setRelation('class', new Classes(['name' => 'Class 9'])));
         $slot->setRelation('period', $this->period(9, '08:30:00', '09:15:00'));
 
@@ -78,8 +78,7 @@ class RoutineServiceTest extends TestCase
         $this->mock(RoutineRepositoryInterface::class, function (MockInterface $m) use ($o, $section, $year) {
             $m->shouldReceive('lockSection')->andReturn($section)->byDefault();
             $m->shouldReceive('lockAcademicYear')->andReturn($year)->byDefault();
-            $m->shouldReceive('findTeacherClash')->andReturn($o['teacherClash'] ?? null)->byDefault();
-            $m->shouldReceive('findRoomClash')->andReturn($o['roomClash'] ?? null)->byDefault();
+            $m->shouldReceive('otherSectionSlots')->andReturn(new Collection(array_values(array_filter([$o['teacherClash'] ?? null, $o['roomClash'] ?? null]))))->byDefault();
             $m->shouldReceive('forSectionAndYear')->andReturn(new Collection)->byDefault();
             if ($o['replace'] ?? false) {
                 $m->shouldReceive('replaceForSection')->once();
@@ -92,11 +91,13 @@ class RoutineServiceTest extends TestCase
         ]))->byDefault());
         $this->mock(SubjectAssignmentRepositoryInterface::class, function (MockInterface $m) use ($o) {
             $m->shouldReceive('curriculumSubjectIds')->andReturn([11, 12])->byDefault();
-            $m->shouldReceive('findFor')->andReturn(($o['assigned'] ?? true) ? new SubjectAssignment : null)->byDefault();
+            $m->shouldReceive('forSectionAndYear')->andReturn(new Collection(($o['assigned'] ?? true)
+                ? [new SubjectAssignment(['subject_id' => 11, 'staff_id' => 7]), new SubjectAssignment(['subject_id' => 12, 'staff_id' => 7]), new SubjectAssignment(['subject_id' => 99, 'staff_id' => 7])]
+                : []))->byDefault();
         });
         $this->mock(AcademicYearRepositoryInterface::class, fn (MockInterface $m) => $m->shouldReceive('findActive')->andReturn($year)->byDefault());
         $this->mock(StaffRepositoryInterface::class, function (MockInterface $m) use ($o) {
-            $m->shouldReceive('find')->andReturn(array_key_exists('staff', $o) ? $o['staff'] : $this->teacher())->byDefault();
+            $m->shouldReceive('findManyByIds')->andReturn(new Collection(array_key_exists('staff', $o) ? array_filter([$o['staff']?->id => $o['staff']]) : [7 => $this->teacher()]))->byDefault();
             $m->shouldReceive('findByUserId')->andReturn(null)->byDefault();
         });
         $this->mock(InstituteSettingsService::class, fn (MockInterface $m) => $m->shouldReceive('weeklyHolidays')->andReturn(['friday'])->byDefault());
@@ -194,7 +195,6 @@ class RoutineServiceTest extends TestCase
     public function test_a_teacher_clash_names_the_other_section_and_its_times(): void
     {
         $this->mocks(['teacherClash' => $this->clash()]);
-        $this->app->make(RoutineRepositoryInterface::class)->shouldReceive('findTeacherClash')->with(3, 20, 7, 'saturday', '08:00:00', '08:45:00')->andReturn($this->clash());
 
         $message = $this->errors([$this->cell()])['slots.0.staff_id'][0];
 
@@ -205,19 +205,45 @@ class RoutineServiceTest extends TestCase
 
     public function test_a_room_clash_compares_the_normalized_key(): void
     {
-        $this->mocks(['roomClash' => $this->clash()]);
-        $this->app->make(RoutineRepositoryInterface::class)->shouldReceive('findRoomClash')->with(3, 20, 'room 101', 'saturday', '08:00:00', '08:45:00')->andReturn($this->clash());
+        $this->mocks(['roomClash' => $this->clash(null, 'room 101')]);
 
         $this->assertSame(['slots.0.room'], array_keys($this->errors([$this->cell(['staff_id' => null, 'room' => ' ROOM 101 '])])));
     }
 
+    public function test_back_to_back_periods_and_other_days_do_not_clash(): void
+    {
+        $later = $this->clash();
+        $later->period->start_time = '08:45:00';
+        $later->period->end_time = '09:30:00';
+        $this->mocks(['teacherClash' => $later, 'replace' => true]);
+
+        // Period 1 ends at 08:45, exactly when the other section's class starts.
+        app(RoutineService::class)->replaceForSection($this->section(), ['academic_year_id' => 3, 'slots' => [$this->cell(['room' => null])]]);
+
+        $otherDay = $this->clash();
+        $this->mocks(['teacherClash' => $otherDay, 'replace' => true]);
+        app(RoutineService::class)->replaceForSection($this->section(), ['academic_year_id' => 3, 'slots' => [$this->cell(['day' => 'sunday', 'room' => null])]]);
+    }
+
     public function test_a_cell_with_a_bad_period_is_not_checked_for_clashes(): void
     {
-        $this->mocks();
+        $this->mocks(['teacherClash' => $this->clash()]);
+
+        $this->assertSame(['slots.0.period_id'], array_keys($this->errors([$this->cell(['period_id' => 3])])));
+    }
+
+    public function test_the_grid_is_checked_with_one_load_of_each_kind_whatever_the_number_of_cells(): void
+    {
+        $this->mocks(['replace' => true]);
+        $this->app->make(StaffRepositoryInterface::class)->shouldReceive('findManyByIds')->once()->with([7])->andReturn(new Collection([7 => $this->teacher()]));
+        $this->app->make(SubjectAssignmentRepositoryInterface::class)->shouldReceive('forSectionAndYear')->once()->andReturn(new Collection([new SubjectAssignment(['subject_id' => 11, 'staff_id' => 7])]));
+        $this->app->make(RoutineRepositoryInterface::class)->shouldReceive('otherSectionSlots')->once()->with(3, 20, [7], ['room 101'])->andReturn(new Collection);
         $this->app->make(RoutineRepositoryInterface::class)->shouldNotReceive('findTeacherClash');
         $this->app->make(RoutineRepositoryInterface::class)->shouldNotReceive('findRoomClash');
 
-        $this->errors([$this->cell(['period_id' => 3])]);
+        app(RoutineService::class)->replaceForSection($this->section(), ['academic_year_id' => 3, 'slots' => [
+            $this->cell(), $this->cell(['day' => 'sunday']), $this->cell(['day' => 'monday', 'period_id' => 2]),
+        ]]);
     }
 
     public function test_a_teacher_may_only_read_their_own_week(): void

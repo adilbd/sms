@@ -398,6 +398,16 @@ class DashboardService
             return [];
         }
 
+        // A choice pair (Biology or Higher Mathematics) is derived from the rows already
+        // loaded, so takes() doesn't query for the partner of every exam subject.
+        $pairs = [];
+        foreach ($subjects->whereNotNull('choice_group') as $subject) {
+            $pairs[$this->pairKey($subject)][] = (int) $subject->subject_id;
+        }
+        foreach ($subjects->whereNotNull('choice_group') as $subject) {
+            $subject->rememberChoiceSubjectIds($pairs[$this->pairKey($subject)]);
+        }
+
         $entered = [];
         foreach ($this->dashboard->enteredMarkCounts($subjects->modelKeys(), $sectionIds) as $row) {
             $entered[$row->exam_subject_id][$row->section_id] = (int) $row->entered;
@@ -439,6 +449,12 @@ class DashboardService
         }
 
         return $sheets;
+    }
+
+    /** Rows of one choice pair share the exam, class, choice group and group. */
+    private function pairKey(ExamSubject $subject): string
+    {
+        return "{$subject->exam_id}|{$subject->class_id}|{$subject->choice_group}|{$subject->group}";
     }
 
     /**

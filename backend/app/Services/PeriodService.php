@@ -59,11 +59,29 @@ class PeriodService
         $data = $this->normalizeTimes($data);
 
         return DB::transaction(function () use ($period, $data) {
+            // Lock order: shift, then (when the input carries a time or `is_break`) every academic year in
+            // ascending id, then the period row. The period comes after the years because a
+            // routine save locks section, then year, and its insert of routine_slots rows
+            // makes the foreign key check share-lock the parent periods row; taking the
+            // period first here would let the two wait on each other (a deadlock).
             $this->shifts->lockForUpdate([(int) $period->shift_id]);
+
+            // A save in ANY year may add or remove slots of this period, so every year is
+            // locked; once all are held no save is in flight and the slots read afterwards
+            // are final.
+            if (array_key_exists('start_time', $data) || array_key_exists('end_time', $data) || array_key_exists('is_break', $data)) {
+                $this->routines->lockAcademicYears();
+            }
+
+            // Re-read under the lock, so the checks below use the current state, not the
+            // route-bound copy.
+            $period = $this->periods->lockForUpdate($period);
 
             // Checked against the period with the input applied, so a partial update that
             // sends only one of the two times is still validated.
             $merged = (clone $period)->fill($data);
+            $moves = $merged->start_time !== $period->start_time || $merged->end_time !== $period->end_time;
+
             $used = $this->periods->isUsedInRoutine($period);
 
             if ($used && $merged->is_break) {
@@ -74,16 +92,7 @@ class PeriodService
 
             $this->ensureTimesAreValid($merged, $period->id);
 
-            if ($used && ($merged->start_time !== $period->start_time || $merged->end_time !== $period->end_time)) {
-                // Lock order: shift, then the affected years in ascending id. Routine saves
-                // lock section then year and never the shift, so the year row is the only
-                // lock both paths share and it is always taken last: no deadlock.
-                $yearIds = $this->routines->usingPeriod($period)->pluck('academic_year_id')->map(fn ($id) => (int) $id)->unique()->sort()->values();
-
-                foreach ($yearIds as $yearId) {
-                    $this->routines->lockAcademicYear($yearId);
-                }
-
+            if ($used && $moves) {
                 $this->ensureMovedSlotsDoNotClash($merged);
             }
 
@@ -93,9 +102,18 @@ class PeriodService
 
     public function delete(Period $period): void
     {
-        abort_if($this->periods->isUsedInRoutine($period), 409, 'Period is used in class routines and cannot be deleted.');
+        DB::transaction(function () use ($period) {
+            // Same order as update(): shift, every year ascending, then the period. With the
+            // years held no grid save is in flight, so the usage check can't go stale and a
+            // concurrent slot insert can't turn this 409 into a restrict foreign key error.
+            $this->shifts->lockForUpdate([(int) $period->shift_id]);
+            $this->routines->lockAcademicYears();
+            $period = $this->periods->lockForUpdate($period);
 
-        $this->periods->delete($period);
+            abort_if($this->periods->isUsedInRoutine($period), 409, 'Period is used in class routines and cannot be deleted.');
+
+            $this->periods->delete($period);
+        });
     }
 
     private function ensureTimesAreValid(Period $period, ?int $exceptId): void

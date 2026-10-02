@@ -22,7 +22,7 @@
         <img v-if="school?.logo_url" :src="school.logo_url" alt="" class="af-logo" />
         <div>
           <h2 class="af-school">{{ bn ? school?.name_bn || school?.name : school?.name || school?.name_bn }}</h2>
-          <h2 v-if="bn ? school?.name : school?.name_bn" class="af-school-2">{{ bn ? school?.name : school?.name_bn }}</h2>
+          <p v-if="bn ? school?.name : school?.name_bn" class="af-school-2">{{ bn ? school?.name : school?.name_bn }}</p>
           <p v-if="addressLine" class="af-muted">{{ addressLine }}</p>
         </div>
       </header>
@@ -189,16 +189,6 @@ const applyPageStyle = () => {
   style.textContent = '@page { size: A4 portrait; margin: 12mm; }'
 }
 
-const FONT_ID = 'noto-sans-bengali'
-const loadFont = () => {
-  if (document.getElementById(FONT_ID)) return
-  const link = document.createElement('link')
-  link.id = FONT_ID
-  link.rel = 'stylesheet'
-  link.href = 'https://fonts.googleapis.com/css2?family=Noto+Sans+Bengali:wght@400;600;700&display=swap'
-  document.head.appendChild(link)
-}
-
 const print = () => window.print()
 
 // The photo is on the private disk behind the bearer token, so it is fetched as a blob
@@ -214,7 +204,6 @@ const loadPhoto = async () => {
 
 onMounted(async () => {
   document.body.classList.add('admission-print-page')
-  loadFont()
   applyPageStyle()
 
   try {

@@ -613,9 +613,14 @@ class PortalTest extends TestCase
         // Session A changes the password.
         $this->post('/portal/login', ['login' => '20260001', 'password' => 'secret-pass'])->assertRedirect('/portal');
         $this->get('/portal/profile')->assertOk();
+        \Illuminate\Support\Facades\DB::flushQueryLog();
+        \Illuminate\Support\Facades\DB::enableQueryLog();
         $this->put('/portal/profile/password', [
             'current_password' => 'secret-pass', 'new_password' => 'brand-new-pass', 'new_password_confirmation' => 'brand-new-pass',
         ])->assertRedirect('/portal/profile');
+        $passwordWrites = array_filter(array_column(\Illuminate\Support\Facades\DB::getQueryLog(), 'query'), fn ($q) => preg_match('/^update "users" set .*"password"/', $q));
+        \Illuminate\Support\Facades\DB::disableQueryLog();
+        $this->assertCount(1, $passwordWrites, 'the password hash is written once');
         $this->get('/portal/profile')->assertOk();
         $this->assertAuthenticated('web');
         $sessionA = session()->all();
@@ -629,6 +634,21 @@ class PortalTest extends TestCase
         $this->flushSession();
         Auth::guard('web')->forgetUser();
         $this->withSession($sessionB)->get('/portal/profile')->assertRedirect('/portal/login');
+    }
+
+    public function test_a_page_parameter_on_a_plain_portal_page_is_not_rejected(): void
+    {
+        $login = $this->login('20260001', 'student');
+        $this->enrolled($login);
+
+        foreach (['/portal', '/portal/fees', '/portal/results', '/portal/attendance', '/portal/exams', '/portal/homework', '/portal/profile'] as $url) {
+            $this->web($login)->get("{$url}?page=2")->assertOk();
+        }
+
+        // The routine validates only its language; the marksheet and receipt validate the paper.
+        $this->web($login)->get('/portal/routine?page=2&orientation=x')->assertOk();
+        $this->web($login)->getJson('/portal/routine?language=xx')->assertUnprocessable()->assertJsonValidationErrors('language');
+        $this->web($login)->getJson('/portal/results/1?page=2')->assertUnprocessable()->assertJsonValidationErrors('page');
     }
 
     public function test_print_options_are_validated_per_page(): void

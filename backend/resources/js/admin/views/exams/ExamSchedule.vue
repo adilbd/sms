@@ -57,7 +57,8 @@
                   <span v-if="row.subject?.name_bn" class="text-gray-500">({{ row.subject.name_bn }})</span>
                   <div class="mt-1 space-x-1">
                     <span v-if="row.group" class="badge">{{ GROUP_LABELS[row.group] || row.group }}</span>
-                    <span v-if="row.type === 'optional'" class="badge badge-info">Optional (4th)</span>
+                    <span v-if="row.choice_group" class="badge badge-info">Either/or</span>
+                    <span v-else-if="row.type === 'optional'" class="badge badge-info">Optional (4th)</span>
                     <span v-if="row.paper_group" class="badge badge-info">Paired: {{ row.paper_group }}</span>
                   </div>
                 </td>

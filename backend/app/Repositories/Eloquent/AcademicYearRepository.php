@@ -51,6 +51,11 @@ class AcademicYearRepository extends EloquentRepository implements AcademicYearR
         return AcademicYear::query()->where('year', $year)->first();
     }
 
+    public function lockAll(): void
+    {
+        AcademicYear::query()->orderBy('id')->lockForUpdate()->pluck('id');
+    }
+
     public function deactivateAllExcept(AcademicYear $academicYear): void
     {
         AcademicYear::where('id', '!=', $academicYear->id)

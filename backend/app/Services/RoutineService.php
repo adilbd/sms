@@ -176,8 +176,18 @@ class RoutineService
         $periods = $this->periods->forShift((int) $section->shift_id)->keyBy('id');
         $curriculum = $this->assignments->curriculumSubjectIds((int) $section->class_id, $section->group);
         $holidays = $this->institute->weeklyHolidays();
-        $staffCache = [];
         $seen = [];
+
+        // Everything the cells check against is loaded once, so the number of queries does
+        // not depend on the number of cells.
+        $staffIds = collect($slots)->pluck('staff_id')->filter(fn ($id) => filled($id))->map(fn ($id) => (int) $id)->unique()->values()->all();
+        $staffById = $this->staff->findManyByIds($staffIds);
+        $assigned = [];
+        foreach ($this->assignments->forSectionAndYear($section, $year->id) as $assignment) {
+            $assigned["{$assignment->subject_id}|{$assignment->staff_id}"] = true;
+        }
+        $roomKeys = collect($slots)->map(fn ($slot) => $this->cleanRoom($slot['room'] ?? null))->filter()->map(fn ($room) => $this->roomKey($room))->unique()->values()->all();
+        $others = $this->routines->otherSectionSlots($year->id, $section->id, $staffIds, $roomKeys);
         $errors = [];
         $rows = [];
 
@@ -220,12 +230,12 @@ class RoutineService
             $teacher = null;
 
             if ($staffId !== null) {
-                $teacher = $staffCache[$staffId] ??= $this->staff->find($staffId);
+                $teacher = $staffById->get($staffId);
 
                 if ($teacher === null || $teacher->status !== Staff::STATUS_ACTIVE) {
                     $errors["slots.{$i}.staff_id"][] = 'The teacher must be an active staff member.';
                     $teacher = null;
-                } elseif ($this->assignments->findFor($section->id, $subjectId, $year->id, $staffId) === null) {
+                } elseif (! isset($assigned["{$subjectId}|{$staffId}"])) {
                     $errors["slots.{$i}.staff_id"][] = 'This teacher is not assigned to this subject in this section for the academic year.';
                     $teacher = null;
                 }
@@ -234,7 +244,7 @@ class RoutineService
             // Clashes compare real time ranges against the other sections, so only a cell
             // whose day and period are sound can be checked.
             if ($cellIsValid && $period !== null) {
-                if ($teacher !== null && $clash = $this->routines->findTeacherClash($year->id, $section->id, $teacher->id, $day, $period->start_time, $period->end_time)) {
+                if ($teacher !== null && $clash = $this->firstClash($others, 'staff_id', $teacher->id, $day, $period)) {
                     $errors["slots.{$i}.staff_id"][] = sprintf(
                         '%s is already teaching %s on %s at %s.',
                         $teacher->name_en ?: $teacher->name_bn,
@@ -244,7 +254,7 @@ class RoutineService
                     );
                 }
 
-                if ($room !== null && $clash = $this->routines->findRoomClash($year->id, $section->id, $this->roomKey($room), $day, $period->start_time, $period->end_time)) {
+                if ($room !== null && $clash = $this->firstClash($others, 'room_key', $this->roomKey($room), $day, $period)) {
                     $errors["slots.{$i}.room"][] = sprintf(
                         'Room "%s" is already used by %s on %s at %s.',
                         $room,
@@ -270,6 +280,22 @@ class RoutineService
         }
 
         return $rows;
+    }
+
+    /**
+     * The first (lowest id) preloaded slot of another section on the day, with the same
+     * teacher or room, whose period overlaps $period (each range starts before the other
+     * ends, so back-to-back periods don't clash).
+     *
+     * @param  Collection<int, RoutineSlot>  $others
+     */
+    private function firstClash(Collection $others, string $column, int|string $value, string $day, \App\Models\Period $period): ?RoutineSlot
+    {
+        return $others->first(fn (RoutineSlot $slot) => $slot->day === $day
+            && (string) $slot->{$column} === (string) $value
+            && $slot->period !== null
+            && (string) $slot->period->start_time < (string) $period->end_time
+            && (string) $slot->period->end_time > (string) $period->start_time);
     }
 
     /**

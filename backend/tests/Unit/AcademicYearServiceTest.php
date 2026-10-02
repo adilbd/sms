@@ -85,13 +85,14 @@ class AcademicYearServiceTest extends TestCase
         app(AcademicYearService::class)->update($year, ['name' => 'Renamed']);
     }
 
-    public function test_activate_deactivates_other_years_before_activating(): void
+    public function test_activate_locks_all_years_then_deactivates_others_before_activating(): void
     {
         $year = AcademicYear::factory()->make(['year' => 2027]);
         $year->id = 7;
         $year->exists = true;
 
         $this->mock(AcademicYearRepositoryInterface::class, function (MockInterface $mock) use ($year) {
+            $mock->shouldReceive('lockAll')->once()->withNoArgs()->globally()->ordered();
             $mock->shouldReceive('deactivateAllExcept')->once()->with($year)->globally()->ordered();
             $mock->shouldReceive('update')->once()->with($year, ['is_active' => true])->andReturn($year)->globally()->ordered();
         });

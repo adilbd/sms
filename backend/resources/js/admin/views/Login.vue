@@ -10,6 +10,11 @@
         </div>
 
         <form class="mt-8 space-y-6" @submit.prevent="handleLogin">
+          <div v-if="fromPortal" class="bg-blue-50 border border-blue-200 text-blue-800 px-4 py-3 rounded-lg text-sm" data-test="portal-note">
+            This login is for staff. Students and guardians sign in at the
+            <a href="/portal/login" class="font-medium underline">portal</a>.
+          </div>
+
           <div v-if="error" class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
             {{ error }}
           </div>
@@ -85,10 +90,14 @@
 
 <script setup>
 import { ref, reactive } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 
 const router = useRouter()
+const route = useRoute()
+
+// The portal sends staff here with ?from=portal after they sign in on the wrong login.
+const fromPortal = route.query.from === 'portal'
 const authStore = useAuthStore()
 
 const form = reactive({

@@ -15,6 +15,14 @@ interface StaffRepositoryInterface extends RepositoryInterface
     public function hasActiveInPosition(int $shiftId, string $position, ?int $exceptId): bool;
 
     /**
+     * The staff members with these ids in one query, keyed by id (missing ids are absent).
+     *
+     * @param  list<int>  $ids
+     * @return Collection<int, Staff>
+     */
+    public function findManyByIds(array $ids): Collection;
+
+    /**
      * The staff member whose login is user $userId (`staff.user_id`), or null.
      */
     public function findByUserId(int $userId): ?Staff;

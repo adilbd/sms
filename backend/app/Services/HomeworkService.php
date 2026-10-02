@@ -360,6 +360,6 @@ class HomeworkService
         $suffix = $ext !== '' && mb_strlen($ext) <= 10 ? '.'.$ext : '';
         $base = $suffix !== '' ? mb_substr($name, 0, mb_strlen($name) - mb_strlen($suffix)) : $name;
 
-        return Str::limit($base, 255 - mb_strlen($suffix), '').$suffix;
+        return mb_substr($base, 0, 255 - mb_strlen($suffix)).$suffix;
     }
 }

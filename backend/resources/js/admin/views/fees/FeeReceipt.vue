@@ -158,18 +158,6 @@ watch(paper, applyPageStyle)
 
 const print = () => window.print()
 
-// Noto Sans Bengali, for the Bangla text. Added once, only on this page.
-const FONT_ID = 'noto-sans-bengali'
-const loadFont = () => {
-  if (document.getElementById(FONT_ID)) return
-
-  const link = document.createElement('link')
-  link.id = FONT_ID
-  link.rel = 'stylesheet'
-  link.href = 'https://fonts.googleapis.com/css2?family=Noto+Sans+Bengali:wght@400;600;700&display=swap'
-  document.head.appendChild(link)
-}
-
 const load = async () => {
   const { data } = await api.get(`/fee-payments/${route.params.id}`)
   payment.value = data.data
@@ -190,7 +178,6 @@ const cancel = async () => {
 onMounted(async () => {
   // Marks the page so the print CSS can hide the admin chrome (sidebar and header).
   document.body.classList.add('fee-receipt-page')
-  loadFont()
   applyPageStyle()
 
   try {

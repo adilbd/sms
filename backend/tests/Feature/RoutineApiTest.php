@@ -10,6 +10,7 @@ use App\Models\Student;
 use App\Models\StudentEnrolment;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Tests\Concerns\BuildsFees;
 use Tests\Concerns\BuildsRoutines;
 use Tests\TestCase;
@@ -220,6 +221,45 @@ class RoutineApiTest extends TestCase
 
         $this->assertStringContainsString('Class 9', $response->json('errors')['slots.0.staff_id'][0]);
         $this->assertSame(0, $this->slotCount($this->section10));
+    }
+
+    public function test_the_read_queries_of_a_save_do_not_grow_with_the_number_of_cells(): void
+    {
+        $this->assign($this->banglaTeacher, $this->section9, $this->bangla);
+        $this->saveRoutine($this->section9, [$this->cell($this->morning[1], 'monday', $this->bangla, $this->banglaTeacher, 'Room 9')])->assertOk();
+
+        $selects = function (array $cells): int {
+            DB::flushQueryLog();
+            DB::enableQueryLog();
+            $this->saveRoutine($this->section10, $cells)->assertOk();
+            $count = count(array_filter(array_column(DB::getQueryLog(), 'query'), fn ($q) => str_starts_with(strtolower($q), 'select')));
+            DB::disableQueryLog();
+
+            return $count;
+        };
+
+        $one = $selects([$this->cell($this->morning[1], 'saturday', $this->bangla, $this->banglaTeacher, 'Room 1')]);
+
+        $many = [];
+        foreach (['saturday', 'sunday', 'tuesday', 'wednesday', 'thursday'] as $day) {
+            foreach ([1, 2, 4] as $n) {
+                $many[] = $this->cell($this->morning[$n], $day, $this->bangla, $this->banglaTeacher, "Room {$day}{$n}");
+            }
+        }
+
+        $this->assertGreaterThanOrEqual(15, count($many));
+        $this->assertSame($one, $selects($many));
+    }
+
+    public function test_unknown_ids_get_the_exists_message_with_the_field_name(): void
+    {
+        $response = $this->saveRoutine($this->section10, [
+            ['day' => 'saturday', 'period_id' => 999999, 'subject_id' => 999999, 'staff_id' => 999999, 'room' => null],
+        ])->assertUnprocessable();
+
+        $this->assertSame(['The selected slots.0.period_id is invalid.'], $response->json('errors')['slots.0.period_id']);
+        $this->assertSame(['The selected slots.0.subject_id is invalid.'], $response->json('errors')['slots.0.subject_id']);
+        $this->assertSame(['The selected slots.0.staff_id is invalid.'], $response->json('errors')['slots.0.staff_id']);
     }
 
     public function test_the_same_teacher_at_non_overlapping_times_is_fine(): void

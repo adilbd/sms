@@ -27,6 +27,11 @@ class PeriodRepository extends EloquentRepository implements PeriodRepositoryInt
         return $period->routineSlots()->exists();
     }
 
+    public function lockForUpdate(Period $period): Period
+    {
+        return Period::query()->whereKey($period->id)->lockForUpdate()->firstOrFail();
+    }
+
     public function forShift(int $shiftId): Collection
     {
         return Period::query()->where('shift_id', $shiftId)->orderBy('number')->orderBy('id')->get();
