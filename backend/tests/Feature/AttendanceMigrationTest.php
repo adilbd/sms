@@ -21,7 +21,7 @@ class AttendanceMigrationTest extends TestCase
 
     public function test_the_migration_rolls_back_to_the_old_structure_and_runs_again(): void
     {
-        $this->artisan('migrate:rollback', ['--step' => 8])->assertSuccessful();
+        $this->artisan('migrate:rollback', ['--step' => 9])->assertSuccessful();
 
         $this->assertFalse(Schema::hasTable('holidays'));
         $this->assertTrue(Schema::hasColumns('attendances', ['student_id', 'class_id', 'section_id', 'date', 'status', 'marked_by']));

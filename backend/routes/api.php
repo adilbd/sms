@@ -152,6 +152,14 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::apiResource('homework', \App\Http\Controllers\Api\HomeworkController::class)
         ->where(['homework' => '[0-9]+']);
 
+    // Certificates (testimonial, transfer, study, character) and the ID card print data.
+    Route::post('certificates/{certificate}/cancel', [\App\Http\Controllers\Api\CertificateController::class, 'cancel'])
+        ->where('certificate', '[0-9]+');
+    Route::apiResource('certificates', \App\Http\Controllers\Api\CertificateController::class)
+        ->only(['index', 'show', 'store'])
+        ->where(['certificate' => '[0-9]+']);
+    Route::get('id-cards', [\App\Http\Controllers\Api\IdCardController::class, 'index']);
+
     // Academic Years
     Route::apiResource('academic-years', \App\Http\Controllers\Api\AcademicYearController::class)
         ->where(['academic_year' => '[0-9]+']);

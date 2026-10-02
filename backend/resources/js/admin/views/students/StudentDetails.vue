@@ -4,6 +4,8 @@
       <h1 class="text-2xl font-bold text-gray-900">Student</h1>
       <div class="flex space-x-2">
         <router-link to="/students" class="btn btn-secondary">Back</router-link>
+        <router-link v-if="student && authStore.hasPermission('edit-students')" :to="`/certificates?student_id=${student.id}`" class="btn btn-secondary">Issue certificate</router-link>
+        <router-link v-if="student" :to="`/id-cards?student_id=${student.id}`" class="btn btn-secondary">Print ID card</router-link>
         <router-link v-if="student && authStore.hasPermission('edit-students')" :to="`/students/${student.id}/edit`" class="btn btn-primary">Edit</router-link>
       </div>
     </div>

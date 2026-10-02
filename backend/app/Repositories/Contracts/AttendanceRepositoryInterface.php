@@ -38,4 +38,9 @@ interface AttendanceRepositoryInterface
      * One student's attendance rows from $from to $to (`Y-m-d`, inclusive), oldest first.
      */
     public function recordsForStudent(int $studentId, string $from, string $to): Collection;
+
+    /**
+     * The latest date (`Y-m-d`) with an attendance row for the student, or null.
+     */
+    public function lastDateForStudent(int $studentId): ?string;
 }

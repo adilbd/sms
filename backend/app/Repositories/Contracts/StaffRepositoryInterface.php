@@ -80,4 +80,9 @@ interface StaffRepositoryInterface extends RepositoryInterface
 
     /** Whether $staff is the author of any homework. */
     public function hasHomework(Staff $staff): bool;
+
+    /**
+     * The active `head` of the shift (the lowest id when data has more than one), or null.
+     */
+    public function activeHeadForShift(int $shiftId): ?Staff;
 }
