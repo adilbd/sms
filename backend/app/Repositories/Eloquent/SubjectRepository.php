@@ -30,6 +30,11 @@ class SubjectRepository extends EloquentRepository implements SubjectRepositoryI
         return $subject->enrolments()->exists();
     }
 
+    public function isUsedInRoutine(Subject $subject): bool
+    {
+        return $subject->routineSlots()->exists();
+    }
+
     protected function query(): Builder
     {
         return parent::query()->orderBy('name')->orderBy('id');

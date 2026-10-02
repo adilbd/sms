@@ -16,4 +16,7 @@ interface SubjectRepositoryInterface extends RepositoryInterface
      * Whether any student enrolment uses the subject as its 4th (optional) subject.
      */
     public function isUsedAsOptionalSubject(Subject $subject): bool;
+
+    /** Whether any routine slot uses the subject (soft deletes keep the foreign key, so SubjectService::delete() checks it). */
+    public function isUsedInRoutine(Subject $subject): bool;
 }

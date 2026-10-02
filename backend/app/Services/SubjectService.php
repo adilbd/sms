@@ -66,6 +66,12 @@ class SubjectService
             "Subject is a student's 4th subject and cannot be deleted."
         );
 
+        abort_if(
+            $this->subjects->isUsedInRoutine($subject),
+            409,
+            'Subject is used in a class routine and cannot be deleted.'
+        );
+
         $this->subjects->delete($subject);
     }
 

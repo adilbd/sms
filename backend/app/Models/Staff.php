@@ -195,4 +195,9 @@ class Staff extends Model
             ? "{$this->name()}, {$this->designation} at our school."
             : "{$this->name()}'s profile.";
     }
+
+    public function routineSlots(): HasMany
+    {
+        return $this->hasMany(RoutineSlot::class);
+    }
 }

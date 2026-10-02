@@ -190,6 +190,7 @@ loadClassTeacherSections()
 const menuItems = computed(() => visible([
   { name: 'Dashboard', path: '/', icon: '📊' },
   { name: 'My subjects', path: '/my-subjects', icon: '🧑‍🏫', access: { role: 'teacher' } },
+  { name: 'My routine', path: '/my-routine', icon: '🗓️', access: { role: 'teacher' } },
   { name: 'Students', path: '/students', icon: '👨‍🎓', access: { permission: 'view-students' } },
   { name: 'Admissions', path: '/admissions', icon: '📝', access: { permission: 'edit-students' } },
   { name: 'Staff', path: '/staff', icon: '👨‍🏫', access: { permission: 'view-teachers' } },
@@ -213,6 +214,8 @@ const cmsItems = computed(() => visible([
 const academicItems = computed(() => visible([
   { name: 'Classes', path: '/classes', icon: '🏫', access: { permission: 'view-classes' }, hideForTeacher: true },
   { name: 'Sections', path: '/sections', icon: '🧑‍🤝‍🧑', access: { permission: 'edit-classes' } },
+  { name: 'Class routine', path: '/routines', icon: '🗓️', access: { permission: 'view-classes' }, hideForTeacher: true },
+  { name: 'Teacher routines', path: '/teacher-routines', icon: '🧑‍🏫', access: { permission: 'view-teachers' }, hideForTeacher: true },
   { name: 'Subjects', path: '/subjects', icon: '📚', access: { permission: 'view-subjects' }, hideForTeacher: true },
   { name: 'Academic Years', path: '/academic-years', icon: '📆', access: { permission: 'edit-settings' } },
   { name: 'Holidays', path: '/holidays', icon: '🎉', access: { permission: 'edit-settings' } },

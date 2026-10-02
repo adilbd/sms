@@ -111,6 +111,11 @@ class StaffRepository extends EloquentRepository implements StaffRepositoryInter
         return Staff::published()->select(['id', 'updated_at'])->orderBy('id')->get();
     }
 
+    public function isInRoutine(Staff $staff): bool
+    {
+        return $staff->routineSlots()->exists();
+    }
+
     protected function query(): Builder
     {
         return parent::query()

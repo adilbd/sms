@@ -9,6 +9,7 @@ use App\Models\Subject;
 use App\Models\SubjectAssignment;
 use App\Models\User;
 use App\Repositories\Contracts\AcademicYearRepositoryInterface;
+use App\Repositories\Contracts\RoutineRepositoryInterface;
 use App\Repositories\Contracts\SectionRepositoryInterface;
 use App\Repositories\Contracts\StaffRepositoryInterface;
 use App\Repositories\Contracts\SubjectAssignmentRepositoryInterface;
@@ -33,6 +34,7 @@ class SubjectAssignmentService
         private StaffRepositoryInterface $staff,
         private AcademicYearRepositoryInterface $years,
         private UserRepositoryInterface $users,
+        private RoutineRepositoryInterface $routines,
     ) {}
 
     /**
@@ -127,13 +129,26 @@ class SubjectAssignmentService
                 throw $this->duplicate();
             }
 
-            return $this->find($this->withUniqueAssignment(fn () => $this->assignments->update($assignment, ['staff_id' => $staff->id])));
+            $updated = $this->withUniqueAssignment(fn () => $this->assignments->update($assignment, ['staff_id' => $staff->id]));
+
+            // The previous teacher no longer teaches this subject here.
+            $this->routines->clearUnassignedTeachers($section->id, (int) $assignment->academic_year_id);
+
+            return $this->find($updated);
         });
     }
 
     public function delete(SubjectAssignment $assignment): void
     {
-        $this->assignments->delete($assignment);
+        DB::transaction(function () use ($assignment) {
+            $section = $this->lockClassThenSection($assignment->section);
+
+            $this->assignments->delete($assignment);
+
+            // Routine cells naming this teacher keep their subject but lose the teacher, so
+            // the section's grid can still be saved.
+            $this->routines->clearUnassignedTeachers($section->id, (int) $assignment->academic_year_id);
+        });
     }
 
     /**
@@ -195,6 +210,8 @@ class SubjectAssignmentService
             }
 
             $this->withUniqueAssignment(fn () => $this->assignments->replaceForSection($locked, $year->id, $wanted));
+
+            $this->routines->clearUnassignedTeachers($locked->id, $year->id);
 
             return $this->assignments->forSectionAndYear($locked, $year->id);
         });

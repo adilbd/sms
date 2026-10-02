@@ -119,6 +119,16 @@ class PortalController extends Controller
         ]);
     }
 
+    public function routine(PortalPageRequest $request)
+    {
+        [, $student] = $this->context($request);
+
+        return $this->page('portal.routine', $request, $student, [
+            'routine' => $this->portal->routine($student),
+            'language' => $request->validated('language') ?? 'bn',
+        ]);
+    }
+
     /**
      * @return array{0: \App\Models\User, 1: \App\Models\Student}
      */

@@ -68,4 +68,9 @@ class AcademicYear extends Model
     {
         return $this->hasMany(SubjectAssignment::class);
     }
+
+    public function routineSlots(): HasMany
+    {
+        return $this->hasMany(RoutineSlot::class);
+    }
 }

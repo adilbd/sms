@@ -500,7 +500,7 @@ class CompulsoryChoiceTest extends TestCase
 
     public function test_the_backfill_pairs_only_the_exact_biology_and_higher_math_science_rows_and_is_idempotent(): void
     {
-        $this->artisan('migrate:rollback', ['--step' => 4])->assertSuccessful();
+        $this->artisan('migrate:rollback', ['--step' => 5])->assertSuccessful();
         $this->assertFalse(Schema::hasColumn('class_subjects', 'choice_group'));
 
         $hmath = Subject::factory()->create(['code' => 'HMATH']);
@@ -533,7 +533,7 @@ class CompulsoryChoiceTest extends TestCase
 
     public function test_the_migration_rolls_back_and_runs_again(): void
     {
-        $this->artisan('migrate:rollback', ['--step' => 4])->assertSuccessful();
+        $this->artisan('migrate:rollback', ['--step' => 5])->assertSuccessful();
 
         $this->assertFalse(Schema::hasColumn('class_subjects', 'choice_group'));
         $this->assertFalse(Schema::hasColumn('exam_subjects', 'choice_group'));

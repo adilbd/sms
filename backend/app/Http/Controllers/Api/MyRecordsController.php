@@ -5,15 +5,20 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Attendance\MonthAttendanceRequest;
 use App\Http\Requests\MyRecords\IndexMyAssignmentsRequest;
+use App\Http\Requests\MyRecords\ShowMyRoutineRequest;
 use App\Http\Resources\ExamResultResource;
 use App\Http\Resources\MyAssignmentsResource;
 use App\Http\Resources\MyExamScheduleResource;
 use App\Http\Resources\MyFeesResource;
+use App\Http\Resources\SectionRoutineResource;
 use App\Http\Resources\StudentAttendanceResource;
 use App\Http\Resources\StudentResource;
+use App\Http\Resources\TeacherRoutineResource;
 use App\Services\AttendanceService;
 use App\Services\FeeReportService;
+use App\Services\PortalService;
 use App\Services\ResultService;
+use App\Services\RoutineService;
 use App\Services\StudentService;
 use App\Services\TeacherScope;
 use Illuminate\Http\Request;
@@ -31,6 +36,8 @@ class MyRecordsController extends Controller
         private TeacherScope $teacherScope,
         private AttendanceService $attendance,
         private FeeReportService $fees,
+        private RoutineService $routines,
+        private PortalService $portal,
     ) {}
 
     public function student(Request $request)
@@ -92,5 +99,23 @@ class MyRecordsController extends Controller
     public function exams(Request $request)
     {
         return MyExamScheduleResource::collection($this->results->ownSchedule($request->user()));
+    }
+
+    /**
+     * The caller's own routine: a student's section, the chosen child's section for a
+     * guardian (`?student=`, the first child when omitted, 403 for anyone else's), or a
+     * teacher's own week. The portal reads the same data through PortalService.
+     */
+    public function routine(ShowMyRoutineRequest $request)
+    {
+        $user = $request->user();
+
+        if ($user->hasRole('student') || $user->hasRole('parent')) {
+            $student = $this->portal->resolveStudent($user, $request->studentId(), null);
+
+            return new SectionRoutineResource($this->portal->routine($student));
+        }
+
+        return new TeacherRoutineResource($this->routines->forTeacherUser($user, $request->yearId()));
     }
 }

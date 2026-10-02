@@ -64,6 +64,8 @@ class AcademicYearService
 
         abort_if($this->years->hasHolidays($academicYear), 409, 'Academic year has holidays and cannot be deleted.');
 
+        abort_if($this->years->hasRoutineSlots($academicYear), 409, 'Academic year has class routines and cannot be deleted.');
+
         $this->years->delete($academicYear);
     }
 
