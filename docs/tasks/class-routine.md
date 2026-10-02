@@ -53,8 +53,8 @@ See the plan's Task 2.
 - [x] Periods work per shift, with overlap checks.
 - [x] The routine grid saves, with every rule and clash check enforced.
 - [x] Teacher, student, guardian and portal views each show only the caller's own routine.
-- [ ] Print views work in Bangla and English. The build passes; check them in Chrome on Docker before the merge.
-- [ ] Migrations work on SQLite and MySQL, including rollback. SQLite is verified. MySQL is checked on Docker before the merge.
+- [x] Print views work in Bangla and English. The portal routine page (guardian of 10-A) shows the subject, room and teacher, prints A4 landscape, has one `<h1>`, and is no-store and noindex.
+- [x] Migrations work on SQLite and on Docker MySQL 8, including rollback and a re-run, also after `room_key` was widened to 100.
 - [x] The full suite, Pint, `npm run build` and smoke all pass. CLAUDE.md is updated.
 
 ## Test cases
@@ -80,3 +80,12 @@ See the plan's Task 2.
   - A guardian asking for another family's child → 403.
   - A student or parent calling `/api/routines/*` → 403.
 - [x] **Portal:** the portal routine page matches the API, has one `<h1>`, and is noindex and no-store.
+
+## Docker check
+- [x] An overlapping period, a teacher clash (VHBUB-3 in 9-A at Sunday 08:00-08:40), a room clash (" room 101 ") and Friday were each refused with a message naming the clash.
+- [x] A guardian sees their child's 10-A routine. VHBUB-9 reading VHBUB-3's routine gets 403, and VHBUB-9 sees their own week.
+
+## Follow-ups (from review)
+- Small race in `PeriodService::update`: it reads the years using a period before locking them, so a routine save in another year can slip in between. Lock the period row first, or document the gap. Also reword the "only lock both paths share" comment.
+- Routine saves run several queries per cell. Preloading would help with large grids.
+- The `Section`/`ClassSection` factories can pick a colliding random class number, which makes tests flaky. Fix the factories as was done for academic years.
