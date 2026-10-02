@@ -203,6 +203,7 @@ class AcademicYearServiceTest extends TestCase
             $mock->shouldReceive('hasSubjectAssignments')->once()->andReturn(false);
             $mock->shouldReceive('hasHolidays')->once()->andReturn(false);
             $mock->shouldReceive('hasRoutineSlots')->once()->andReturn(false);
+            $mock->shouldReceive('hasHomework')->once()->andReturn(false);
             $mock->shouldReceive('delete')->once()->with($year);
         });
 

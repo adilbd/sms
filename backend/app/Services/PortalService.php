@@ -26,6 +26,7 @@ class PortalService
         private FeeReportService $fees,
         private FeePaymentService $payments,
         private RoutineService $routines,
+        private HomeworkService $homework,
     ) {}
 
     /**
@@ -74,7 +75,7 @@ class PortalService
     }
 
     /**
-     * @return array{attendance: array<string, mixed>, latest_result: ?ExamResult, fees: array<string, mixed>, exams: list<array{exam: \App\Models\Exam, subjects: list<\App\Models\ExamSubject>}>}
+     * @return array{attendance: array<string, mixed>, latest_result: ?ExamResult, fees: array<string, mixed>, exams: list<array{exam: \App\Models\Exam, subjects: list<\App\Models\ExamSubject>}>, homework_due_this_week: Collection}
      */
     public function dashboard(User $user, Student $student): array
     {
@@ -83,6 +84,7 @@ class PortalService
             'latest_result' => $this->results($user, $student)->first(),
             'fees' => $this->fees($user, $student),
             'exams' => $this->upcomingExams($user, $student),
+            'homework_due_this_week' => $this->homework->dueThisWeek($student),
         ];
     }
 
@@ -137,6 +139,17 @@ class PortalService
     public function routine(Student $student): array
     {
         return $this->routines->forStudent($student);
+    }
+
+    /**
+     * The student's homework for the subjects they take, the same data as
+     * `/api/my/homework`. Filters: `from`, `to`, `due`.
+     *
+     * @param  array<string, mixed>  $filters
+     */
+    public function homework(Student $student, array $filters = []): Collection
+    {
+        return $this->homework->forStudent($student, $filters);
     }
 
     /**

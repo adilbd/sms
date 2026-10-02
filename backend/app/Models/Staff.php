@@ -200,4 +200,9 @@ class Staff extends Model
     {
         return $this->hasMany(RoutineSlot::class);
     }
+
+    public function homework(): HasMany
+    {
+        return $this->hasMany(Homework::class);
+    }
 }

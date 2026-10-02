@@ -78,9 +78,10 @@ class StudentEnrolment extends Model
      * taken when it is compulsory and common to the class (no group) or for the student's
      * group, or when it is optional and is the student's chosen 4th subject (and, for a
      * group's row, the student is in that group). The optional row of a choice pair is
-     * also taken by a student who chose its partner as the 4th subject.
+     * also taken by a student who chose its partner as the 4th subject. A class's
+     * curriculum row (ClassSubject) follows the same rule as an exam's snapshot of it.
      */
-    public function scopeTakingSubject(Builder $query, ExamSubject $subject): Builder
+    public function scopeTakingSubject(Builder $query, ExamSubject|ClassSubject $subject): Builder
     {
         return $query->where(function (Builder $q) use ($subject) {
             foreach (self::subjectRequirements($subject) as $column => $value) {
@@ -95,7 +96,7 @@ class StudentEnrolment extends Model
      * The same rule as scopeTakingSubject(), decided in memory from this enrolment's own
      * group and 4th subject, for callers that already hold the enrolment.
      */
-    public function takes(ExamSubject $subject): bool
+    public function takes(ExamSubject|ClassSubject $subject): bool
     {
         foreach (self::subjectRequirements($subject) as $column => $value) {
             // Compared as strings: the driver may hand back the id as a string.
@@ -135,7 +136,7 @@ class StudentEnrolment extends Model
      *
      * @return array<string, int|string|list<int>>
      */
-    private static function subjectRequirements(ExamSubject $subject): array
+    private static function subjectRequirements(ExamSubject|ClassSubject $subject): array
     {
         $requirements = [];
 

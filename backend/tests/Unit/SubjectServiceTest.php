@@ -52,6 +52,7 @@ class SubjectServiceTest extends TestCase
             $mock->shouldReceive('isUsedInCurriculum')->once()->with($subject)->andReturn(false);
             $mock->shouldReceive('isUsedAsOptionalSubject')->once()->with($subject)->andReturn(false);
             $mock->shouldReceive('isUsedInRoutine')->once()->with($subject)->andReturn(false);
+            $mock->shouldReceive('isUsedInHomework')->once()->with($subject)->andReturn(false);
             $mock->shouldReceive('delete')->once()->with($subject);
         });
 

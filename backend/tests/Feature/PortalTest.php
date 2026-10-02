@@ -192,7 +192,7 @@ class PortalTest extends TestCase
         return [
             'dashboard' => ['/portal'], 'profile' => ['/portal/profile'], 'results' => ['/portal/results'],
             'result' => ['/portal/results/1'], 'attendance' => ['/portal/attendance'], 'fees' => ['/portal/fees'],
-            'receipt' => ['/portal/fees/receipts/1'], 'exams' => ['/portal/exams'], 'routine' => ['/portal/routine'],
+            'receipt' => ['/portal/fees/receipts/1'], 'exams' => ['/portal/exams'], 'routine' => ['/portal/routine'], 'homework' => ['/portal/homework'],
         ];
     }
 
@@ -226,7 +226,7 @@ class PortalTest extends TestCase
         $result = $this->publish($enrolment);
 
         $uris = ['/portal/login', '/portal', '/portal/profile', '/portal/results', "/portal/results/{$result->exam_id}",
-            '/portal/attendance', '/portal/fees', '/portal/exams', '/portal/routine', '/portal/results/99999'];
+            '/portal/attendance', '/portal/fees', '/portal/exams', '/portal/routine', '/portal/homework', '/portal/results/99999'];
 
         foreach ($uris as $uri) {
             $response = $this->web($login)->get($uri);

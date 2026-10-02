@@ -21,6 +21,7 @@ use App\Repositories\Contracts\FeeReportRepositoryInterface;
 use App\Repositories\Contracts\FeeWaiverRepositoryInterface;
 use App\Repositories\Contracts\GalleryRepositoryInterface;
 use App\Repositories\Contracts\HolidayRepositoryInterface;
+use App\Repositories\Contracts\HomeworkRepositoryInterface;
 use App\Repositories\Contracts\MediaRepositoryInterface;
 use App\Repositories\Contracts\MenuItemRepositoryInterface;
 use App\Repositories\Contracts\PageRepositoryInterface;
@@ -56,6 +57,7 @@ use App\Repositories\Eloquent\FeeReportRepository;
 use App\Repositories\Eloquent\FeeWaiverRepository;
 use App\Repositories\Eloquent\GalleryRepository;
 use App\Repositories\Eloquent\HolidayRepository;
+use App\Repositories\Eloquent\HomeworkRepository;
 use App\Repositories\Eloquent\MediaRepository;
 use App\Repositories\Eloquent\MenuItemRepository;
 use App\Repositories\Eloquent\PageRepository;
@@ -117,5 +119,6 @@ class RepositoryServiceProvider extends ServiceProvider
         DashboardRepositoryInterface::class => DashboardRepository::class,
         AdmissionRoundRepositoryInterface::class => AdmissionRoundRepository::class,
         AdmissionApplicationRepositoryInterface::class => AdmissionApplicationRepository::class,
+        HomeworkRepositoryInterface::class => HomeworkRepository::class,
     ];
 }

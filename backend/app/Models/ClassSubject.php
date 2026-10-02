@@ -61,6 +61,27 @@ class ClassSubject extends Model
         'written_full', 'written_pass', 'mcq_full', 'mcq_pass', 'practical_full', 'practical_pass',
     ];
 
+    /**
+     * The subject ids of this row's choice pair (itself and its partner in the same class and
+     * group), or [] when it is in none. Mirrors ExamSubject::choiceSubjectIds().
+     *
+     * @return list<int>
+     */
+    public function choiceSubjectIds(): array
+    {
+        if ($this->choice_group === null) {
+            return [];
+        }
+
+        return self::query()
+            ->where('class_id', $this->class_id)
+            ->where('choice_group', $this->choice_group)
+            ->where('group', $this->group)
+            ->pluck('subject_id')
+            ->map(fn ($id) => (int) $id)
+            ->all();
+    }
+
     public function class(): BelongsTo
     {
         return $this->belongsTo(Classes::class, 'class_id');

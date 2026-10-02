@@ -282,6 +282,7 @@ class StaffServiceTest extends TestCase
             $mock->shouldReceive('hasSubjectAssignments')->once()->with($staff)->andReturn(false);
             $mock->shouldReceive('isClassTeacher')->once()->with($staff)->andReturn(false);
             $mock->shouldReceive('isInRoutine')->once()->with($staff)->andReturn(false);
+            $mock->shouldReceive('hasHomework')->once()->with($staff)->andReturn(false);
             $mock->shouldReceive('delete')->once()->with($staff);
         });
 
@@ -555,6 +556,7 @@ class StaffServiceTest extends TestCase
             $mock->shouldReceive('hasSubjectAssignments')->andReturn(false);
             $mock->shouldReceive('isClassTeacher')->andReturn(false);
             $mock->shouldReceive('isInRoutine')->andReturn(false);
+            $mock->shouldReceive('hasHomework')->andReturn(false);
             $mock->shouldReceive('delete')->once()->with($staff);
         });
         $this->mock(UserRepositoryInterface::class, function (MockInterface $mock) use ($user) {
@@ -575,6 +577,7 @@ class StaffServiceTest extends TestCase
             $mock->shouldReceive('hasSubjectAssignments')->andReturn(false);
             $mock->shouldReceive('isClassTeacher')->andReturn(false);
             $mock->shouldReceive('isInRoutine')->andReturn(false);
+            $mock->shouldReceive('hasHomework')->andReturn(false);
             $mock->shouldReceive('delete')->once();
         });
         $this->mock(UserRepositoryInterface::class, function (MockInterface $mock) {

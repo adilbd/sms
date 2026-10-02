@@ -19,4 +19,7 @@ interface SubjectRepositoryInterface extends RepositoryInterface
 
     /** Whether any routine slot uses the subject (soft deletes keep the foreign key, so SubjectService::delete() checks it). */
     public function isUsedInRoutine(Subject $subject): bool;
+
+    /** Whether any homework uses the subject (soft deletes keep the foreign key, so SubjectService::delete() checks it). */
+    public function isUsedInHomework(Subject $subject): bool;
 }

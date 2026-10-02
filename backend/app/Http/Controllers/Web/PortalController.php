@@ -7,11 +7,14 @@ use App\Http\Requests\Portal\PortalChangePasswordRequest;
 use App\Http\Requests\Portal\PortalMarksheetRequest;
 use App\Http\Requests\Portal\PortalPageRequest;
 use App\Http\Requests\Portal\PortalReceiptRequest;
+use App\Models\Homework;
 use App\Services\AuthService;
+use App\Services\HomeworkService;
 use App\Services\PortalService;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Storage;
 
 /**
  * The student and guardian portal pages (/portal). Every page reads through PortalService,
@@ -127,6 +130,38 @@ class PortalController extends Controller
             'routine' => $this->portal->routine($student),
             'language' => $request->validated('language') ?? 'bn',
         ]);
+    }
+
+    /**
+     * Homework grouped by due date. Shows what is due today or later plus anything that
+     * became overdue in the last 30 days (marked as overdue in the view).
+     */
+    public function homework(PortalPageRequest $request)
+    {
+        [, $student] = $this->context($request);
+        $today = CarbonImmutable::createFromFormat('!Y-m-d', HomeworkService::today(), 'UTC');
+
+        return $this->page('portal.homework', $request, $student, [
+            'homework' => $this->portal->homework($student, ['from' => $today->subDays(30)->toDateString()]),
+            'today' => $today->toDateString(),
+        ]);
+    }
+
+    /**
+     * Streams a homework attachment from the private disk. The route is `signed` (a link
+     * minted by the portal or `/api/my/homework` for homework the reader can see, valid for
+     * a few minutes), so an expired or altered link is a 403 before this runs.
+     */
+    public function homeworkAttachment(Homework $homework, HomeworkService $service)
+    {
+        $file = $service->attachmentFile($homework);
+        $isPdf = strtolower(pathinfo($file['path'], PATHINFO_EXTENSION)) === 'pdf';
+
+        return Storage::disk($file['disk'])->response($file['path'], $file['name'], [
+            'Cache-Control' => 'no-store, private',
+            'X-Robots-Tag' => 'noindex',
+            'X-Content-Type-Options' => 'nosniff',
+        ], $isPdf ? 'attachment' : 'inline');
     }
 
     /**

@@ -42,4 +42,7 @@ interface AcademicYearRepositoryInterface extends RepositoryInterface
 
     /** Whether any routine slot belongs to the academic year. */
     public function hasRoutineSlots(AcademicYear $academicYear): bool;
+
+    /** Whether any homework belongs to the academic year. */
+    public function hasHomework(AcademicYear $academicYear): bool;
 }

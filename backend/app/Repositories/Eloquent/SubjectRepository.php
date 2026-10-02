@@ -35,6 +35,11 @@ class SubjectRepository extends EloquentRepository implements SubjectRepositoryI
         return $subject->routineSlots()->exists();
     }
 
+    public function isUsedInHomework(Subject $subject): bool
+    {
+        return $subject->homework()->exists();
+    }
+
     protected function query(): Builder
     {
         return parent::query()->orderBy('name')->orderBy('id');

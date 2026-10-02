@@ -88,6 +88,9 @@ Route::middleware('auth:sanctum')->group(function () {
     // teacher's own week.
     Route::get('my/routine', [\App\Http\Controllers\Api\MyRecordsController::class, 'routine'])
         ->middleware('role:student|parent|teacher');
+    // Homework of the caller's own section for the subjects they take (a guardian's chosen child).
+    Route::get('my/homework', [\App\Http\Controllers\Api\MyRecordsController::class, 'homework'])
+        ->middleware('role:student|parent');
     Route::get('my/exams', [\App\Http\Controllers\Api\MyRecordsController::class, 'exams'])
         ->middleware('role:student|parent');
 
@@ -141,6 +144,13 @@ Route::middleware('auth:sanctum')->group(function () {
         ->where('section', '[0-9]+');
     Route::get('routines/teachers/{staff}', [\App\Http\Controllers\Api\RoutineController::class, 'teacher'])
         ->where('staff', '[0-9]+');
+
+    // Homework: assigned by subject teachers (or an admin); the attachment is private.
+    Route::get('homework/{homework}/attachment', [\App\Http\Controllers\Api\HomeworkController::class, 'attachment'])
+        ->where('homework', '[0-9]+')
+        ->name('homework.attachment');
+    Route::apiResource('homework', \App\Http\Controllers\Api\HomeworkController::class)
+        ->where(['homework' => '[0-9]+']);
 
     // Academic Years
     Route::apiResource('academic-years', \App\Http\Controllers\Api\AcademicYearController::class)

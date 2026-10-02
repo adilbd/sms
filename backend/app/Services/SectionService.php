@@ -83,6 +83,7 @@ class SectionService
         abort_if($this->sections->hasSubjectAssignments($section), 409, 'Section has subject assignments and cannot be deleted.');
 
         abort_if($this->sections->hasRoutineSlots($section), 409, 'Section has a class routine and cannot be deleted.');
+        abort_if($this->sections->hasHomework($section), 409, 'Section has homework and cannot be deleted.');
 
         DB::transaction(function () use ($section) {
             // Class-teacher rows don't block the delete; they're removed along with it.
