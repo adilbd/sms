@@ -75,6 +75,20 @@ class RoutineRepository implements RoutineRepositoryInterface
         }
     }
 
+    public function clearUnassignedTeachers(int $sectionId, int $academicYearId): int
+    {
+        return RoutineSlot::query()
+            ->where('section_id', $sectionId)
+            ->where('academic_year_id', $academicYearId)
+            ->whereNotNull('staff_id')
+            ->whereNotExists(fn ($q) => $q->selectRaw('1')->from('subject_assignments')
+                ->whereColumn('subject_assignments.section_id', 'routine_slots.section_id')
+                ->whereColumn('subject_assignments.academic_year_id', 'routine_slots.academic_year_id')
+                ->whereColumn('subject_assignments.subject_id', 'routine_slots.subject_id')
+                ->whereColumn('subject_assignments.staff_id', 'routine_slots.staff_id'))
+            ->update(['staff_id' => null]);
+    }
+
     /**
      * Slots of other sections on the day whose period's time range overlaps start-end
      * (each range starts before the other ends, so back-to-back periods don't clash).

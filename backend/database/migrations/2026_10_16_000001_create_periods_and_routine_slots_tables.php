@@ -39,7 +39,7 @@ return new class extends Migration
             $table->foreignId('subject_id')->constrained()->restrictOnDelete();
             $table->foreignId('staff_id')->nullable()->constrained('staff')->restrictOnDelete();
             $table->string('room', 50)->nullable();
-            $table->string('room_key', 50)->nullable();
+            $table->string('room_key', 100)->nullable();
             $table->timestamps();
 
             $table->unique(['academic_year_id', 'section_id', 'day', 'period_id'], 'routine_slots_year_section_day_period_unique');

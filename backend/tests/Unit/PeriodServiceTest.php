@@ -129,13 +129,48 @@ class PeriodServiceTest extends TestCase
                 $m->shouldNotReceive('update');
             },
             function (MockInterface $m) use ($slot) {
-                $m->shouldReceive('usingPeriod')->once()->andReturn(new \Illuminate\Database\Eloquent\Collection([$slot]));
+                $m->shouldReceive('usingPeriod')->andReturn(new \Illuminate\Database\Eloquent\Collection([$slot]));
+                $m->shouldReceive('lockAcademicYear')->once()->with(3)->andReturn(new \App\Models\AcademicYear);
                 $m->shouldReceive('findTeacherClash')->once()->with(3, 20, 7, 'saturday', '08:30:00', '09:15:00', 10)
                     ->andReturn(new \App\Models\RoutineSlot(['day' => 'saturday']));
             },
         );
 
         $this->assertArrayHasKey('start_time', $this->errors(fn () => app(PeriodService::class)->update($period, ['start_time' => '08:30', 'end_time' => '09:15'])));
+    }
+
+    public function test_moving_a_used_period_locks_the_shift_then_the_affected_years_in_ascending_order(): void
+    {
+        $period = $this->period();
+        $slots = new \Illuminate\Database\Eloquent\Collection([
+            new \App\Models\RoutineSlot(['academic_year_id' => 5, 'section_id' => 20, 'day' => 'saturday']),
+            new \App\Models\RoutineSlot(['academic_year_id' => 3, 'section_id' => 21, 'day' => 'sunday']),
+            new \App\Models\RoutineSlot(['academic_year_id' => 5, 'section_id' => 22, 'day' => 'monday']),
+        ]);
+        $order = [];
+
+        $this->mock(ShiftRepositoryInterface::class, function (MockInterface $m) use (&$order) {
+            $m->shouldReceive('lockForUpdate')->once()->with([4])->andReturnUsing(function () use (&$order) {
+                $order[] = 'shift';
+            });
+        });
+        $this->mock(PeriodRepositoryInterface::class, function (MockInterface $m) use ($period) {
+            $m->shouldReceive('findOverlapping')->andReturn(null);
+            $m->shouldReceive('isUsedInRoutine')->andReturn(true);
+            $m->shouldReceive('update')->once()->andReturn($period);
+        });
+        $this->mock(RoutineRepositoryInterface::class, function (MockInterface $m) use ($slots, &$order) {
+            $m->shouldReceive('usingPeriod')->andReturn($slots);
+            $m->shouldReceive('lockAcademicYear')->twice()->andReturnUsing(function (int $id) use (&$order) {
+                $order[] = "year{$id}";
+
+                return new \App\Models\AcademicYear;
+            });
+        });
+
+        app(PeriodService::class)->update($period, ['start_time' => '08:30', 'end_time' => '09:15']);
+
+        $this->assertSame(['shift', 'year3', 'year5'], $order);
     }
 
     public function test_renaming_a_used_period_does_not_recheck_clashes(): void

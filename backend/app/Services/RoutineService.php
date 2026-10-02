@@ -319,11 +319,12 @@ class RoutineService
     }
 
     /**
-     * Rooms are compared case-insensitively.
+     * Rooms are compared case-insensitively. The column holds 100 characters, so a long name
+     * is cut after lowercasing (lowercasing can lengthen a character).
      */
     private function roomKey(string $room): string
     {
-        return mb_strtolower($room);
+        return mb_substr(mb_strtolower($room), 0, 100);
     }
 
     private function describe(RoutineSlot $slot): string

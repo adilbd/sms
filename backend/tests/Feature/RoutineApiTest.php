@@ -278,7 +278,63 @@ class RoutineApiTest extends TestCase
             ->assertUnprocessable()->assertJsonValidationErrors(['slots.0.room']);
     }
 
-    public function test_resaving_a_section_does_not_clash_with_its_own_old_cells(): void
+    public function test_a_long_room_name_with_characters_that_lengthen_when_lowercased_is_stored(): void
+    {
+        $room = str_repeat('İ', 50);
+
+        $this->saveRoutine($this->section10, [$this->cell($this->morning[1], 'saturday', $this->bangla, null, $room)])->assertOk();
+
+        $this->assertDatabaseHas('routine_slots', ['section_id' => $this->section10->id, 'room' => $room]);
+    }
+
+    public function test_removing_a_teacher_from_a_subject_clears_only_their_slots_for_that_subject(): void
+    {
+        $physicsTeacher = $this->teacherFor($this->section10, $this->physics);
+        $this->assign($this->banglaTeacher, $this->section10, $this->physics);
+        $otherSection = $this->teacherFor($this->section9, $this->bangla);
+        $this->assign($this->banglaTeacher, $this->section9, $this->bangla);
+
+        $this->saveRoutine($this->section10, [
+            $this->cell($this->morning[1], 'saturday', $this->bangla, $this->banglaTeacher, 'R1'),
+            $this->cell($this->morning[2], 'saturday', $this->physics, $this->banglaTeacher),
+            $this->cell($this->morning[1], 'sunday', $this->physics, $physicsTeacher),
+        ])->assertOk();
+        $this->saveRoutine($this->section9, [$this->cell($this->morning[4], 'saturday', $this->bangla, $this->banglaTeacher)])->assertOk();
+
+        $assignment = \App\Models\SubjectAssignment::where(['section_id' => $this->section10->id, 'subject_id' => $this->bangla->id, 'staff_id' => $this->banglaTeacher->id])->firstOrFail();
+        $this->as($this->admin)->deleteJson("/api/subject-assignments/{$assignment->id}")->assertNoContent();
+
+        $slot = fn (Section $section, $period, string $day) => RoutineSlot::where(['section_id' => $section->id, 'period_id' => $period->id, 'day' => $day])->firstOrFail();
+
+        $cleared = $slot($this->section10, $this->morning[1], 'saturday');
+        $this->assertNull($cleared->staff_id);
+        $this->assertSame($this->bangla->id, $cleared->subject_id);
+        $this->assertSame('R1', $cleared->room);
+        $this->assertSame($this->banglaTeacher->id, $slot($this->section10, $this->morning[2], 'saturday')->staff_id);
+        $this->assertSame($physicsTeacher->id, $slot($this->section10, $this->morning[1], 'sunday')->staff_id);
+        $this->assertSame($this->banglaTeacher->id, $slot($this->section9, $this->morning[4], 'saturday')->staff_id);
+
+        // The grid, as the editor now shows it, still saves.
+        $this->saveRoutine($this->section10, [
+            $this->cell($this->morning[1], 'saturday', $this->bangla, null, 'R1'),
+            $this->cell($this->morning[2], 'saturday', $this->physics, $this->banglaTeacher),
+            $this->cell($this->morning[1], 'sunday', $this->physics, $physicsTeacher),
+        ])->assertOk();
+    }
+
+    public function test_replacing_a_sections_teachers_clears_slots_of_teachers_left_out(): void
+    {
+        $this->saveRoutine($this->section10, [$this->cell($this->morning[1], 'saturday', $this->bangla, $this->banglaTeacher)])->assertOk();
+
+        $this->as($this->admin)->putJson("/api/sections/{$this->section10->id}/subject-teachers", [
+            'academic_year_id' => $this->year->id,
+            'assignments' => [['subject_id' => $this->bangla->id, 'staff_ids' => []]],
+        ])->assertOk();
+
+        $this->assertNull(RoutineSlot::where('section_id', $this->section10->id)->firstOrFail()->staff_id);
+    }
+
+    public function test_resaving_a_section_with_its_own_old_cells(): void
     {
         $cells = [$this->cell($this->morning[1], 'saturday', $this->bangla, $this->banglaTeacher, 'Room 101')];
 

@@ -75,6 +75,15 @@ class PeriodService
             $this->ensureTimesAreValid($merged, $period->id);
 
             if ($used && ($merged->start_time !== $period->start_time || $merged->end_time !== $period->end_time)) {
+                // Lock order: shift, then the affected years in ascending id. Routine saves
+                // lock section then year and never the shift, so the year row is the only
+                // lock both paths share and it is always taken last: no deadlock.
+                $yearIds = $this->routines->usingPeriod($period)->pluck('academic_year_id')->map(fn ($id) => (int) $id)->unique()->sort()->values();
+
+                foreach ($yearIds as $yearId) {
+                    $this->routines->lockAcademicYear($yearId);
+                }
+
                 $this->ensureMovedSlotsDoNotClash($merged);
             }
 

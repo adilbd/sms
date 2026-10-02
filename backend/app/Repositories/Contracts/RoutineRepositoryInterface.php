@@ -70,4 +70,11 @@ interface RoutineRepositoryInterface
      * @param  list<array<string, mixed>>  $rows
      */
     public function replaceForSection(Section $section, int $academicYearId, array $rows): void;
+
+    /**
+     * Sets `staff_id` to null on the section's slots for the year whose teacher no longer
+     * holds a subject assignment for (section, slot's subject, year). The subject and room
+     * stay. Returns the number of slots cleared.
+     */
+    public function clearUnassignedTeachers(int $sectionId, int $academicYearId): int;
 }

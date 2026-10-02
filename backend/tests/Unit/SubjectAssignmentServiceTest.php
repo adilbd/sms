@@ -71,6 +71,10 @@ class SubjectAssignmentServiceTest extends TestCase
             $m->shouldReceive('findActive')->andReturn(array_key_exists('active', $o) ? $o['active'] : $this->year())->byDefault();
             $m->shouldReceive('findOrFail')->andReturn($this->year())->byDefault();
         });
+        $this->mock(\App\Repositories\Contracts\RoutineRepositoryInterface::class, function (MockInterface $m) use ($o) {
+            $m->shouldReceive('clearUnassignedTeachers')->andReturn(0)->byDefault();
+            ($o['routines'] ?? fn () => null)($m);
+        });
         $this->mock(UserRepositoryInterface::class, fn (MockInterface $m) => $m->shouldReceive('hasRole')->andReturn($o['admin'] ?? false)->byDefault());
     }
 
@@ -99,6 +103,32 @@ class SubjectAssignmentServiceTest extends TestCase
         }]);
 
         app(SubjectAssignmentService::class)->create($this->data());
+    }
+
+    public function test_delete_clears_the_removed_teachers_routine_slots_in_the_same_transaction(): void
+    {
+        $assignment = new SubjectAssignment(['academic_year_id' => 3]);
+        $assignment->setRelation('section', $this->section());
+
+        $this->repos([
+            'assignments' => fn ($m) => $m->shouldReceive('delete')->once()->with($assignment)->ordered(),
+            'routines' => fn ($m) => $m->shouldReceive('clearUnassignedTeachers')->once()->with(20, 3)->ordered(),
+        ]);
+
+        app(SubjectAssignmentService::class)->delete($assignment);
+    }
+
+    public function test_update_clears_the_previous_teachers_routine_slots(): void
+    {
+        $assignment = new SubjectAssignment(['academic_year_id' => 3, 'subject_id' => 11, 'staff_id' => 8]);
+        $assignment->setRelation('section', $this->section());
+
+        $this->repos([
+            'assignments' => fn ($m) => $m->shouldReceive('update')->once()->andReturn(new SubjectAssignment),
+            'routines' => fn ($m) => $m->shouldReceive('clearUnassignedTeachers')->once()->with(20, 3),
+        ]);
+
+        app(SubjectAssignmentService::class)->update($assignment, ['staff_id' => 7]);
     }
 
     public function test_an_inactive_teacher_is_refused(): void
