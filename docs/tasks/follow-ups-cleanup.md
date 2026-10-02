@@ -59,3 +59,16 @@ Reviews of the last tasks left small follow-ups in their task files: races, quer
 - **Dashboard fee totals:** `FeeReportService` also counts dues of enrolments that have left. Both keep counting them, which is now documented and tested.
 - **Portal password:** the hash is written once. The `AuthenticateSession` middleware ends the other sessions.
 - **`/admin/login?from=portal` note:** it has no automated test, because the SPA has no JS test setup.
+
+## Docker check (MySQL)
+- [x] Re-saving the 10-A routine returns 200. An unknown subject returns 422 `slots.0.subject_id`.
+- [x] 8 period moves and 8 routine saves sent at the same time all return 200, and the log has no deadlocks.
+- [x] `/admin/login?from=portal` shows the staff note and the portal link. The admin uses the bundled Noto Sans Bengali with no Google Fonts link, and the console shows no errors.
+
+## Review
+- Round 1 (8b31599): changes-requested. The new period lock order (shift → period → years) could deadlock against the FK share lock that a routine slot insert takes, and the 422 messages had changed. Fixed in 1842e86.
+- Round 2 (1842e86): pass-with-nits. Year activation, period delete and `is_break` changes now lock the years first (a6bea21).
+- Round 3 (a6bea21): pass-with-nits.
+
+## Follow-ups
+- `AcademicYearRepository::lockAll()` and `RoutineRepository::lockAcademicYears()` run the same query. Make one delegate to the other.
