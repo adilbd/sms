@@ -57,7 +57,7 @@ Everything in the plan's Design section:
 - [x] Convert creates the student, the guardian login and the enrolment in the round's year, and copies the photo.
 - [x] File downloads are admin-only.
 - [x] `PublicSeoTest` and the sitemap are updated.
-- [ ] Migrations work on SQLite and MySQL, including rollback. SQLite is verified. MySQL is checked on Docker before the merge.
+- [x] Migrations work on SQLite and on Docker MySQL 8, including rollback and re-run.
 - [x] The full suite, Pint, `npm run build` and smoke all pass. CLAUDE.md is updated.
 
 ## Test cases
@@ -84,3 +84,14 @@ See the plan's "Tests" section. Key cases:
 - [x] **Rounds:** deleting a round that has applications returns 409.
 - [x] **SEO:** one `<h1>` per page, and the noindex pages are noindex.
 - [x] **API parity:** the public API matches the website.
+
+## Docker check (MySQL 8)
+- [x] Published the round "ভর্তি ২০২৬ (বিলম্বিত)" for Class 6 (2 seats) and Class 9 (5 seats).
+- [x] Submitted a photo-only application through the public form (CSRF and session). It got `ADM-2026-000001`. The confirmation page is `no-store` and noindex. The photo is stored privately under `storage/app/private/admissions/`, nothing is under `public/`, and the birth certificate is null.
+- [x] Status lookup: the correct DOB shows the name, class and round. A wrong DOB returns 404 with the bilingual not-found message.
+- [x] Admin: under_review, then test_scheduled (2026-10-10 10:00 Dhaka, Room 101), then approved with score 78.50. A teacher download returns 403. An admin download returns 200 `image/png`.
+- [x] Convert created student `20260061` Rafi Hasan with a photo, enrolled in 2026 Class 6-A roll 6, with guardian login `01712345670`. The application is now `admitted`. A second convert returns 409.
+
+## Follow-ups
+- The CLAUDE.md Admissions note puts "PDFs as attachments, images inline" in the `/admissions/submitted` part. It belongs with the admin file endpoint.
+- With `APP_DEBUG=true` (Docker dev), the status 404 includes a debug trace. Production with `APP_DEBUG=false` shows only the message.
