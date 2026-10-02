@@ -43,12 +43,12 @@ See the plan's Task 1 section:
 **Out of scope:** substitute teachers.
 
 ## Acceptance criteria
-- [ ] The migrations backfill `is_main` and work on SQLite and MySQL, including rollback. SQLite is verified. MySQL is checked on Docker before the merge.
+- [x] The migrations backfill `is_main` and work on SQLite and on Docker MySQL 8, including rollback and re-run. The existing 10-A row was backfilled as main.
 - [x] Several class teachers per section, with exactly one main. A teacher can lead several sections.
 - [x] Several teachers per subject, and every assigned one can enter marks.
 - [x] Every class teacher can mark attendance. A teacher who isn't a class teacher gets 403.
 - [x] Report cards and the dashboard show the main teacher.
-- [ ] The SPA pickers work. The build passes; check them in Chrome on Docker before the merge.
+- [x] The SPA pickers work. In Chrome, Subject Teachers for 10-A shows both teachers ticked on Bangla 1st Paper, with no console errors.
 - [x] The full suite, Pint, `npm run build` and smoke all pass. CLAUDE.md is updated.
 
 ## Test cases
@@ -72,3 +72,12 @@ See the plan's Task 1 section:
 - [x] **Migration:**
   - The backfill sets `is_main` on existing rows.
   - Rollback restores the old unique keys. It fails clearly if duplicates exist; document this.
+
+## Docker check
+- [x] 10-A class teachers: VHBUB-3 is main and VHBUB-9 is co-teacher. Sending two mains returns 422.
+- [x] Bangla 1st Paper in 10-A has two teachers (staff 3 and 4).
+- [x] Co-teacher VHBUB-9 marked attendance for 2026-10-01 (`marked_by=vhbub-9`). `/api/my/assignments` shows 10-A with `is_main=false`.
+- [x] Review should-fix: the editor loaded subject teachers with `per_page=100`, so saving could drop the rest. It now uses the full list from `GET /api/sections/{section}/subject-teachers`.
+
+## Follow-ups
+- The docblock in `SyncSectionSubjectTeachersRequest.php:30` still says comparing across subjects "is fine". Reword it.
