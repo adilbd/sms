@@ -208,6 +208,57 @@ class PeriodServiceTest extends TestCase
         app(PeriodService::class)->update($period, ['name_en' => 'First']);
     }
 
+    public function test_a_break_change_locks_the_years_too(): void
+    {
+        $period = $this->period();
+        $this->mocks(
+            function (MockInterface $m) use ($period) {
+                $m->shouldReceive('update')->once()->andReturn($period);
+            },
+            fn (MockInterface $m) => $m->shouldReceive('lockAcademicYears')->once()->andReturn([]),
+        );
+
+        app(PeriodService::class)->update($period, ['is_break' => true]);
+    }
+
+    public function test_delete_locks_the_shift_then_every_year_then_the_period_before_checking_usage(): void
+    {
+        $period = $this->period();
+        $order = [];
+
+        $this->mock(ShiftRepositoryInterface::class, function (MockInterface $m) use (&$order) {
+            $m->shouldReceive('lockForUpdate')->once()->with([4])->andReturnUsing(function () use (&$order) {
+                $order[] = 'shift';
+            });
+        });
+        $this->mock(RoutineRepositoryInterface::class, function (MockInterface $m) use (&$order) {
+            $m->shouldReceive('lockAcademicYears')->once()->andReturnUsing(function () use (&$order) {
+                $order[] = 'years';
+
+                return [1];
+            });
+        });
+        $this->mock(PeriodRepositoryInterface::class, function (MockInterface $m) use ($period, &$order) {
+            $m->shouldReceive('lockForUpdate')->once()->andReturnUsing(function () use ($period, &$order) {
+                $order[] = 'period';
+
+                return $period;
+            });
+            $m->shouldReceive('isUsedInRoutine')->once()->andReturnUsing(function () use (&$order) {
+                $order[] = 'used-check';
+
+                return false;
+            });
+            $m->shouldReceive('delete')->once()->with($period)->andReturnUsing(function () use (&$order) {
+                $order[] = 'delete';
+            });
+        });
+
+        app(PeriodService::class)->delete($period);
+
+        $this->assertSame(['shift', 'years', 'period', 'used-check', 'delete'], $order);
+    }
+
     public function test_delete_is_refused_while_routine_slots_use_the_period(): void
     {
         $period = $this->period();

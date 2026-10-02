@@ -79,6 +79,10 @@ class AcademicYearService
     public function activate(AcademicYear $academicYear): AcademicYear
     {
         return DB::transaction(function () use ($academicYear) {
+            // Every year row in ascending id first: the update below would otherwise lock
+            // rows in scan order and could deadlock with a period move, which locks all
+            // years ascending.
+            $this->years->lockAll();
             $this->years->deactivateAllExcept($academicYear);
 
             return $this->years->update($academicYear, ['is_active' => true]);
